@@ -1,0 +1,14 @@
+500 is a classic 4-player partnership trick-taking card game, popular in
+Australia and New Zealand. Partner up and play against three computer opponents.
+
+Features:
+* Standard 4-player Australian rules: a 43-card deck with the Joker, a 3-card
+  kitty, bidding from 6 to 10 tricks across the suits and no-trumps, plus Misère
+  and Open Misère.
+* Play offline against three AI opponents — no account, no network required.
+* First partnership to 500 points wins.
+
+This app is free and open source. The version on F-Droid and GitHub is completely
+ad-free; if you enjoy it, please consider supporting development via the donation
+link. (The Google Play version instead shows ads, with an optional purchase to
+remove them.)
