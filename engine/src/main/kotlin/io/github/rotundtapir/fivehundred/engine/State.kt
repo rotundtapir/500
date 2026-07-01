@@ -34,6 +34,9 @@ data class BiddingState(
     val toAct: Seat,
 )
 
+/** The most recently completed trick, kept so UIs can show it (and its winner) between tricks. */
+data class CompletedTrick(val plays: List<TrickPlay>, val winner: Seat)
+
 /** The scored outcome of one completed hand. */
 data class HandResult(
     val contract: Contract,
@@ -64,6 +67,7 @@ data class GameState(
     val ledSuit: Suit? = null,
     val trickNumber: Int = 0,
     val tricksWon: Map<Seat, Int> = emptyMap(),
+    val lastTrick: CompletedTrick? = null,
     val scores: Map<Int, Int> = mapOf(0 to 0, 1 to 0),
     val lastHandResult: HandResult? = null,
     val winner: Int? = null,
@@ -89,6 +93,7 @@ data class PlayerView(
     val leader: Seat?,
     val currentTrick: List<TrickPlay>,
     val ledSuit: Suit?,
+    val lastTrick: CompletedTrick?,
     val tricksWon: Map<Seat, Int>,
     val trickNumber: Int,
     val legalPlays: List<Card>,

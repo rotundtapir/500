@@ -23,16 +23,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.fivehundred.AnimationSpeed
 
 @Composable
 fun HomeScreen(
     monetization: Monetization,
     activity: Activity,
     onNewGame: () -> Unit,
+    animationSpeed: AnimationSpeed,
+    onCycleAnimationSpeed: () -> Unit,
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -73,6 +77,14 @@ fun HomeScreen(
                     }
                 )
             }
+            Spacer(Modifier.height(16.dp))
+
+            OutlinedButton(
+                onClick = onCycleAnimationSpeed,
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+                modifier = Modifier.testTag("animationSpeed"),
+            ) { Text("Animations: ${animationSpeed.label}") }
 
             Spacer(Modifier.height(24.dp))
             monetization.BannerSlot(Modifier.fillMaxWidth())

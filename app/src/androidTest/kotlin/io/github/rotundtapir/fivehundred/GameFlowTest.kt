@@ -46,6 +46,8 @@ class GameFlowTest {
         activityRule = ActivityScenarioRule<MainActivity>(
             Intent(ApplicationProvider.getApplicationContext(), MainActivity::class.java)
                 .putExtra(MainActivity.EXTRA_SEED, SEED)
+                // Disable bot pacing so tests aren't slowed by presentation delays.
+                .putExtra(MainActivity.EXTRA_ANIMATION_SPEED, "OFF")
         ),
         activityProvider = { scenarioRule ->
             var activity: MainActivity? = null
@@ -154,10 +156,36 @@ class GameFlowTest {
         // Either the next hand's bidding shows the previous result, or the ±500 threshold ended the
         // whole game. Both prove deal → bid → play → score ran end to end.
         assertTrue(
-            "expected a completed hand (last-hand result or game-over dialog)",
-            textExists("(last:", substring = true) ||
+            "expected a completed hand (result dialog, last-hand line, or game-over dialog)",
+            textExists("Contract made!") || textExists("Contract failed") ||
+                textExists("(last:", substring = true) ||
                 textExists("You win!") || textExists("You lose"),
         )
+
+        // If the hand-result dialog is up, it must dismiss and reveal the next hand's bidding
+        // with the previous result summarised on the contract line.
+        if (textExists("Contract made!") || textExists("Contract failed")) {
+            rule.onNodeWithTag("handResultContinue").performClick()
+            rule.waitUntil(STEP_TIMEOUT_MS) {
+                textExists("(last:", substring = true) ||
+                    textExists("You win!") || textExists("You lose")
+            }
+        }
+    }
+
+    @Test
+    fun homeScreen_hasAnimationSpeedToggle() {
+        rule.onNodeWithTag("animationSpeed").assertIsDisplayed()
+    }
+
+    @Test
+    fun handSortToggle_keepsAllTenCards() {
+        startGame()
+        waitForBidPanel()
+        assertEquals(10, cardsOnScreen())
+        rule.onNodeWithTag("sortToggle").performClick()
+        rule.waitForIdle()
+        assertEquals("toggling sort must not add or drop cards", 10, cardsOnScreen())
     }
 
     @Test
@@ -266,11 +294,14 @@ class GameFlowTest {
                 textExists("Your bid:") ||
                     textExists("Discard 3 cards", substring = true) ||
                     textExists("Your turn — tap a card to play") ||
+                    textExists("Contract made!") || textExists("Contract failed") ||
                     textExists("(last:", substring = true) ||
                     textExists("You win!") || textExists("You lose")
             }
 
             when {
+                // A hand just finished — the result dialog blocks input until dismissed.
+                textExists("Contract made!") || textExists("Contract failed") -> return
                 textExists("Your bid:") -> {
                     if (textExists("(last:", substring = true)) return // previous hand scored
                     rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()

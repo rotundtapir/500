@@ -111,6 +111,7 @@ class FiveHundredRules(
             leader = state.leader,
             currentTrick = state.currentTrick,
             ledSuit = state.ledSuit,
+            lastTrick = state.lastTrick,
             tricksWon = state.tricksWon,
             trickNumber = state.trickNumber,
             legalPlays = legalPlays,
@@ -256,6 +257,7 @@ class FiveHundredRules(
         val tricksWon = state.tricksWon.toMutableMap().apply { put(winner, (get(winner) ?: 0) + 1) }
         val trickNumber = state.trickNumber + 1
 
+        val completed = CompletedTrick(trick, winner)
         if (trickNumber < TRICKS_PER_HAND) {
             return state.copy(
                 hands = hands,
@@ -264,11 +266,14 @@ class FiveHundredRules(
                 leader = winner,
                 currentTrick = emptyList(),
                 ledSuit = null,
+                lastTrick = completed,
             )
         }
 
         // Hand complete: score it.
-        return completeHand(state.copy(hands = hands, tricksWon = tricksWon, trickNumber = trickNumber))
+        return completeHand(
+            state.copy(hands = hands, tricksWon = tricksWon, trickNumber = trickNumber, lastTrick = completed),
+        )
     }
 
     private fun completeHand(state: GameState): GameState {
