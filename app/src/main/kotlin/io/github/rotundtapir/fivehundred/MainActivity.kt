@@ -18,14 +18,23 @@ import io.github.rotundtapir.fivehundred.ui.GameScreen
 import io.github.rotundtapir.fivehundred.ui.HomeScreen
 
 class MainActivity : ComponentActivity() {
+    companion object {
+        /** Intent extra overriding the game seed — set by instrumentation tests for reproducibility. */
+        const val EXTRA_SEED = "io.github.rotundtapir.fivehundred.SEED"
+    }
+
     private lateinit var monetization: Monetization
+
+    private fun newGameSeed(): Long =
+        if (intent?.hasExtra(EXTRA_SEED) == true) intent.getLongExtra(EXTRA_SEED, 0)
+        else System.currentTimeMillis()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         monetization = MonetizationProvider.create(this)
         setContent {
             CardkitTheme {
-                FiveHundredApp(monetization, this)
+                FiveHundredApp(monetization, this, ::newGameSeed)
             }
         }
     }
@@ -37,7 +46,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun FiveHundredApp(monetization: Monetization, activity: Activity) {
+private fun FiveHundredApp(monetization: Monetization, activity: Activity, nextSeed: () -> Long) {
     val vm: GameViewModel = viewModel()
     var inGame by remember { mutableStateOf(false) }
     val view by vm.humanView.collectAsState()
@@ -47,14 +56,14 @@ private fun FiveHundredApp(monetization: Monetization, activity: Activity) {
             monetization = monetization,
             activity = activity,
             onNewGame = {
-                vm.newGame(System.currentTimeMillis())
+                vm.newGame(nextSeed())
                 inGame = true
             },
         )
     } else {
         val current = view
         if (current == null) {
-            HomeScreen(monetization, activity, onNewGame = { vm.newGame(System.currentTimeMillis()) })
+            HomeScreen(monetization, activity, onNewGame = { vm.newGame(nextSeed()) })
         } else {
             GameScreen(
                 view = current,
