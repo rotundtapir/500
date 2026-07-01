@@ -1,0 +1,3 @@
+[submodule "cardkit"]
+	path = cardkit
+	url = ../cardkit.git

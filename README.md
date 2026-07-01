@@ -3,7 +3,7 @@
 An Android app for **500**, the classic 4-player partnership trick-taking card
 game (Australian rules). Play against three AI opponents offline.
 
-Built on the shared [`cardkit`](https://github.com/rotundtapir/cardkit) library
+Built on the shared [`cardkit`](https://github.com/rotund-tapir/cardkit) library
 (included here as a git submodule), the first of a suite of card-game apps.
 
 ## Distribution

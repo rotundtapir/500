@@ -1,5 +1,5 @@
 # GitHub renders a Sponsor button; F-Droid parses this into Donate:/Liberapay: metadata.
 # Replace the placeholders with your real accounts before publishing.
-github: [rotundtapir]
-liberapay: rotundtapir
+github: [rotund-tapir]
+liberapay: rotund-tapir
 # ko_fi: your_kofi_name
