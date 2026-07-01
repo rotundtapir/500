@@ -54,6 +54,7 @@ GPLv3-or-later **with** a Google Mobile Ads / Play Billing linking exception —
 see [`LICENSE`](LICENSE) and [`LICENSE-EXCEPTION.md`](LICENSE-EXCEPTION.md).
 Contributions require a DCO sign-off; see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
-> **Namespace note:** `io.github.rotundtapir.*` is a placeholder based on the
-> GitHub-account convention. Set it to your real GitHub username/org (and pick
-> the final `applicationId`) before the first release.
+> **Namespace:** `io.github.rotundtapir.*` (and the `applicationId`
+> `io.github.rotundtapir.fivehundred`) is the `io.github.<org>` namespace for
+> the GitHub org `rotund-tapir`, with the hyphen dropped (hyphens aren't valid
+> in Java/Kotlin package names or Android application ids).
