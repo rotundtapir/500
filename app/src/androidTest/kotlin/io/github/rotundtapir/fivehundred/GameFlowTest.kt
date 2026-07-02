@@ -168,6 +168,7 @@ class GameFlowTest {
         while (System.currentTimeMillis() < deadline && nodesWithTag("tutorialComplete").isEmpty()) {
             rule.waitUntil(STEP_TIMEOUT_MS) {
                 nodesWithTag("tutorialComplete").isNotEmpty() ||
+                    nodesWithTag("tutorialEpilogueNext").isNotEmpty() ||
                     textExists("Your bid:") ||
                     textExists("Discard 3 cards", substring = true) ||
                     textExists("Your turn — tap a card to play") ||
@@ -175,6 +176,11 @@ class GameFlowTest {
             }
             when {
                 nodesWithTag("tutorialComplete").isNotEmpty() -> break
+                // The misère / no-trumps epilogue pages between the hand result and completion.
+                nodesWithTag("tutorialEpilogueNext").isNotEmpty() -> {
+                    rule.onNodeWithTag("tutorialEpilogueNext").performClick()
+                    rule.waitForIdle()
+                }
                 textExists("Contract made!") -> {
                     rule.onNodeWithTag("handResultContinue").performClick()
                     rule.waitForIdle()

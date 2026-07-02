@@ -41,21 +41,39 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import io.github.rotundtapir.cardkit.core.Card
+import io.github.rotundtapir.cardkit.core.Joker
+import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Suit
+import io.github.rotundtapir.cardkit.core.SuitedCard
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.CardHand
 import io.github.rotundtapir.cardkit.ui.PlayingCard
+import io.github.rotundtapir.cardkit.ui.displayLabel
+import kotlin.math.roundToInt
 import io.github.rotundtapir.fivehundred.AnimationSpeed
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -126,6 +144,8 @@ fun GameScreen(
     // mid-deal. Tests run at OFF, where this is skipped entirely (dealState.stage stays DONE).
     // lastAnimatedHand is saveable so recreation doesn't replay the deal.
     val dealState = remember { DealAnimationState() }
+    // Screen rects of the tutorial's interaction targets (bid button, cards, felt), for the bubble.
+    val tutorialTargets = if (tutorial != null) remember { mutableStateMapOf<String, Rect>() } else null
     var lastAnimatedHand by rememberSaveable { mutableStateOf(0) }
     LaunchedEffect(view.handNumber) {
         if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
@@ -167,11 +187,10 @@ fun GameScreen(
                     botNames = botNames,
                     animationSpeed = animationSpeed,
                     dealState = dealState,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .tutorialTarget(tutorialTargets, "trick"),
                 )
-                if (tutorial != null) {
-                    TutorialAdviceCard(tutorial, view)
-                }
                 if (dealState.dealing) {
                     DealingHandRow(
                         cards = if (sortHand) sortedForDisplay(view.hand, view.trump) else view.hand,
@@ -189,6 +208,7 @@ fun GameScreen(
                         onDiscard = onDiscard,
                         onPlay = onPlay,
                         tutorial = tutorial,
+                        targets = tutorialTargets,
                     )
                 }
                 Spacer(Modifier.height(8.dp))
@@ -196,6 +216,9 @@ fun GameScreen(
             }
             // The one card back currently in flight from the deck to a pile, drawn above everything.
             FlyingDealCard(dealState)
+            if (tutorial != null && tutorialTargets != null && !dealState.dealing) {
+                TutorialBubble(tutorial, view, tutorialTargets, dealState.overlayOrigin)
+            }
         }
     }
 
@@ -229,26 +252,53 @@ fun GameScreen(
     )
 
     if (tutorial != null && tutorialComplete) {
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text("Tutorial complete") },
-            text = { Text(TUTORIAL_COMPLETION) },
-            confirmButton = {
-                TextButton(onClick = onExit, modifier = Modifier.testTag("tutorialCompleteContinue")) {
-                    Text("Continue")
-                }
-            },
-            modifier = Modifier.testTag("tutorialComplete"),
-        )
+        // A short epilogue (misère, no-trumps) pages before the completion dialog.
+        var epiloguePage by rememberSaveable { mutableStateOf(0) }
+        if (epiloguePage < tutorialEpilogue.size) {
+            val page = tutorialEpilogue[epiloguePage]
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text(page.title) },
+                text = { Text(page.body, fontSize = 17.sp, lineHeight = 23.sp) },
+                confirmButton = {
+                    TextButton(
+                        onClick = { epiloguePage++ },
+                        modifier = Modifier.testTag("tutorialEpilogueNext"),
+                    ) { Text("Next") }
+                },
+            )
+        } else {
+            AlertDialog(
+                onDismissRequest = {},
+                title = { Text("Tutorial complete") },
+                text = { Text(TUTORIAL_COMPLETION, fontSize = 17.sp, lineHeight = 23.sp) },
+                confirmButton = {
+                    TextButton(onClick = onExit, modifier = Modifier.testTag("tutorialCompleteContinue")) {
+                        Text("Continue")
+                    }
+                },
+                modifier = Modifier.testTag("tutorialComplete"),
+            )
+        }
     }
 }
 
+/** Records this composable's window bounds under [key] for the tutorial bubble to anchor to. */
+private fun Modifier.tutorialTarget(map: MutableMap<String, Rect>?, key: String): Modifier =
+    if (map == null) this else onGloballyPositioned { map[key] = it.boundsInRoot() }
+
 /**
- * The tutorial guidance panel, shown above the action area: the current step's advice when the
- * script is waiting on the human, otherwise a short "watch" line while the bots act.
+ * The tutorial guidance as a speech bubble anchored to whatever needs interacting with next: it
+ * floats just above the scripted bid button / card / hand with a tail pointing down at it, or sits
+ * at the bottom of the felt with the tail pointing up while the bots act.
  */
 @Composable
-private fun TutorialAdviceCard(tutorial: TutorialScriptState, view: PlayerView) {
+private fun TutorialBubble(
+    tutorial: TutorialScriptState,
+    view: PlayerView,
+    targets: Map<String, Rect>,
+    overlayOrigin: Offset,
+) {
     val step = tutorial.step
     val isHumanDecision = when (step) {
         is TutorialStep.BidStep -> view.phase == Phase.BIDDING && view.isMyTurn
@@ -261,21 +311,116 @@ private fun TutorialAdviceCard(tutorial: TutorialScriptState, view: PlayerView) 
         isHumanDecision -> step.advice
         else -> "Watch the table — the other players are acting…"
     }
-    Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = Color(0xFFFAFAFA),
-        contentColor = MaterialTheme.colorScheme.primary,
-        shadowElevation = 4.dp,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 8.dp)
-            .testTag("tutorialAdvice"),
-    ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Text("Tutorial", style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(2.dp))
-            Text(text, style = MaterialTheme.typography.bodySmall)
+    val targetKey = when {
+        !isHumanDecision -> "trick"
+        step is TutorialStep.BidStep -> "action"
+        step is TutorialStep.PlayStep -> "card:${step.card.displayLabel}"
+        else -> "action" // discard: sit above the whole panel (header anchor), tail at its centre
+    }
+    val tailDown = targetKey != "trick"
+    val target = targets[targetKey] ?: targets["hand"] ?: targets["trick"] ?: return
+    val showTrumpOrder = isHumanDecision && step?.showTrumpOrder == true
+
+    val density = LocalDensity.current
+    var bubbleLeft by remember { mutableStateOf(0) }
+    val local = target.translate(-overlayOrigin)
+    val tailWidth = with(density) { 26.dp.toPx() }
+
+    Layout(
+        content = {
+            Column {
+                if (!tailDown) {
+                    BubbleTail(
+                        pointUp = true,
+                        offsetX = { (local.center.x - bubbleLeft - tailWidth / 2).roundToInt() },
+                    )
+                }
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color(0xFFFAFAFA),
+                    contentColor = MaterialTheme.colorScheme.primary,
+                    shadowElevation = 8.dp,
+                    modifier = Modifier.testTag("tutorialAdvice"),
+                ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                        Text("Tutorial", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(text, fontSize = 17.sp, lineHeight = 23.sp)
+                        if (showTrumpOrder) {
+                            Spacer(Modifier.height(8.dp))
+                            TrumpOrderRow()
+                        }
+                    }
+                }
+                if (tailDown) {
+                    BubbleTail(
+                        pointUp = false,
+                        offsetX = { (local.center.x - bubbleLeft - tailWidth / 2).roundToInt() },
+                    )
+                }
+            }
+        },
+    ) { measurables, constraints ->
+        val margin = with(density) { 12.dp.roundToPx() }
+        val maxWidth = minOf(constraints.maxWidth - margin * 2, with(density) { 520.dp.roundToPx() })
+        val placeable = measurables[0].measure(
+            Constraints(minWidth = 0, maxWidth = maxWidth, minHeight = 0, maxHeight = constraints.maxHeight),
+        )
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            val x = (local.center.x - placeable.width / 2f).roundToInt()
+                .coerceIn(margin, (constraints.maxWidth - placeable.width - margin).coerceAtLeast(margin))
+            val gap = with(density) { 2.dp.roundToPx() }
+            val y = if (tailDown) {
+                (local.top - placeable.height - gap).roundToInt().coerceAtLeast(margin)
+            } else {
+                (local.bottom - placeable.height - gap).roundToInt().coerceAtLeast(margin)
+            }
+            bubbleLeft = x
+            placeable.place(x, y)
         }
+    }
+}
+
+/** The bubble's little triangular tail, slid horizontally to point at the anchor. */
+@Composable
+private fun BubbleTail(pointUp: Boolean, offsetX: () -> Int) {
+    val tailColor = Color(0xFFFAFAFA)
+    Canvas(
+        modifier = Modifier
+            .offset { IntOffset(offsetX().coerceAtLeast(0), 0) }
+            .size(26.dp, 12.dp),
+    ) {
+        val path = Path().apply {
+            if (pointUp) {
+                moveTo(0f, size.height)
+                lineTo(size.width, size.height)
+                lineTo(size.width / 2f, 0f)
+            } else {
+                moveTo(0f, 0f)
+                lineTo(size.width, 0f)
+                lineTo(size.width / 2f, size.height)
+            }
+            close()
+        }
+        drawPath(path, tailColor)
+    }
+}
+
+/** The trump pecking order for the tutorial's bower moments: Joker, right bower, left bower, Ace. */
+@Composable
+private fun TrumpOrderRow() {
+    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            PlayingCard(Joker, width = 40.dp)
+            Text(">", fontWeight = FontWeight.Bold)
+            PlayingCard(SuitedCard(Rank.JACK, Suit.SPADES), width = 40.dp)
+            Text(">", fontWeight = FontWeight.Bold)
+            PlayingCard(SuitedCard(Rank.JACK, Suit.CLUBS), width = 40.dp)
+            Text(">", fontWeight = FontWeight.Bold)
+            PlayingCard(SuitedCard(Rank.ACE, Suit.SPADES), width = 40.dp)
+        }
+        Spacer(Modifier.height(2.dp))
+        Text("Trump order with spades as trumps", style = MaterialTheme.typography.labelSmall)
     }
 }
 
@@ -670,6 +815,7 @@ private fun ActionArea(
     onDiscard: (List<Card>) -> Unit,
     onPlay: (Card) -> Unit,
     tutorial: TutorialScriptState? = null,
+    targets: MutableMap<String, Rect>? = null,
 ) {
     // In the tutorial only the scripted action is enabled, and taking it advances the script.
     val step = tutorial?.step
@@ -699,8 +845,13 @@ private fun ActionArea(
                     } else {
                         { it == (step as? TutorialStep.BidStep)?.bid }
                     },
+                    anchorBid = (step as? TutorialStep.BidStep)?.bid,
+                    targets = targets,
                 )
-                HumanHand(view, sortHand, onToggleSort, playable = { false }, dimUnplayable = false, onClick = {})
+                HumanHand(
+                    view, sortHand, onToggleSort,
+                    playable = { false }, dimUnplayable = false, onClick = {}, targets = targets,
+                )
             }
             view.phase == Phase.KITTY && view.mustDiscard > 0 -> {
                 DiscardPanel(
@@ -716,6 +867,7 @@ private fun ActionArea(
                     } else {
                         (step as? TutorialStep.DiscardStep)?.cards?.toSet() ?: emptySet()
                     },
+                    targets = targets,
                 )
             }
             view.phase == Phase.PLAY && view.isMyTurn -> {
@@ -733,12 +885,16 @@ private fun ActionArea(
                         tutorial?.onAdvance()
                         onPlay(card)
                     },
+                    targets = targets,
                 )
             }
             else -> {
                 Text(view.toAct?.let { "Waiting for ${seatLabel(view, botNames, it)}…" } ?: "")
                 Spacer(Modifier.height(4.dp))
-                HumanHand(view, sortHand, onToggleSort, playable = { false }, dimUnplayable = false, onClick = {})
+                HumanHand(
+                    view, sortHand, onToggleSort,
+                    playable = { false }, dimUnplayable = false, onClick = {}, targets = targets,
+                )
             }
         }
     }
@@ -749,6 +905,8 @@ private fun BiddingPanel(
     view: PlayerView,
     onBid: (Bid) -> Unit,
     bidEnabled: (Bid) -> Boolean = { true },
+    anchorBid: Bid? = null,
+    targets: MutableMap<String, Rect>? = null,
 ) {
     // Guard against double taps: one bid per PlayerView.
     var acted by remember(view) { mutableStateOf(false) }
@@ -768,7 +926,9 @@ private fun BiddingPanel(
                 enabled = !acted && bidEnabled(bid),
                 colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
-                modifier = Modifier.testTag("bid:${bid.label}"),
+                modifier = Modifier
+                    .testTag("bid:${bid.label}")
+                    .tutorialTarget(if (bid == anchorBid) targets else null, "action"),
             ) { Text(bid.label) }
         }
     }
@@ -784,11 +944,16 @@ private fun DiscardPanel(
     // Tutorial constraint: when non-null, only these cards are selectable and the discard arms
     // only once exactly they are selected.
     requiredDiscards: Set<Card>? = null,
+    targets: MutableMap<String, Rect>? = null,
 ) {
     var selected by remember(view.hand) { mutableStateOf(emptySet<Card>()) }
     // Guard against double taps: one discard per PlayerView.
     var acted by remember(view) { mutableStateOf(false) }
-    Text("Discard $KITTY_SIZE cards to the kitty (${selected.size}/$KITTY_SIZE selected)", fontWeight = FontWeight.Bold)
+    Text(
+        "Discard $KITTY_SIZE cards to the kitty (${selected.size}/$KITTY_SIZE selected)",
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.tutorialTarget(targets, "action"),
+    )
     Spacer(Modifier.height(4.dp))
     Button(
         onClick = {
@@ -826,6 +991,7 @@ private fun HumanHand(
     onClick: (Card) -> Unit,
     dimUnplayable: Boolean = true,
     selected: Set<Card> = emptySet(),
+    targets: MutableMap<String, Rect>? = null,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(
@@ -848,7 +1014,8 @@ private fun HumanHand(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+                .horizontalScroll(rememberScrollState())
+                .tutorialTarget(targets, "hand"),
             contentAlignment = Alignment.Center,
         ) {
             CardHand(
@@ -859,6 +1026,9 @@ private fun HumanHand(
                 dimUnplayable = dimUnplayable,
                 selected = selected,
                 onCardClick = onClick,
+                cardModifier = { card ->
+                    Modifier.tutorialTarget(targets, "card:${card.displayLabel}")
+                },
             )
         }
     }

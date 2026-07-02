@@ -33,6 +33,9 @@ const val TUTORIAL_SEED = 9L
 sealed interface TutorialStep {
     val advice: String
 
+    /** Show the Joker → J♠ → J♣ → A♠ trump-order card row under the advice. */
+    val showTrumpOrder: Boolean get() = false
+
     /** The auction: only [bid] is enabled. */
     data class BidStep(val bid: Bid, override val advice: String) : TutorialStep
 
@@ -40,7 +43,11 @@ sealed interface TutorialStep {
     data class DiscardStep(val cards: List<Card>, override val advice: String) : TutorialStep
 
     /** A trick: only [card] is playable. */
-    data class PlayStep(val card: Card, override val advice: String) : TutorialStep
+    data class PlayStep(
+        val card: Card,
+        override val advice: String,
+        override val showTrumpOrder: Boolean = false,
+    ) : TutorialStep
 }
 
 /** Shown in the confirmation dialog before the tutorial hand is dealt. */
@@ -48,6 +55,27 @@ const val TUTORIAL_INTRO =
     "The tutorial deals a practice hand against three bots and guides every decision — " +
         "what to bid, what to discard, and which card to play, with the reason why. " +
         "Only the recommended move is enabled at each step, so you can't go wrong."
+
+/** A short epilogue page shown after the scripted hand, before the completion dialog. */
+data class TutorialEpiloguePage(val title: String, val body: String)
+
+/** Two bids the scripted hand never used, touched on before the tutorial closes. */
+val tutorialEpilogue: List<TutorialEpiloguePage> = listOf(
+    TutorialEpiloguePage(
+        title = "One more bid: Misère",
+        body = "Misère is a contract to win NO tricks at all — worth 250 points if you manage " +
+            "it. It's played with no trumps, your partner sits the hand out, and it can only " +
+            "be bid once the auction has reached seven (7♠ or higher). Tempting when your hand " +
+            "is nothing but low cards.",
+    ),
+    TutorialEpiloguePage(
+        title = "And no-trumps",
+        body = "You can also bid with no trump suit at all (6NT up to 10NT — the top of each " +
+            "level). With no trumps there are no bowers: the highest card of the led suit wins " +
+            "every trick, except the Joker, which is the one and only trump. 10NT is the most " +
+            "valuable contract in the game at 520 points.",
+    ),
+)
 
 /** Shown after the scripted hand has been scored. */
 const val TUTORIAL_COMPLETION =
@@ -84,14 +112,18 @@ val tutorialSteps: List<TutorialStep> = listOf(
     ),
     TutorialStep.PlayStep(
         card = Rank.JACK of Suit.SPADES,
-        advice = "Keep drawing trumps with the J♠ — the right bower, the second-highest trump. " +
-            "Not even the A♠ can beat it: when spades are trumps, both bowers rank above the ace.",
+        advice = "Now the most important rule in 500: in the trump suit, the JACKS OUTRANK THE " +
+            "ACE. Your J♠ is the \"right bower\" — the second-highest trump after the Joker. " +
+            "Lead it, and even the A♠ cannot beat it. Watch it happen.",
+        showTrumpOrder = true,
     ),
     TutorialStep.PlayStep(
         card = Rank.KING of Suit.SPADES,
-        advice = "Lead the K♠ to keep clearing trumps. One danger is still out: the J♣ — the " +
-            "\"left bower\", the same-colour Jack — counts as a spade and beats your King. " +
-            "If it takes this trick, that's a cheap price for flushing it out.",
+        advice = "Same rule, other Jack: the J♣ is not really a club — as the other BLACK Jack " +
+            "it becomes a spade, the \"left bower\", the third-highest trump. It's still out " +
+            "there, and it beats your K♠. Lead the King anyway: losing it now flushes the last " +
+            "big trump for cheap.",
+        showTrumpOrder = true,
     ),
     TutorialStep.PlayStep(
         card = Rank.JACK of Suit.DIAMONDS,
