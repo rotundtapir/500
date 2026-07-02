@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -57,6 +58,7 @@ import io.github.rotundtapir.cardkit.ui.CardHand
 import io.github.rotundtapir.cardkit.ui.PlayingCard
 import io.github.rotundtapir.fivehundred.AnimationSpeed
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase
@@ -108,10 +110,14 @@ fun GameScreen(
     onPlay: (Card) -> Unit,
     onExit: () -> Unit,
     tutorial: TutorialScriptState? = null,
+    onResultDismissed: (Int) -> Unit = {},
 ) {
     var sortHand by rememberSaveable { mutableStateOf(defaultSortHand) }
     // Set once the tutorial's scripted hand has been scored and its result dialog dismissed.
     var tutorialComplete by rememberSaveable { mutableStateOf(false) }
+    // Highest hand number whose result dialog has been dismissed — the shuffle/deal animation of
+    // the NEXT hand waits for this, so nothing moves behind the dialog while the player reads it.
+    var resultAckedHand by remember { mutableStateOf(0) }
 
     // Dealing animation: on each new hand (unless animations are OFF) fly card backs one at a time
     // from a centre deck to each seat's pile / the kitty in 500's 3-4-3 packet order, then flip the
@@ -124,6 +130,10 @@ fun GameScreen(
         if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
         if (view.handNumber == lastAnimatedHand) return@LaunchedEffect
         lastAnimatedHand = view.handNumber
+        // Hold the shuffle until the previous hand's result dialog is dismissed.
+        if (view.lastHandResult != null && view.winner == null) {
+            snapshotFlow { resultAckedHand }.first { it >= view.handNumber }
+        }
         runDealAnimation(dealState, view.playerCount, view.dealer, animationSpeed)
     }
 
@@ -204,7 +214,15 @@ fun GameScreen(
         )
     }
 
-    HandResultDialog(view, botNames, onDismissed = { if (tutorial != null) tutorialComplete = true })
+    HandResultDialog(
+        view = view,
+        botNames = botNames,
+        onDismissed = {
+            resultAckedHand = view.handNumber
+            onResultDismissed(view.handNumber)
+            if (tutorial != null) tutorialComplete = true
+        },
+    )
 
     if (tutorial != null && tutorialComplete) {
         AlertDialog(

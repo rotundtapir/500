@@ -175,6 +175,7 @@ private fun FiveHundredApp(
                 tutorial = if (tutorialActive) {
                     TutorialScriptState(tutorialStepIndex) { tutorialStepIndex++ }
                 } else null,
+                onResultDismissed = vm::acknowledgeHandResult,
             )
         }
     }

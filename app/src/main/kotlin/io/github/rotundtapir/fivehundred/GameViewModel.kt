@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -46,6 +47,14 @@ class GameViewModel : ViewModel() {
     /** How quickly bot turns play out — set by the activity from the persisted setting, read live. */
     val animationSpeed = MutableStateFlow(AnimationSpeed.NORMAL)
 
+    /** Highest hand number whose end-of-hand result dialog the player has dismissed. */
+    private val handResultAcked = MutableStateFlow(0)
+
+    /** Called by the UI when the hand-result dialog is dismissed; unblocks the next hand. */
+    fun acknowledgeHandResult(handNumber: Int) {
+        handResultAcked.value = maxOf(handResultAcked.value, handNumber)
+    }
+
     private val _botNames = MutableStateFlow<Map<Seat, String>>(emptyMap())
 
     /** Display names for the bot seats (1 until playerCount), fixed per game. */
@@ -67,6 +76,7 @@ class GameViewModel : ViewModel() {
     ) {
         gameJob?.cancel()
         state.value = null
+        handResultAcked.value = 0
         rules = FiveHundredRules(
             playerCount = playerCount,
             misereEnabled = misereEnabled,
@@ -88,9 +98,13 @@ class GameViewModel : ViewModel() {
     /** Wraps a bot so its turns are visibly paced by the current [animationSpeed]. */
     private fun paced(inner: Player<PlayerView, Action>): Player<PlayerView, Action> =
         Player { view ->
-            // The hand's very first bidder holds until the dealing animation has played out, so the
-            // auction doesn't visibly start mid-deal.
+            // The hand's very first bidder holds until the previous hand's result dialog has been
+            // dismissed (nothing — not even the shuffle — moves while the player reads it), then
+            // for the shuffle + deal animation, so the auction doesn't visibly start mid-deal.
             if (view.phase == Phase.BIDDING && view.biddingHistory.isEmpty()) {
+                if (view.lastHandResult != null && view.winner == null) {
+                    handResultAcked.first { it >= view.handNumber }
+                }
                 delay(dealPauseMillis(animationSpeed.value))
             }
             // A bot about to lead a fresh trick (not the hand's first) pauses longer first, so the
