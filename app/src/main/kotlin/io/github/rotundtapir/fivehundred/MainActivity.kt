@@ -77,22 +77,31 @@ private fun FiveHundredApp(
     val settings = remember { SettingsRepository(activity.applicationContext) }
     val persistedSpeed by settings.animationSpeed.collectAsState(initial = AnimationSpeed.NORMAL)
     val animationSpeed = animationSpeedOverride ?: persistedSpeed
+    val sortByDefault by settings.sortHandByDefault.collectAsState(initial = true)
     LaunchedEffect(animationSpeed) { vm.animationSpeed.value = animationSpeed }
     val scope = rememberCoroutineScope()
     val cycleAnimationSpeed: () -> Unit = {
         scope.launch { settings.setAnimationSpeed(animationSpeed.next()) }
     }
+    val setSortByDefault: (Boolean) -> Unit = { value ->
+        scope.launch { settings.setSortHandByDefault(value) }
+    }
+    var playerCount by rememberSaveable { mutableStateOf(4) }
 
     if (!inGame) {
         HomeScreen(
             monetization = monetization,
             activity = activity,
             onNewGame = {
-                vm.newGame(nextSeed())
+                vm.newGame(nextSeed(), playerCount)
                 inGame = true
             },
             animationSpeed = animationSpeed,
             onCycleAnimationSpeed = cycleAnimationSpeed,
+            sortByDefault = sortByDefault,
+            onSetSortByDefault = setSortByDefault,
+            playerCount = playerCount,
+            onPlayerCountChange = { playerCount = it },
         )
     } else {
         val current = view
@@ -100,15 +109,20 @@ private fun FiveHundredApp(
             HomeScreen(
                 monetization = monetization,
                 activity = activity,
-                onNewGame = { vm.newGame(nextSeed()) },
+                onNewGame = { vm.newGame(nextSeed(), playerCount) },
                 animationSpeed = animationSpeed,
                 onCycleAnimationSpeed = cycleAnimationSpeed,
+                sortByDefault = sortByDefault,
+                onSetSortByDefault = setSortByDefault,
+                playerCount = playerCount,
+                onPlayerCountChange = { playerCount = it },
             )
         } else {
             GameScreen(
                 view = current,
                 botNames = botNames,
                 animationSpeed = animationSpeed,
+                defaultSortHand = sortByDefault,
                 monetization = monetization,
                 activity = activity,
                 onBid = vm::placeBid,

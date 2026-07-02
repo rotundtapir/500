@@ -76,7 +76,7 @@ class BiddingLegalityTest {
         state = rules.apply(state, opener, Action.PlaceBid(Bid.Named(6, Trump.DIAMONDS)))
         // Remaining three pass -> 6♦ wins; instead pass ALL FOUR from a fresh game to force a redeal.
         var fresh = rules.newGame(seed = 11)
-        repeat(PLAYERS) {
+        repeat(4) {
             val seat = rules.currentActor(fresh)!!
             fresh = rules.apply(fresh, seat, Action.PlaceBid(Bid.Pass))
         }
@@ -95,13 +95,13 @@ class BiddingLegalityTest {
         val declarer = rules.currentActor(state)!!
         state = rules.apply(state, declarer, Action.ExchangeKitty(state.hands[declarer]!!.take(3)))
         // Play one full trick with arbitrary legal cards.
-        repeat(PLAYERS) {
+        repeat(4) {
             val seat = rules.currentActor(state)!!
             val card = (rules.legalActions(state, seat).first() as Action.PlayCard).card
             state = rules.apply(state, seat, Action.PlayCard(card))
         }
         val last = state.lastTrick
-        assertTrue(last != null && last.plays.size == PLAYERS, "lastTrick should hold the completed trick")
+        assertTrue(last != null && last.plays.size == 4, "lastTrick should hold the completed trick")
         assertTrue(state.tricksWon[last!!.winner] == 1, "recorded winner should have won the trick")
         assertTrue(state.currentTrick.isEmpty())
     }

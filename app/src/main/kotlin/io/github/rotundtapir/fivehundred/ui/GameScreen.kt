@@ -4,6 +4,7 @@ package io.github.rotundtapir.fivehundred.ui
 import android.app.Activity
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -26,6 +27,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -43,7 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Suit
@@ -61,18 +65,10 @@ import io.github.rotundtapir.fivehundred.engine.TrickEvaluator
 import io.github.rotundtapir.fivehundred.engine.TrickPlay
 import io.github.rotundtapir.fivehundred.engine.Trump
 import io.github.rotundtapir.fivehundred.engine.label
-import io.github.rotundtapir.fivehundred.engine.nextSeat
-import io.github.rotundtapir.fivehundred.engine.partnerOf
 import io.github.rotundtapir.fivehundred.engine.teamOf
 
-private fun seatLabel(view: PlayerView, botNames: Map<Seat, String>, seat: Seat): String = when {
-    seat == view.seat -> "You"
-    else -> botNames[seat] ?: when (seat) {
-        partnerOf(view.seat) -> "Partner"
-        nextSeat(view.seat) -> "Left"
-        else -> "Right"
-    }
-}
+private fun seatLabel(view: PlayerView, botNames: Map<Seat, String>, seat: Seat): String =
+    if (seat == view.seat) "You" else botNames[seat] ?: "Seat ${seat.index}"
 
 /** Hand order for display: trumps (both bowers + Joker) first, then alternating-colour suits, strongest first. */
 private fun sortedForDisplay(hand: List<Card>, trump: Trump?): List<Card> {
@@ -93,6 +89,7 @@ fun GameScreen(
     view: PlayerView,
     botNames: Map<Seat, String>,
     animationSpeed: AnimationSpeed,
+    defaultSortHand: Boolean,
     monetization: Monetization,
     activity: Activity,
     onBid: (Bid) -> Unit,
@@ -100,24 +97,54 @@ fun GameScreen(
     onPlay: (Card) -> Unit,
     onExit: () -> Unit,
 ) {
-    var sortHand by rememberSaveable { mutableStateOf(true) }
+    var sortHand by rememberSaveable { mutableStateOf(defaultSortHand) }
+
+    // Dealing animation: on each new hand (unless animations are OFF) step through 500's 3-4-3 deal.
+    // dealRound counts completed rounds (0..3 → 0/3/7/10 cards per seat, 0..3 kitty cards); while
+    // `dealing` the ActionArea is hidden so the player can't bid mid-deal. Tests run at OFF, where
+    // this is skipped entirely. lastAnimatedHand is saveable so recreation doesn't replay the deal.
+    var dealing by remember { mutableStateOf(false) }
+    var dealRound by remember { mutableStateOf(0) }
+    var lastAnimatedHand by rememberSaveable { mutableStateOf(0) }
+    LaunchedEffect(view.handNumber) {
+        if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
+        if (view.handNumber == lastAnimatedHand) return@LaunchedEffect
+        lastAnimatedHand = view.handNumber
+        val stepMillis = if (animationSpeed == AnimationSpeed.FAST) 300L else 625L
+        dealRound = 0
+        dealing = true
+        repeat(3) { round ->
+            delay(stepMillis)
+            dealRound = round + 1
+        }
+        delay(stepMillis)
+        dealing = false
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .padding(horizontal = 12.dp),
-            ) {
-                ScoreBar(view, onExit)
-                ContractLine(view, botNames)
-                Spacer(Modifier.height(12.dp))
-                OpponentsRow(view, botNames)
-                TrickArea(view, botNames, modifier = Modifier.weight(1f))
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .safeDrawingPadding()
+                .padding(horizontal = 12.dp),
+        ) {
+            ScoreBar(view, onExit)
+            ContractLine(view, botNames)
+            Spacer(Modifier.height(12.dp))
+            OpponentsRow(view, botNames)
+            ExposedDeclarerHand(view, botNames)
+            TrickArea(
+                view = view,
+                botNames = botNames,
+                animationSpeed = animationSpeed,
+                dealRound = if (dealing) dealRound else null,
+                modifier = Modifier.weight(1f),
+            )
+            if (!dealing) {
                 ActionArea(
                     view = view,
                     botNames = botNames,
@@ -127,10 +154,9 @@ fun GameScreen(
                     onDiscard = onDiscard,
                     onPlay = onPlay,
                 )
-                Spacer(Modifier.height(8.dp))
-                monetization.BannerSlot(Modifier.fillMaxWidth())
             }
-            TrickWinnerPopup(view, botNames, animationSpeed, modifier = Modifier.align(Alignment.Center))
+            Spacer(Modifier.height(8.dp))
+            monetization.BannerSlot(Modifier.fillMaxWidth())
         }
     }
 
@@ -148,8 +174,9 @@ fun GameScreen(
 }
 
 /**
- * A transient, non-blocking "N won the trick" note shown centre-screen when a trick completes.
- * Purely presentational: it never gates input, and it is disabled entirely at [AnimationSpeed.OFF].
+ * A transient, non-blocking "N won the trick" note shown at the bottom of the felt when a trick
+ * completes — anchored there so it never covers the trick cards in the centre. Purely
+ * presentational: it never gates input, and it is disabled entirely at [AnimationSpeed.OFF].
  */
 @Composable
 private fun TrickWinnerPopup(
@@ -198,11 +225,9 @@ private fun HandResultDialog(view: PlayerView, botNames: Map<Seat, String>) {
 
     val contract = result.contract
     val declarerTeam = teamOf(contract.declarer)
-    val onDeclarerSide = teamOf(view.seat) == declarerTeam
-    val declarerSideLabel = if (onDeclarerSide) "Us" else "Them"
-    val defenderSideLabel = if (onDeclarerSide) "Them" else "Us"
-    val declarerDelta = result.teamDeltas[declarerTeam] ?: 0
-    val defenderDelta = result.teamDeltas[1 - declarerTeam] ?: 0
+    val myTeam = teamOf(view.seat)
+    val myDelta = result.teamDeltas[myTeam] ?: 0
+    val theirDelta = result.teamDeltas[1 - myTeam] ?: 0
     val defenderTricks = 10 - result.declarerTricks
 
     val bidLine = buildString {
@@ -214,32 +239,78 @@ private fun HandResultDialog(view: PlayerView, botNames: Map<Seat, String>) {
     } else {
         "Declarer's side took ${result.declarerTricks} of 10 tricks"
     }
-    val declarerSideLine =
-        "$declarerSideLabel: ${signed(declarerDelta)} (${if (result.made) "contract made" else "contract failed"})"
-    val defenderSideLine = if (contract.isMisere) {
-        "$defenderSideLabel: +0"
-    } else {
-        "$defenderSideLabel: ${signed(defenderDelta)} ($defenderTricks ${if (defenderTricks == 1) "trick" else "tricks"} × 10)"
+
+    fun explanation(team: Int): String = when {
+        team == declarerTeam -> if (result.made) "contract made" else "contract failed"
+        contract.isMisere -> "defenders don't score"
+        else -> "$defenderTricks ${if (defenderTricks == 1) "trick" else "tricks"} × 10"
     }
 
-    AlertDialog(
-        onDismissRequest = { dismissed = true },
-        title = { Text(if (result.made) "Contract made!" else "Contract failed") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(bidLine)
-                Text(tricksLine)
-                Text(declarerSideLine)
-                Text(defenderSideLine)
+    // Header tint follows the human's fortunes, not the declarer's: green-ish when our side gained
+    // points this hand, red-ish otherwise.
+    val gained = myDelta > 0
+    val headerColor = if (gained) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val onHeaderColor = if (gained) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError
+
+    Dialog(onDismissRequest = { dismissed = true }) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp,
+        ) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(headerColor)
+                        .padding(horizontal = 24.dp, vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (result.made) "Contract made!" else "Contract failed",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = onHeaderColor,
+                    )
+                }
+                Column(
+                    modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(bidLine, style = MaterialTheme.typography.bodyMedium)
+                    Text(tricksLine, style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    ScoreDeltaRow("Us", myDelta, explanation(myTeam))
+                    ScoreDeltaRow("Them", theirDelta, explanation(1 - myTeam))
+                    Spacer(Modifier.height(4.dp))
+                    Button(
+                        onClick = { dismissed = true },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("handResultContinue"),
+                    ) { Text("Continue") }
+                }
             }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { dismissed = true },
-                modifier = Modifier.testTag("handResultContinue"),
-            ) { Text("Continue") }
-        },
-    )
+        }
+    }
+}
+
+/** One side's line in the hand-result score table: label left, prominent delta + explanation right. */
+@Composable
+private fun ScoreDeltaRow(label: String, delta: Int, explanation: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, fontWeight = FontWeight.SemiBold)
+        Column(horizontalAlignment = Alignment.End) {
+            Text(signed(delta), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            if (explanation.isNotEmpty()) {
+                Text(explanation, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
 }
 
 @Composable
@@ -274,39 +345,95 @@ private fun ContractLine(view: PlayerView, botNames: Map<Seat, String>) {
 
 @Composable
 private fun OpponentsRow(view: PlayerView, botNames: Map<Seat, String>) {
-    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-        for (i in 0 until 4) {
+    // With 5 opponents (6-player game) the row gets tight: shrink each column and allow the row to
+    // scroll horizontally as a safety valve on narrow screens.
+    val compact = view.playerCount == 6
+    val rowModifier = if (compact) {
+        Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+    } else {
+        Modifier.fillMaxWidth()
+    }
+    Row(
+        modifier = rowModifier,
+        horizontalArrangement = if (compact) Arrangement.spacedBy(12.dp) else Arrangement.SpaceEvenly,
+    ) {
+        for (i in 0 until view.playerCount) {
             val seat = Seat(i)
             if (seat == view.seat) continue
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                val active = seat in view.activeSeats
-                Text(
-                    seatLabel(view, botNames, seat),
-                    fontWeight = if (view.toAct == seat) FontWeight.Bold else FontWeight.Normal,
-                )
-                if (seat == partnerOf(view.seat)) {
-                    Text("(partner)", style = MaterialTheme.typography.labelSmall)
-                }
-                if (active) CardBack(width = 32.dp) else Text("(sitting out)")
-                Text("cards: ${view.handSizes[seat] ?: 0}")
-                Text("tricks: ${view.tricksWon[seat] ?: 0}")
-                if (view.phase == Phase.BIDDING) {
-                    val lastAction = view.biddingHistory.lastOrNull { it.first == seat }?.second
-                    Text(
-                        when {
-                            lastAction == null -> "—"
-                            lastAction == Bid.Pass -> "passed"
-                            else -> "bid ${lastAction.label}"
-                        },
-                    )
-                }
-            }
+            OpponentStatus(view, botNames, seat, compact)
         }
     }
 }
 
 @Composable
-private fun TrickArea(view: PlayerView, botNames: Map<Seat, String>, modifier: Modifier = Modifier) {
+private fun OpponentStatus(view: PlayerView, botNames: Map<Seat, String>, seat: Seat, compact: Boolean) {
+    val textStyle = if (compact) MaterialTheme.typography.bodySmall else LocalTextStyle.current
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        val active = seat in view.activeSeats
+        Text(
+            seatLabel(view, botNames, seat),
+            style = textStyle,
+            fontWeight = if (view.toAct == seat) FontWeight.Bold else FontWeight.Normal,
+        )
+        if (teamOf(seat) == teamOf(view.seat)) {
+            Text("(partner)", style = MaterialTheme.typography.labelSmall)
+        }
+        if (active) CardBack(width = if (compact) 24.dp else 32.dp) else Text("(sitting out)", style = textStyle)
+        Text("cards: ${view.handSizes[seat] ?: 0}", style = textStyle)
+        Text("tricks: ${view.tricksWon[seat] ?: 0}", style = textStyle)
+        if (view.phase == Phase.BIDDING) {
+            val lastAction = view.biddingHistory.lastOrNull { it.first == seat }?.second
+            Text(
+                when {
+                    lastAction == null -> "—"
+                    lastAction == Bid.Pass -> "passed"
+                    else -> "bid ${lastAction.label}"
+                },
+                style = textStyle,
+            )
+        }
+    }
+}
+
+/**
+ * During an open-misère PLAY phase every defender sees the declarer's exposed hand; render it as a
+ * labelled row of small face-up cards above the trick area. Null (and absent) for the declarer.
+ */
+@Composable
+private fun ExposedDeclarerHand(view: PlayerView, botNames: Map<Seat, String>) {
+    val exposed = view.exposedDeclarerHand ?: return
+    val declarer = view.contract?.declarer ?: return
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text(
+            "${seatLabel(view, botNames, declarer)}'s hand (open misère)",
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            exposed.forEach { card -> PlayingCard(card, width = 40.dp) }
+        }
+    }
+}
+
+@Composable
+private fun TrickArea(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    animationSpeed: AnimationSpeed,
+    dealRound: Int?,
+    modifier: Modifier = Modifier,
+) {
     // The "felt" — a slightly darker rounded table centre where the current trick lands.
     Box(
         modifier = modifier
@@ -315,27 +442,111 @@ private fun TrickArea(view: PlayerView, botNames: Map<Seat, String>, modifier: M
             .background(Color(0x22000000), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        AnimatedContent(
-            targetState = view,
-            contentKey = { it.currentTrick.size to it.trickNumber },
-            transitionSpec = { fadeIn() togetherWith fadeOut() },
-            label = "trickArea",
-        ) { v ->
-            val lastTrick = v.lastTrick
-            when {
-                v.currentTrick.isNotEmpty() -> TrickPlaysRow(v, botNames, v.currentTrick)
-                lastTrick != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    TrickPlaysRow(v, botNames, lastTrick.plays)
-                    Spacer(Modifier.height(4.dp))
-                    Text("${seatLabel(v, botNames, lastTrick.winner)} won the trick")
+        if (dealRound != null) {
+            DealingOverlay(view, botNames, dealRound)
+        } else {
+            AnimatedContent(
+                targetState = view,
+                contentKey = { it.currentTrick.size to it.trickNumber },
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "trickArea",
+            ) { v ->
+                val lastTrick = v.lastTrick
+                when {
+                    v.currentTrick.isNotEmpty() -> TrickPlaysRow(v, botNames, v.currentTrick)
+                    lastTrick != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        TrickPlaysRow(v, botNames, lastTrick.plays)
+                        Spacer(Modifier.height(4.dp))
+                        Text("${seatLabel(v, botNames, lastTrick.winner)} won the trick")
+                    }
+                    else -> Text(
+                        when {
+                            v.phase == Phase.PLAY && v.isMyTurn -> "You lead"
+                            v.phase == Phase.PLAY -> "Waiting for the first card…"
+                            else -> ""
+                        },
+                    )
                 }
-                else -> Text(
-                    when {
-                        v.phase == Phase.PLAY && v.isMyTurn -> "You lead"
-                        v.phase == Phase.PLAY -> "Waiting for the first card…"
-                        else -> ""
-                    },
-                )
+            }
+        }
+        // Anchored at the felt's bottom edge so it never overlays the trick cards in the centre.
+        TrickWinnerPopup(
+            view = view,
+            botNames = botNames,
+            animationSpeed = animationSpeed,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 12.dp),
+        )
+    }
+}
+
+/**
+ * The dealing animation shown on the felt while a new hand is dealt: 500 deals in rounds of
+ * 3, then 4, then 3 cards to each seat, with one card to the kitty after each round. Each step
+ * grows every seat's pile of card backs (3 → 7 → 10) and the kitty pile (1 → 2 → 3).
+ */
+@Composable
+private fun DealingOverlay(view: PlayerView, botNames: Map<Seat, String>, round: Int) {
+    val cardsEach = listOf(0, 3, 7, 10)[round.coerceIn(0, 3)]
+    val kittyCards = round.coerceIn(0, 3)
+    val compact = view.playerCount == 6
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Dealing…", fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(16.dp))
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 20.dp),
+        ) {
+            for (i in 0 until view.playerCount) {
+                val seat = Seat(i)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        seatLabel(view, botNames, seat),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    CardPile(count = cardsEach, cardWidth = if (compact) 18.dp else 24.dp)
+                    Spacer(Modifier.height(4.dp))
+                    AnimatedContent(
+                        targetState = cardsEach,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "dealCount",
+                    ) { n -> Text("$n", style = MaterialTheme.typography.labelSmall) }
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("Kitty", style = MaterialTheme.typography.labelSmall)
+            Spacer(Modifier.height(4.dp))
+            CardPile(count = kittyCards, cardWidth = if (compact) 18.dp else 24.dp)
+            Spacer(Modifier.height(4.dp))
+            AnimatedContent(
+                targetState = kittyCards,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "kittyCount",
+            ) { n -> Text("$n", style = MaterialTheme.typography.labelSmall) }
+        }
+    }
+}
+
+/** A fanned pile of [count] card backs that grows smoothly as rounds are dealt. */
+@Composable
+private fun CardPile(count: Int, cardWidth: Dp) {
+    val fanStep = cardWidth / 6
+    Box(modifier = Modifier.animateContentSize()) {
+        // Hold the slot's height before any card lands so the layout doesn't jump.
+        Spacer(Modifier.height(cardWidth * 1.4f))
+        repeat(count) { i ->
+            Box(Modifier.padding(start = fanStep * i)) {
+                CardBack(width = cardWidth)
             }
         }
     }

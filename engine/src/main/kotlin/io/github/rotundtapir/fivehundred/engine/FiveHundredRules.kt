@@ -9,16 +9,33 @@ import io.github.rotundtapir.cardkit.core.shuffleWith
 import kotlin.random.Random
 
 /**
- * The rules of standard 4-player Australian 500, as a pure state machine over [GameState].
+ * The rules of Australian 500 for 2, 4 or 6 players, as a pure state machine over [GameState].
  *
  * Implements cardkit's [GameRules] so it can be driven by a `GameDriver` with any mix of AI, human,
  * or (future) remote players. The whole match is deterministic given the initial seed.
+ *
+ * Per-count variations (everything else — bidding, kitty, scoring — is identical):
+ *  - **4 players** (the standard game): 43-card deck; on a Misère the declarer's partner sits out.
+ *  - **6 players**: 63-card deck (full 52 + the 11s and 12s + the red 13s + Joker), two teams of
+ *    three; on a Misère both of the declarer's teammates sit out.
+ *  - **2 players**: 43-card deck; each player is their own team; after dealing 10 each + the 3-card
+ *    kitty, the remaining 20 cards are dead — dropped from the state entirely, never revealed or
+ *    played. A Misère has nobody to sit out.
  */
 class FiveHundredRules(
     private val schedule: ScoreSchedule = ScoreSchedule.Avondale,
+    val playerCount: Int = 4,
 ) : GameRules<GameState, Action, PlayerView> {
 
-    private val allSeats: List<Seat> = (0 until PLAYERS).map { Seat(it) }
+    init {
+        require(playerCount in setOf(2, 4, 6)) { "500 is played by 2, 4 or 6 players, not $playerCount" }
+    }
+
+    private val deck: List<Card> = fiveHundredDeck(playerCount)
+    private val allSeats: List<Seat> = (0 until playerCount).map { Seat(it) }
+
+    /** The next seat clockwise at this table. */
+    private fun next(seat: Seat): Seat = nextSeat(seat, playerCount)
 
     // --- Setup -----------------------------------------------------------------------------------
 
@@ -33,17 +50,20 @@ class FiveHundredRules(
         scores: Map<Int, Int>,
         lastResult: HandResult?,
     ): GameState {
-        val shuffled = fiveHundredDeck.shuffleWith(Random(seed))
-        val dealt = deal(shuffled, PLAYERS, HAND_SIZE)
+        val shuffled = deck.shuffleWith(Random(seed))
+        val dealt = deal(shuffled, playerCount, HAND_SIZE)
         val hands = allSeats.associateWith { dealt.hands[it.index] }
-        val opener = nextSeat(dealer)
+        val opener = next(dealer)
+        // At 2 players the deal leaves 23 cards: the first 3 are the kitty and the remaining 20 are
+        // dead — deliberately dropped from the state so they can never be revealed or played. At 4
+        // and 6 players the leftover is exactly the kitty.
         return GameState(
             rngSeed = seed,
             handNumber = handNumber,
             dealer = dealer,
             phase = Phase.BIDDING,
             hands = hands,
-            kitty = dealt.leftover,
+            kitty = dealt.leftover.take(KITTY_SIZE),
             bidding = BiddingState(toAct = opener),
             scores = scores,
             lastHandResult = lastResult,
@@ -97,6 +117,8 @@ class FiveHundredRules(
         return PlayerView(
             seat = seat,
             phase = state.phase,
+            playerCount = state.hands.size,
+            handNumber = state.handNumber,
             hand = state.hands[seat].orEmpty(),
             handSizes = state.hands.mapValues { it.value.size },
             dealer = state.dealer,
@@ -155,7 +177,7 @@ class FiveHundredRules(
                 enterKitty(state.copy(bidding = b.copy(history = history, passed = passed, highBid = highBid, highBidder = highBidder)))
             // Passed out: nobody bid. Redeal with the next dealer.
             active.isEmpty() ->
-                dealHand(nextSeed(state.rngSeed), nextSeat(state.dealer), state.handNumber + 1, state.scores, lastResult = null)
+                dealHand(nextSeed(state.rngSeed), next(state.dealer), state.handNumber + 1, state.scores, lastResult = null)
             // Continue the auction.
             else -> state.copy(
                 bidding = b.copy(
@@ -170,8 +192,8 @@ class FiveHundredRules(
     }
 
     private fun nextActiveBidder(from: Seat, passed: Set<Seat>): Seat {
-        var s = nextSeat(from)
-        while (s in passed) s = nextSeat(s)
+        var s = next(from)
+        while (s in passed) s = next(s)
         return s
     }
 
@@ -202,7 +224,10 @@ class FiveHundredRules(
         val newHand = hand.toMutableList().apply { action.discards.forEach { remove(it) } }
         val hands = state.hands.toMutableMap().apply { put(seat, newHand) }
 
-        val active = if (contract.isMisere) allSeats.filter { it != partnerOf(contract.declarer) } else allSeats
+        // Misère: the declarer's teammates (partner at 4 players, both teammates at 6, nobody at 2)
+        // sit out for the hand.
+        val sittingOut = if (contract.isMisere) teammatesOf(contract.declarer, playerCount) else emptyList()
+        val active = allSeats.filter { it !in sittingOut }
         return state.copy(
             phase = Phase.PLAY,
             hands = hands,
@@ -285,7 +310,7 @@ class FiveHundredRules(
         return if (matchWinner != null) {
             state.copy(phase = Phase.COMPLETE, scores = newScores, lastHandResult = result, winner = matchWinner)
         } else {
-            dealHand(nextSeed(state.rngSeed), nextSeat(state.dealer), state.handNumber + 1, newScores, result)
+            dealHand(nextSeed(state.rngSeed), next(state.dealer), state.handNumber + 1, newScores, result)
         }
     }
 

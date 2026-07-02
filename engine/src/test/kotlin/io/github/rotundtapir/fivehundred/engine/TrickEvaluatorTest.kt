@@ -105,6 +105,62 @@ class TrickEvaluatorTest {
     }
 
     @Test
+    fun `six-handed ranks slot between ten and jack within trumps`() {
+        // Hearts trump: Joker > J♥ (right) > J♦ (left) > A > K > Q > 13 > 12 > 11 > 10 of hearts.
+        val hearts = TrickEvaluator(Trump.HEARTS)
+        val highToLow = listOf(
+            Joker,
+            Rank.JACK of Suit.HEARTS,   // right bower
+            Rank.JACK of Suit.DIAMONDS, // left bower
+            Rank.ACE of Suit.HEARTS,
+            Rank.KING of Suit.HEARTS,
+            Rank.QUEEN of Suit.HEARTS,
+            Rank.THIRTEEN of Suit.HEARTS,
+            Rank.TWELVE of Suit.HEARTS,
+            Rank.ELEVEN of Suit.HEARTS,
+            Rank.TEN of Suit.HEARTS,
+        )
+        val strengths = highToLow.map { hearts.strength(it, Suit.HEARTS) }
+        assertEquals(strengths, strengths.sortedDescending(), "expected strictly descending order")
+        assertEquals(strengths.size, strengths.toSet().size, "strengths must be distinct")
+
+        // The queen beats the 13 in a trick, and the 13 beats the 12.
+        assertEquals(Seat(1), hearts.winner(listOf(play(0, Rank.THIRTEEN of Suit.HEARTS), play(1, Rank.QUEEN of Suit.HEARTS))))
+        assertEquals(Seat(0), hearts.winner(listOf(play(0, Rank.THIRTEEN of Suit.HEARTS), play(1, Rank.TWELVE of Suit.HEARTS))))
+        // The left bower still beats every plain trump, 13 included.
+        assertEquals(Seat(1), hearts.winner(listOf(play(0, Rank.THIRTEEN of Suit.HEARTS), play(1, Rank.JACK of Suit.DIAMONDS))))
+    }
+
+    @Test
+    fun `six-handed ranks slot between ten and jack at no-trump`() {
+        // A > K > Q > J > 13 > 12 > 11 > 10 of the led suit.
+        val highToLow = listOf(
+            Rank.ACE of Suit.SPADES,
+            Rank.KING of Suit.SPADES,
+            Rank.QUEEN of Suit.SPADES,
+            Rank.JACK of Suit.SPADES,
+            Rank.THIRTEEN of Suit.SPADES,
+            Rank.TWELVE of Suit.SPADES,
+            Rank.ELEVEN of Suit.SPADES,
+            Rank.TEN of Suit.SPADES,
+        )
+        val strengths = highToLow.map { noTrump.strength(it, Suit.SPADES) }
+        assertEquals(strengths, strengths.sortedDescending(), "expected strictly descending order")
+        assertEquals(strengths.size, strengths.toSet().size, "strengths must be distinct")
+
+        assertEquals(
+            Seat(2),
+            noTrump.winner(
+                listOf(
+                    play(0, Rank.THIRTEEN of Suit.SPADES),
+                    play(1, Rank.ELEVEN of Suit.SPADES),
+                    play(2, Rank.ACE of Suit.SPADES),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun `joker led at no-trump nominates the suit others must follow`() {
         val trick = listOf(
             play(0, Joker, nominated = Suit.CLUBS),

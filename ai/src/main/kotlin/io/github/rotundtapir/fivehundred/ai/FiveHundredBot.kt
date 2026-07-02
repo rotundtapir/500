@@ -15,7 +15,7 @@ import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.ScoreSchedule
 import io.github.rotundtapir.fivehundred.engine.TrickEvaluator
 import io.github.rotundtapir.fivehundred.engine.Trump
-import io.github.rotundtapir.fivehundred.engine.partnerOf
+import io.github.rotundtapir.fivehundred.engine.teammatesOf
 import kotlin.math.floor
 import kotlin.random.Random
 
@@ -29,8 +29,9 @@ import kotlin.random.Random
  *    and bids that level if it reaches 6; bids Misère on a suitably weak hand; otherwise passes.
  *  - **Kitty** keeps trumps and high cards for a suit contract (discards the weakest), and sheds the
  *    most dangerous high cards for a Misère.
- *  - **Play** wins tricks as cheaply as possible, lets a winning partner be, dumps low otherwise, and
- *    (as the Misère declarer) plays to avoid taking tricks.
+ *  - **Play** wins tricks as cheaply as possible, lets a winning teammate be, dumps low otherwise,
+ *    and (as the Misère declarer) plays to avoid taking tricks. Teammates come from the view's
+ *    [PlayerView.playerCount], so the same bot plays 2-, 4- and 6-handed games.
  */
 class FiveHundredBot(
     private val schedule: ScoreSchedule = ScoreSchedule.Avondale,
@@ -132,12 +133,13 @@ class FiveHundredBot(
         if (leading) return legal.maxBy { rawStrength(it, eval) } // lead a strong card
 
         val best = trick.maxBy { eval.strength(it.card, ledSuit) }
-        val partnerWinning = partnerOf(view.seat) == best.seat
+        // No teammates at 2 players, one at 4, two at 6.
+        val teammateWinning = best.seat in teammatesOf(view.seat, view.playerCount)
         val bestStrength = eval.strength(best.card, ledSuit)
         val winners = legal.filter { eval.strength(it, ledSuit) > bestStrength }
 
         return when {
-            partnerWinning -> legal.minBy { rawStrength(it, eval) }        // let partner take it
+            teammateWinning -> legal.minBy { rawStrength(it, eval) }        // let the teammate take it
             winners.isNotEmpty() -> winners.minBy { rawStrength(it, eval) } // win as cheaply as possible
             else -> legal.minBy { rawStrength(it, eval) }                   // can't win: dump the lowest
         }

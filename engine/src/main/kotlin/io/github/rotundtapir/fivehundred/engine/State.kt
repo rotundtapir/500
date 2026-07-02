@@ -8,14 +8,22 @@ import io.github.rotundtapir.cardkit.core.Suit
 /** Phases of a match. Between hands the engine deals again and returns to [BIDDING]. */
 enum class Phase { BIDDING, KITTY, PLAY, COMPLETE }
 
-/** Partnership index (0 = seats 0 & 2, 1 = seats 1 & 3). */
+/**
+ * Team index: even seats are team 0, odd seats team 1. This yields the standard partnerships at
+ * every supported count — 2 players: each seat is its own team; 4: seats 0&2 vs 1&3; 6: two teams
+ * of three, 0&2&4 vs 1&3&5.
+ */
 fun teamOf(seat: Seat): Int = seat.index % 2
 
-/** The seat opposite [seat] (its partner). */
-fun partnerOf(seat: Seat): Seat = Seat((seat.index + 2) % PLAYERS)
+/** The next seat clockwise at a table of [playerCount]. */
+fun nextSeat(seat: Seat, playerCount: Int): Seat = Seat((seat.index + 1) % playerCount)
 
-/** The next seat clockwise. */
-fun nextSeat(seat: Seat): Seat = Seat((seat.index + 1) % PLAYERS)
+/**
+ * The other seats on [seat]'s team, in seat order: empty at 2 players, the opposite seat at 4, the
+ * two same-parity seats at 6.
+ */
+fun teammatesOf(seat: Seat, playerCount: Int): List<Seat> =
+    (0 until playerCount).map(::Seat).filter { it != seat && teamOf(it) == teamOf(seat) }
 
 /** The winning bid and who made it. */
 data class Contract(val declarer: Seat, val bid: Bid) {
@@ -60,7 +68,7 @@ data class GameState(
     val kitty: List<Card>,
     val bidding: BiddingState,
     val contract: Contract? = null,
-    val activeSeats: List<Seat> = (0 until PLAYERS).map { Seat(it) },
+    val activeSeats: List<Seat> = hands.keys.sortedBy { it.index },
     val exposedHands: Set<Seat> = emptySet(),
     val leader: Seat? = null,
     val currentTrick: List<TrickPlay> = emptyList(),
@@ -77,6 +85,8 @@ data class GameState(
 data class PlayerView(
     val seat: Seat,
     val phase: Phase,
+    val playerCount: Int,
+    val handNumber: Int,
     val hand: List<Card>,
     val handSizes: Map<Seat, Int>,
     val dealer: Seat,

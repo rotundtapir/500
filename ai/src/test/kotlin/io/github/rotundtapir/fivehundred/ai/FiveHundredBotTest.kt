@@ -13,7 +13,6 @@ import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.engine.GameState
-import io.github.rotundtapir.fivehundred.engine.PLAYERS
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.Trump
@@ -106,7 +105,7 @@ class FiveHundredBotTest {
 
     @Test
     fun `four bots play a full match making only legal moves`() = runTest {
-        val players = (0 until PLAYERS).associate { Seat(it) to StrategyPlayer(bot, Random(it.toLong())) }
+        val players = (0 until rules.playerCount).associate { Seat(it) to StrategyPlayer(bot, Random(it.toLong())) }
         // Cap the match length so the test is bounded even if scores were to stall.
         val capped = object : GameRules<GameState, Action, PlayerView> by rules {
             override fun isTerminal(state: GameState): Boolean = rules.isTerminal(state) || state.handNumber > 60
@@ -124,9 +123,23 @@ class FiveHundredBotTest {
     }
 
     @Test
+    fun `bots play full 2- and 6-player matches making only legal moves`() = runTest {
+        for (playerCount in listOf(2, 6)) {
+            val countRules = FiveHundredRules(playerCount = playerCount)
+            val players = (0 until playerCount).associate { Seat(it) to StrategyPlayer(bot, Random(it.toLong())) }
+            val capped = object : GameRules<GameState, Action, PlayerView> by countRules {
+                override fun isTerminal(state: GameState): Boolean = countRules.isTerminal(state) || state.handNumber > 60
+            }
+            // If any bot ever returned an illegal move, rules.apply would throw and fail the test.
+            val terminal = GameDriver(capped, players).play(countRules.newGame(seed = 2026L))
+            assertNotNull(terminal.lastHandResult, "at $playerCount players at least one contract should complete")
+        }
+    }
+
+    @Test
     fun `a bot-driven match is deterministic for a given seed`() = runTest {
         suspend fun run(): GameState {
-            val players = (0 until PLAYERS).associate { Seat(it) to StrategyPlayer(bot, Random(it.toLong())) }
+            val players = (0 until rules.playerCount).associate { Seat(it) to StrategyPlayer(bot, Random(it.toLong())) }
             val capped = object : GameRules<GameState, Action, PlayerView> by rules {
                 override fun isTerminal(state: GameState): Boolean = rules.isTerminal(state) || state.handNumber > 20
             }

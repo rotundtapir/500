@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred
 
 import android.content.Context
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -35,7 +36,17 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences -> preferences[ANIMATION_SPEED_KEY] = speed.name }
     }
 
+    /** Whether new hands start sorted; true when unset. */
+    val sortHandByDefault: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[SORT_HAND_BY_DEFAULT_KEY] ?: true
+    }
+
+    suspend fun setSortHandByDefault(value: Boolean) {
+        dataStore.edit { preferences -> preferences[SORT_HAND_BY_DEFAULT_KEY] = value }
+    }
+
     private companion object {
         val ANIMATION_SPEED_KEY = stringPreferencesKey("animation_speed")
+        val SORT_HAND_BY_DEFAULT_KEY = booleanPreferencesKey("sort_hand_by_default")
     }
 }

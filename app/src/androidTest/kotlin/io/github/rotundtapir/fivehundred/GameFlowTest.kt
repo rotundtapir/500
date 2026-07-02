@@ -175,7 +175,31 @@ class GameFlowTest {
 
     @Test
     fun homeScreen_hasAnimationSpeedToggle() {
+        // The animation-speed control lives in the settings dialog behind the home screen's cog.
+        rule.onNodeWithTag("settingsButton").performClick()
         rule.onNodeWithTag("animationSpeed").assertIsDisplayed()
+        rule.onNodeWithText("Done").performClick()
+        rule.onNodeWithText("New Game").assertIsDisplayed()
+    }
+
+    @Test
+    fun twoPlayerGame_reachesBidding() {
+        rule.onNodeWithTag("players:2").performClick()
+        startGame()
+        waitForBidPanel()
+        assertEquals("2-player deal still gives the human 10 cards", 10, cardsOnScreen())
+        // Head-to-head: no seat shares the human's team, so no partner marker anywhere.
+        assertTrue("no partner marker expected in a 2-player game", !textExists("(partner)"))
+    }
+
+    @Test
+    fun sixPlayerGame_reachesBidding() {
+        rule.onNodeWithTag("players:6").performClick()
+        startGame()
+        waitForBidPanel()
+        // Seats 2 and 4 share the human's team, so the opponents row must mark a partner.
+        rule.waitUntil(STEP_TIMEOUT_MS) { textExists("(partner)") }
+        assertEquals("6-player deal still gives the human 10 cards", 10, cardsOnScreen())
     }
 
     @Test

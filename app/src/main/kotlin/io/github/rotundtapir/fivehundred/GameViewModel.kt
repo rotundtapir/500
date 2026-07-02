@@ -15,7 +15,7 @@ import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.engine.GameState
-import io.github.rotundtapir.fivehundred.engine.PLAYERS
+import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -28,14 +28,15 @@ import kotlinx.coroutines.launch
 import kotlin.random.Random
 
 /**
- * Drives a game of 500 for the human at seat 0 against three [FiveHundredBot] opponents.
+ * Drives a game of 500 for the human at seat 0 against `playerCount - 1` [FiveHundredBot] opponents.
  *
  * The engine's [GameDriver] runs in [viewModelScope]; every state transition is pushed to [humanView]
  * (the redacted, seat-0 projection) so the UI can render. Human decisions are fed back through a
  * [ChannelPlayer] — the same seam a remote opponent would use.
  */
 class GameViewModel : ViewModel() {
-    private val rules = FiveHundredRules()
+    // Rebuilt per game so the table size can change between games; only read via [humanView].
+    private var rules = FiveHundredRules()
     private val bot = FiveHundredBot()
     private val humanSeat = Seat(0)
     private val human = ChannelPlayer<PlayerView, Action>()
@@ -47,7 +48,7 @@ class GameViewModel : ViewModel() {
 
     private val _botNames = MutableStateFlow<Map<Seat, String>>(emptyMap())
 
-    /** Display names for the bot seats (1..3), fixed per game. */
+    /** Display names for the bot seats (1 until playerCount), fixed per game. */
     val botNames: StateFlow<Map<Seat, String>> = _botNames
 
     /** The human's view of the game, or null before a game starts. */
@@ -57,26 +58,52 @@ class GameViewModel : ViewModel() {
 
     private var gameJob: Job? = null
 
-    fun newGame(seed: Long) {
+    fun newGame(seed: Long, playerCount: Int = 4) {
         gameJob?.cancel()
         state.value = null
+        rules = FiveHundredRules(playerCount = playerCount)
+        val gameRules = rules
         val names = BOT_NAMES.shuffled(Random(seed))
-        _botNames.value = (1 until PLAYERS).associate { i -> Seat(i) to names[i - 1] }
+        _botNames.value = (1 until playerCount).associate { i -> Seat(i) to names[i - 1] }
         val players: Map<Seat, Player<PlayerView, Action>> = buildMap {
             put(humanSeat, human)
-            for (i in 1 until PLAYERS) put(Seat(i), paced(StrategyPlayer(bot, Random(seed + i))))
+            for (i in 1 until playerCount) put(Seat(i), paced(StrategyPlayer(bot, Random(seed + i))))
         }
         gameJob = viewModelScope.launch {
-            GameDriver(rules, players).play(rules.newGame(seed)) { snapshot -> state.value = snapshot }
+            GameDriver(gameRules, players).play(gameRules.newGame(seed)) { snapshot -> state.value = snapshot }
         }
     }
 
     /** Wraps a bot so its turns are visibly paced by the current [animationSpeed]. */
     private fun paced(inner: Player<PlayerView, Action>): Player<PlayerView, Action> =
         Player { view ->
+            // The hand's very first bidder holds until the dealing animation has played out, so the
+            // auction doesn't visibly start mid-deal.
+            if (view.phase == Phase.BIDDING && view.biddingHistory.isEmpty()) {
+                delay(dealPauseMillis(animationSpeed.value))
+            }
+            // A bot about to lead a fresh trick (not the hand's first) pauses longer first, so the
+            // just-completed trick — and the winner popup — can be read before play moves on.
+            if (view.currentTrick.isEmpty() && view.trickNumber > 0) {
+                delay(interTrickPauseMillis(animationSpeed.value))
+            }
             delay(animationSpeed.value.botDelayMillis)
             inner.decide(view)
         }
+
+    /** Extra pause before a bot leads the next trick, leaving the previous one readable. */
+    private fun interTrickPauseMillis(speed: AnimationSpeed): Long = when (speed) {
+        AnimationSpeed.NORMAL -> 1000L
+        AnimationSpeed.FAST -> 400L
+        AnimationSpeed.OFF -> 0L
+    }
+
+    /** Hold before the first bid of a hand — matches GameScreen's dealing-animation duration. */
+    private fun dealPauseMillis(speed: AnimationSpeed): Long = when (speed) {
+        AnimationSpeed.NORMAL -> 2500L
+        AnimationSpeed.FAST -> 1200L
+        AnimationSpeed.OFF -> 0L
+    }
 
     fun placeBid(bid: Bid) = submit(Action.PlaceBid(bid))
     fun discard(cards: List<Card>) = submit(Action.ExchangeKitty(cards))
@@ -89,7 +116,7 @@ class GameViewModel : ViewModel() {
     }
 
     private companion object {
-        /** Pool of friendly bot names; three distinct ones are drawn per game, seeded by the game seed. */
+        /** Pool of friendly bot names; `playerCount - 1` distinct ones are drawn per game, seeded by the game seed. */
         val BOT_NAMES = listOf(
             "Alice", "Bruce", "Clancy", "Daisy", "Edna", "Frank", "Gus", "Hazel",
             "Ivy", "Mabel", "Ned", "Olive", "Pearl", "Ray", "Thelma", "Wally",

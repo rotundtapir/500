@@ -94,7 +94,7 @@ class FiveHundredRulesTest {
             override fun isTerminal(state: GameState): Boolean = rules.isTerminal(state) || state.handNumber > 1
         }
         val player = Player<PlayerView, Action> { view -> policy(view) }
-        val players = (0 until PLAYERS).associate { Seat(it) to player }
+        val players = (0 until rules.playerCount).associate { Seat(it) to player }
 
         val terminal = GameDriver(oneHand, players).play(rules.newGame(seed = 99L, firstDealer = Seat(0)))
 
