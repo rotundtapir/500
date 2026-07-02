@@ -5,6 +5,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
@@ -62,7 +64,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * that budget. At [AnimationSpeed.OFF] none of this runs and [DealAnimationState.stage] stays
  * [DealStage.DONE].
  */
-internal enum class DealStage { DEALING, FLIPPING, DONE }
+internal enum class DealStage { SHUFFLING, DEALING, FLIPPING, DONE }
 
 /** A destination a dealt card can fly to. Also used as the anchor key for that destination. */
 internal sealed interface DealTarget {
@@ -78,6 +80,9 @@ internal class DealAnimationState {
 
     /** Cards landed so far, per destination. */
     val counts = mutableStateMapOf<DealTarget, Int>()
+
+    /** While shuffling: true when the deck's two halves are pulled apart mid-riffle. */
+    var shuffleSplit by mutableStateOf(false)
 
     /** Non-null while exactly one packet is in flight towards this target. */
     var flyingTarget by mutableStateOf<DealTarget?>(null)
@@ -113,12 +118,17 @@ internal fun Modifier.dealAnchor(state: DealAnimationState, key: Any): Modifier 
  * Packet dealing means only 3×(players+1) flights (15 at four players), so each flight is long
  * enough to actually watch — ~180ms at Normal, ~280ms at Slow.
  */
-internal data class DealTimings(val flyBudgetMillis: Long, val flipMillis: Int, val flipStaggerMillis: Int)
+internal data class DealTimings(
+    val shuffleMillis: Long,
+    val flyBudgetMillis: Long,
+    val flipMillis: Int,
+    val flipStaggerMillis: Int,
+)
 
 internal fun dealTimings(speed: AnimationSpeed): DealTimings = when (speed) {
-    AnimationSpeed.SLOW -> DealTimings(flyBudgetMillis = 4_200, flipMillis = 300, flipStaggerMillis = 40)
-    AnimationSpeed.FAST -> DealTimings(flyBudgetMillis = 1_100, flipMillis = 140, flipStaggerMillis = 15)
-    else -> DealTimings(flyBudgetMillis = 2_800, flipMillis = 240, flipStaggerMillis = 28)
+    AnimationSpeed.SLOW -> DealTimings(shuffleMillis = 1_600, flyBudgetMillis = 4_200, flipMillis = 300, flipStaggerMillis = 40)
+    AnimationSpeed.FAST -> DealTimings(shuffleMillis = 400, flyBudgetMillis = 1_100, flipMillis = 140, flipStaggerMillis = 15)
+    else -> DealTimings(shuffleMillis = 900, flyBudgetMillis = 2_800, flipMillis = 240, flipStaggerMillis = 28)
 }
 
 /** Flights shorter than this read as teleports anyway; skip the animation and just land the packet. */
@@ -141,6 +151,15 @@ internal suspend fun runDealAnimation(
     val totalFlights = 3 * (playerCount + 1)
     try {
         state.counts.clear()
+        // Riffle the deck a few times before the first packet flies.
+        state.stage = DealStage.SHUFFLING
+        val riffles = 3
+        repeat(riffles) {
+            state.shuffleSplit = true
+            delay(timings.shuffleMillis / (riffles * 2L))
+            state.shuffleSplit = false
+            delay(timings.shuffleMillis / (riffles * 2L))
+        }
         state.stage = DealStage.DEALING
         val startNanos = System.nanoTime()
         var flown = 0
@@ -241,15 +260,44 @@ internal fun KittyPile(count: Int, modifier: Modifier = Modifier) {
 internal fun DealFelt(state: DealAnimationState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AnimatedVisibility(
-            visible = state.stage == DealStage.DEALING,
+            visible = state.stage == DealStage.SHUFFLING || state.stage == DealStage.DEALING,
             exit = shrinkVertically() + fadeOut(),
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Dealing…", fontWeight = FontWeight.Bold)
+                Text(
+                    if (state.stage == DealStage.SHUFFLING) "Shuffling…" else "Dealing…",
+                    fontWeight = FontWeight.Bold,
+                )
                 Spacer(Modifier.height(16.dp))
+                // While shuffling, the deck splits into two half-stacks that riffle back together.
+                val split by animateDpAsState(
+                    targetValue = if (state.shuffleSplit) 30.dp else 0.dp,
+                    animationSpec = tween(120),
+                    label = "shuffleSplit",
+                )
+                val tilt by animateFloatAsState(
+                    targetValue = if (state.shuffleSplit) 7f else 0f,
+                    animationSpec = tween(120),
+                    label = "shuffleTilt",
+                )
                 Box(Modifier.dealAnchor(state, DeckAnchor)) {
-                    repeat(3) { i ->
-                        Box(Modifier.offset(x = 1.5.dp * i, y = 1.5.dp * i)) { CardBack(width = 48.dp) }
+                    Box(
+                        Modifier
+                            .offset(x = -split)
+                            .graphicsLayer { rotationZ = -tilt },
+                    ) {
+                        repeat(2) { i ->
+                            Box(Modifier.offset(x = 1.5.dp * i, y = 1.5.dp * i)) { CardBack(width = 48.dp) }
+                        }
+                    }
+                    Box(
+                        Modifier
+                            .offset(x = split)
+                            .graphicsLayer { rotationZ = tilt },
+                    ) {
+                        repeat(2) { i ->
+                            Box(Modifier.offset(x = 1.5.dp * i, y = 1.5.dp * i)) { CardBack(width = 48.dp) }
+                        }
                     }
                 }
                 Spacer(Modifier.height(20.dp))
