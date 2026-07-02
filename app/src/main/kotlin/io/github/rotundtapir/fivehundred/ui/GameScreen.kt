@@ -14,6 +14,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -643,11 +644,21 @@ private fun HumanHand(
     selected: Set<Card> = emptySet(),
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        TextButton(
+        OutlinedButton(
             onClick = onToggleSort,
-            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
-            modifier = Modifier.testTag("sortToggle"),
-        ) { Text(if (sortHand) "Sorted" else "Deal order", style = MaterialTheme.typography.labelMedium) }
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f),
+                contentColor = MaterialTheme.colorScheme.onBackground,
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
+            modifier = Modifier.height(30.dp).testTag("sortToggle"),
+        ) {
+            Text(
+                if (sortHand) "Sorted ⇄" else "Deal order ⇄",
+                style = MaterialTheme.typography.labelMedium,
+            )
+        }
         val hand = if (sortHand) sortedForDisplay(view.hand, view.trump) else view.hand
         // The fan is wider than the screen at this card size — scroll it horizontally.
         Box(

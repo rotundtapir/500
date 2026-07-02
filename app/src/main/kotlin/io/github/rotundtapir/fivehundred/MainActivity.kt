@@ -77,7 +77,7 @@ private fun FiveHundredApp(
     val settings = remember { SettingsRepository(activity.applicationContext) }
     val persistedSpeed by settings.animationSpeed.collectAsState(initial = AnimationSpeed.NORMAL)
     val animationSpeed = animationSpeedOverride ?: persistedSpeed
-    val sortByDefault by settings.sortHandByDefault.collectAsState(initial = true)
+    val sortByDefault by settings.sortHandByDefault.collectAsState(initial = false)
     LaunchedEffect(animationSpeed) { vm.animationSpeed.value = animationSpeed }
     val scope = rememberCoroutineScope()
     val cycleAnimationSpeed: () -> Unit = {

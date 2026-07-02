@@ -37,9 +37,9 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences -> preferences[ANIMATION_SPEED_KEY] = speed.name }
     }
 
-    /** Whether new hands start sorted; true when unset. */
+    /** Whether new hands start sorted; false (deal order) when unset. */
     val sortHandByDefault: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[SORT_HAND_BY_DEFAULT_KEY] ?: true
+        preferences[SORT_HAND_BY_DEFAULT_KEY] ?: false
     }
 
     suspend fun setSortHandByDefault(value: Boolean) {
