@@ -3,8 +3,10 @@ package io.github.rotundtapir.fivehundred.ui
 
 import android.app.Activity
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -30,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,6 +51,8 @@ import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.CardBack
 import io.github.rotundtapir.cardkit.ui.CardHand
 import io.github.rotundtapir.cardkit.ui.PlayingCard
+import io.github.rotundtapir.fivehundred.AnimationSpeed
+import kotlinx.coroutines.delay
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase
@@ -87,6 +92,7 @@ private fun signed(delta: Int): String = if (delta < 0) "−${-delta}" else "+$d
 fun GameScreen(
     view: PlayerView,
     botNames: Map<Seat, String>,
+    animationSpeed: AnimationSpeed,
     monetization: Monetization,
     activity: Activity,
     onBid: (Bid) -> Unit,
@@ -100,28 +106,31 @@ fun GameScreen(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .padding(horizontal = 12.dp),
-        ) {
-            ScoreBar(view, onExit)
-            ContractLine(view, botNames)
-            Spacer(Modifier.height(12.dp))
-            OpponentsRow(view, botNames)
-            TrickArea(view, botNames, modifier = Modifier.weight(1f))
-            ActionArea(
-                view = view,
-                botNames = botNames,
-                sortHand = sortHand,
-                onToggleSort = { sortHand = !sortHand },
-                onBid = onBid,
-                onDiscard = onDiscard,
-                onPlay = onPlay,
-            )
-            Spacer(Modifier.height(8.dp))
-            monetization.BannerSlot(Modifier.fillMaxWidth())
+        Box(modifier = Modifier.fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(horizontal = 12.dp),
+            ) {
+                ScoreBar(view, onExit)
+                ContractLine(view, botNames)
+                Spacer(Modifier.height(12.dp))
+                OpponentsRow(view, botNames)
+                TrickArea(view, botNames, modifier = Modifier.weight(1f))
+                ActionArea(
+                    view = view,
+                    botNames = botNames,
+                    sortHand = sortHand,
+                    onToggleSort = { sortHand = !sortHand },
+                    onBid = onBid,
+                    onDiscard = onDiscard,
+                    onPlay = onPlay,
+                )
+                Spacer(Modifier.height(8.dp))
+                monetization.BannerSlot(Modifier.fillMaxWidth())
+            }
+            TrickWinnerPopup(view, botNames, animationSpeed, modifier = Modifier.align(Alignment.Center))
         }
     }
 
@@ -136,6 +145,48 @@ fun GameScreen(
     }
 
     HandResultDialog(view, botNames)
+}
+
+/**
+ * A transient, non-blocking "N won the trick" note shown centre-screen when a trick completes.
+ * Purely presentational: it never gates input, and it is disabled entirely at [AnimationSpeed.OFF].
+ */
+@Composable
+private fun TrickWinnerPopup(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    animationSpeed: AnimationSpeed,
+    modifier: Modifier = Modifier,
+) {
+    if (animationSpeed == AnimationSpeed.OFF) return
+    var text by remember { mutableStateOf("") }
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(view.lastTrick) {
+        val trick = view.lastTrick ?: return@LaunchedEffect
+        text = "${seatLabel(view, botNames, trick.winner)} won the trick"
+        visible = true
+        delay(if (animationSpeed == AnimationSpeed.FAST) 800L else 1500L)
+        visible = false
+    }
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + scaleIn(initialScale = 0.85f),
+        exit = fadeOut(),
+        modifier = modifier,
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = Color(0xFFFAFAFA),
+            contentColor = MaterialTheme.colorScheme.primary,
+            shadowElevation = 8.dp,
+        ) {
+            Text(
+                text = text,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            )
+        }
+    }
 }
 
 @Composable

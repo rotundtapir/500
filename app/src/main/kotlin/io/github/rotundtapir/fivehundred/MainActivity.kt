@@ -108,6 +108,7 @@ private fun FiveHundredApp(
             GameScreen(
                 view = current,
                 botNames = botNames,
+                animationSpeed = animationSpeed,
                 monetization = monetization,
                 activity = activity,
                 onBid = vm::placeBid,
