@@ -11,11 +11,12 @@ import kotlinx.coroutines.flow.map
 
 /** How quickly bot turns play out (the delay before each bot decision). */
 enum class AnimationSpeed(val label: String, val botDelayMillis: Long) {
+    SLOW("Slow", 1600),
     NORMAL("Normal", 800),
     FAST("Fast", 250),
     OFF("Off", 0);
 
-    /** The next speed in the cycle Normal → Fast → Off → Normal. */
+    /** The next speed in the cycle Slow → Normal → Fast → Off → Slow. */
     fun next(): AnimationSpeed = entries[(ordinal + 1) % entries.size]
 }
 
@@ -45,8 +46,28 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences -> preferences[SORT_HAND_BY_DEFAULT_KEY] = value }
     }
 
+    /** House rule: whether Misère / Open Misère may be bid. Applies to new games; true when unset. */
+    val misereEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[MISERE_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setMisereEnabled(value: Boolean) {
+        dataStore.edit { preferences -> preferences[MISERE_ENABLED_KEY] = value }
+    }
+
+    /** House rule: whether no-trump contracts may be bid. Applies to new games; true when unset. */
+    val noTrumpsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[NO_TRUMPS_ENABLED_KEY] ?: true
+    }
+
+    suspend fun setNoTrumpsEnabled(value: Boolean) {
+        dataStore.edit { preferences -> preferences[NO_TRUMPS_ENABLED_KEY] = value }
+    }
+
     private companion object {
         val ANIMATION_SPEED_KEY = stringPreferencesKey("animation_speed")
         val SORT_HAND_BY_DEFAULT_KEY = booleanPreferencesKey("sort_hand_by_default")
+        val MISERE_ENABLED_KEY = booleanPreferencesKey("misere_enabled")
+        val NO_TRUMPS_ENABLED_KEY = booleanPreferencesKey("no_trumps_enabled")
     }
 }

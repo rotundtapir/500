@@ -86,6 +86,14 @@ private fun FiveHundredApp(
     val setSortByDefault: (Boolean) -> Unit = { value ->
         scope.launch { settings.setSortHandByDefault(value) }
     }
+    val misereEnabled by settings.misereEnabled.collectAsState(initial = true)
+    val noTrumpsEnabled by settings.noTrumpsEnabled.collectAsState(initial = true)
+    val setMisereEnabled: (Boolean) -> Unit = { value ->
+        scope.launch { settings.setMisereEnabled(value) }
+    }
+    val setNoTrumpsEnabled: (Boolean) -> Unit = { value ->
+        scope.launch { settings.setNoTrumpsEnabled(value) }
+    }
     var playerCount by rememberSaveable { mutableStateOf(4) }
 
     if (!inGame) {
@@ -93,13 +101,17 @@ private fun FiveHundredApp(
             monetization = monetization,
             activity = activity,
             onNewGame = {
-                vm.newGame(nextSeed(), playerCount)
+                vm.newGame(nextSeed(), playerCount, misereEnabled, noTrumpsEnabled)
                 inGame = true
             },
             animationSpeed = animationSpeed,
             onCycleAnimationSpeed = cycleAnimationSpeed,
             sortByDefault = sortByDefault,
             onSetSortByDefault = setSortByDefault,
+            misereEnabled = misereEnabled,
+            onSetMisereEnabled = setMisereEnabled,
+            noTrumpsEnabled = noTrumpsEnabled,
+            onSetNoTrumpsEnabled = setNoTrumpsEnabled,
             playerCount = playerCount,
             onPlayerCountChange = { playerCount = it },
         )
@@ -109,11 +121,15 @@ private fun FiveHundredApp(
             HomeScreen(
                 monetization = monetization,
                 activity = activity,
-                onNewGame = { vm.newGame(nextSeed(), playerCount) },
+                onNewGame = { vm.newGame(nextSeed(), playerCount, misereEnabled, noTrumpsEnabled) },
                 animationSpeed = animationSpeed,
                 onCycleAnimationSpeed = cycleAnimationSpeed,
                 sortByDefault = sortByDefault,
                 onSetSortByDefault = setSortByDefault,
+                misereEnabled = misereEnabled,
+                onSetMisereEnabled = setMisereEnabled,
+                noTrumpsEnabled = noTrumpsEnabled,
+                onSetNoTrumpsEnabled = setNoTrumpsEnabled,
                 playerCount = playerCount,
                 onPlayerCountChange = { playerCount = it },
             )

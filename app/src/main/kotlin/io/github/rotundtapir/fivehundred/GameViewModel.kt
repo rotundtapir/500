@@ -58,10 +58,19 @@ class GameViewModel : ViewModel() {
 
     private var gameJob: Job? = null
 
-    fun newGame(seed: Long, playerCount: Int = 4) {
+    fun newGame(
+        seed: Long,
+        playerCount: Int = 4,
+        misereEnabled: Boolean = true,
+        noTrumpsEnabled: Boolean = true,
+    ) {
         gameJob?.cancel()
         state.value = null
-        rules = FiveHundredRules(playerCount = playerCount)
+        rules = FiveHundredRules(
+            playerCount = playerCount,
+            misereEnabled = misereEnabled,
+            noTrumpsEnabled = noTrumpsEnabled,
+        )
         val gameRules = rules
         val names = BOT_NAMES.shuffled(Random(seed))
         _botNames.value = (1 until playerCount).associate { i -> Seat(i) to names[i - 1] }
@@ -93,6 +102,7 @@ class GameViewModel : ViewModel() {
 
     /** Extra pause before a bot leads the next trick, leaving the previous one readable. */
     private fun interTrickPauseMillis(speed: AnimationSpeed): Long = when (speed) {
+        AnimationSpeed.SLOW -> 1800L
         AnimationSpeed.NORMAL -> 1000L
         AnimationSpeed.FAST -> 400L
         AnimationSpeed.OFF -> 0L
@@ -100,6 +110,7 @@ class GameViewModel : ViewModel() {
 
     /** Hold before the first bid of a hand — matches GameScreen's dealing-animation duration. */
     private fun dealPauseMillis(speed: AnimationSpeed): Long = when (speed) {
+        AnimationSpeed.SLOW -> 4200L
         AnimationSpeed.NORMAL -> 2500L
         AnimationSpeed.FAST -> 1200L
         AnimationSpeed.OFF -> 0L

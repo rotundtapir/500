@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -35,6 +36,10 @@ fun SettingsDialog(
     onCycleAnimationSpeed: () -> Unit,
     sortByDefault: Boolean,
     onSetSortByDefault: (Boolean) -> Unit,
+    misereEnabled: Boolean,
+    onSetMisereEnabled: (Boolean) -> Unit,
+    noTrumpsEnabled: Boolean,
+    onSetNoTrumpsEnabled: (Boolean) -> Unit,
     monetization: Monetization,
     activity: Activity,
     onDismiss: () -> Unit,
@@ -71,6 +76,34 @@ fun SettingsDialog(
                         checked = sortByDefault,
                         onCheckedChange = onSetSortByDefault,
                         modifier = Modifier.testTag("sortDefault"),
+                    )
+                }
+
+                HorizontalDivider()
+
+                Text("House rules (apply to new games)", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("Misère bids")
+                    Switch(
+                        checked = misereEnabled,
+                        onCheckedChange = onSetMisereEnabled,
+                        modifier = Modifier.testTag("misereEnabled"),
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text("No-trump bids")
+                    Switch(
+                        checked = noTrumpsEnabled,
+                        onCheckedChange = onSetNoTrumpsEnabled,
+                        modifier = Modifier.testTag("noTrumpsEnabled"),
                     )
                 }
 

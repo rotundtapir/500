@@ -110,7 +110,11 @@ fun GameScreen(
         if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
         if (view.handNumber == lastAnimatedHand) return@LaunchedEffect
         lastAnimatedHand = view.handNumber
-        val stepMillis = if (animationSpeed == AnimationSpeed.FAST) 300L else 625L
+        val stepMillis = when (animationSpeed) {
+            AnimationSpeed.SLOW -> 1000L
+            AnimationSpeed.FAST -> 300L
+            else -> 625L
+        }
         dealRound = 0
         dealing = true
         repeat(3) { round ->
@@ -192,7 +196,13 @@ private fun TrickWinnerPopup(
         val trick = view.lastTrick ?: return@LaunchedEffect
         text = "${seatLabel(view, botNames, trick.winner)} won the trick"
         visible = true
-        delay(if (animationSpeed == AnimationSpeed.FAST) 800L else 1500L)
+        delay(
+            when (animationSpeed) {
+                AnimationSpeed.SLOW -> 2200L
+                AnimationSpeed.FAST -> 800L
+                else -> 1500L
+            }
+        )
         visible = false
     }
     AnimatedVisibility(

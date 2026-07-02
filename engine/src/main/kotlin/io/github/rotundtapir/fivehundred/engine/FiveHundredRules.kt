@@ -25,10 +25,25 @@ import kotlin.random.Random
 class FiveHundredRules(
     private val schedule: ScoreSchedule = ScoreSchedule.Avondale,
     val playerCount: Int = 4,
+    val misereEnabled: Boolean = true,
+    val noTrumpsEnabled: Boolean = true,
 ) : GameRules<GameState, Action, PlayerView> {
 
     init {
         require(playerCount in setOf(2, 4, 6)) { "500 is played by 2, 4 or 6 players, not $playerCount" }
+    }
+
+    /**
+     * The contracts biddable at this table: the schedule's ladder minus any bid families disabled
+     * by house rules. (Misère is still *played* at no trumps even when no-trump bids are disabled —
+     * the toggle governs bids, not play.)
+     */
+    private val biddableLadder: List<Bid> = schedule.ladder.filter { bid ->
+        when {
+            !misereEnabled && (bid is Bid.Misere || bid is Bid.OpenMisere) -> false
+            !noTrumpsEnabled && bid is Bid.Named && bid.trump == Trump.NO_TRUMP -> false
+            else -> true
+        }
     }
 
     private val deck: List<Card> = fiveHundredDeck(playerCount)
@@ -88,7 +103,7 @@ class FiveHundredRules(
         return when (state.phase) {
             Phase.BIDDING -> buildList {
                 add(Action.PlaceBid(Bid.Pass))
-                schedule.ladder
+                biddableLadder
                     .filter { state.bidding.highBid == null || schedule.outranks(it, state.bidding.highBid) }
                     .forEach { add(Action.PlaceBid(it)) }
             }
@@ -104,7 +119,7 @@ class FiveHundredRules(
         val legalBids = if (state.phase == Phase.BIDDING && isMyTurn) {
             buildList {
                 add(Bid.Pass)
-                schedule.ladder
+                biddableLadder
                     .filter { state.bidding.highBid == null || schedule.outranks(it, state.bidding.highBid) }
                     .forEach { add(it) }
             }
@@ -161,6 +176,7 @@ class FiveHundredRules(
         val b = state.bidding
         val bid = action.bid
         if (bid != Bid.Pass) {
+            require(bid in biddableLadder) { "Bid ${bid.label} is disabled at this table" }
             require(b.highBid == null || schedule.outranks(bid, b.highBid)) {
                 "Bid ${bid.label} does not outrank ${b.highBid?.label}"
             }
