@@ -176,6 +176,7 @@ private fun FiveHundredApp(
                     TutorialScriptState(tutorialStepIndex) { tutorialStepIndex++ }
                 } else null,
                 onResultDismissed = vm::acknowledgeHandResult,
+                onDealAnimationFinished = vm::dealAnimationFinished,
             )
         }
     }

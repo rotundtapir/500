@@ -111,6 +111,7 @@ fun GameScreen(
     onExit: () -> Unit,
     tutorial: TutorialScriptState? = null,
     onResultDismissed: (Int) -> Unit = {},
+    onDealAnimationFinished: (Int) -> Unit = {},
 ) {
     var sortHand by rememberSaveable { mutableStateOf(defaultSortHand) }
     // Set once the tutorial's scripted hand has been scored and its result dialog dismissed.
@@ -135,6 +136,9 @@ fun GameScreen(
             snapshotFlow { resultAckedHand }.first { it >= view.handNumber }
         }
         runDealAnimation(dealState, view.playerCount, view.dealer, animationSpeed)
+        // Release the first bidder: the ViewModel waits on this signal, not a timer, so slow
+        // devices can't start the auction mid-deal.
+        onDealAnimationFinished(view.handNumber)
     }
 
     Surface(

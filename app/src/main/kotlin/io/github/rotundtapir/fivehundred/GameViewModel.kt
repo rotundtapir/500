@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.random.Random
 
 /**
@@ -55,6 +56,14 @@ class GameViewModel : ViewModel() {
         handResultAcked.value = maxOf(handResultAcked.value, handNumber)
     }
 
+    /** Highest hand number whose shuffle/deal animation has finished on screen. */
+    private val dealAnimationDone = MutableStateFlow(0)
+
+    /** Called by the UI when a hand's deal animation completes; releases the first bidder. */
+    fun dealAnimationFinished(handNumber: Int) {
+        dealAnimationDone.value = maxOf(dealAnimationDone.value, handNumber)
+    }
+
     private val _botNames = MutableStateFlow<Map<Seat, String>>(emptyMap())
 
     /** Display names for the bot seats (1 until playerCount), fixed per game. */
@@ -77,6 +86,7 @@ class GameViewModel : ViewModel() {
         gameJob?.cancel()
         state.value = null
         handResultAcked.value = 0
+        dealAnimationDone.value = 0
         rules = FiveHundredRules(
             playerCount = playerCount,
             misereEnabled = misereEnabled,
@@ -100,12 +110,19 @@ class GameViewModel : ViewModel() {
         Player { view ->
             // The hand's very first bidder holds until the previous hand's result dialog has been
             // dismissed (nothing — not even the shuffle — moves while the player reads it), then
-            // for the shuffle + deal animation, so the auction doesn't visibly start mid-deal.
+            // until the UI reports the shuffle + deal animation has actually finished — a signal,
+            // not a timer, so slow devices can't have the auction start mid-deal. The timeout is a
+            // deadlock backstop (e.g. activity recreated mid-deal, where no signal will come).
             if (view.phase == Phase.BIDDING && view.biddingHistory.isEmpty()) {
                 if (view.lastHandResult != null && view.winner == null) {
                     handResultAcked.first { it >= view.handNumber }
                 }
-                delay(dealPauseMillis(animationSpeed.value))
+                if (animationSpeed.value != AnimationSpeed.OFF) {
+                    withTimeoutOrNull(dealPauseMillis(animationSpeed.value) * 3) {
+                        dealAnimationDone.first { it >= view.handNumber }
+                    }
+                    delay(animationSpeed.value.botDelayMillis)
+                }
             }
             // A bot about to lead a fresh trick (not the hand's first) pauses longer first, so the
             // just-completed trick — and the winner popup — can be read before play moves on.
