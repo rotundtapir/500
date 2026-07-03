@@ -64,10 +64,20 @@ class SettingsRepository(context: Context) {
         dataStore.edit { preferences -> preferences[NO_TRUMPS_ENABLED_KEY] = value }
     }
 
+    /** Whether completed tricks stay on the felt until tapped away; false when unset. */
+    val holdTricks: Flow<Boolean> = dataStore.data.map { preferences ->
+        preferences[HOLD_TRICKS_KEY] ?: false
+    }
+
+    suspend fun setHoldTricks(value: Boolean) {
+        dataStore.edit { preferences -> preferences[HOLD_TRICKS_KEY] = value }
+    }
+
     private companion object {
         val ANIMATION_SPEED_KEY = stringPreferencesKey("animation_speed")
         val SORT_HAND_BY_DEFAULT_KEY = booleanPreferencesKey("sort_hand_by_default")
         val MISERE_ENABLED_KEY = booleanPreferencesKey("misere_enabled")
         val NO_TRUMPS_ENABLED_KEY = booleanPreferencesKey("no_trumps_enabled")
+        val HOLD_TRICKS_KEY = booleanPreferencesKey("hold_tricks")
     }
 }

@@ -131,6 +131,8 @@ fun GameScreen(
     tutorial: TutorialScriptState? = null,
     onResultDismissed: (Int) -> Unit = {},
     onDealAnimationFinished: (Int) -> Unit = {},
+    holdTricks: Boolean = false,
+    onToggleHoldTricks: () -> Unit = {},
     onTrickAcknowledged: (Int, Int) -> Unit = { _, _ -> },
 ) {
     var sortHand by rememberSaveable { mutableStateOf(defaultSortHand) }
@@ -192,6 +194,8 @@ fun GameScreen(
                     modifier = Modifier
                         .weight(1f)
                         .tutorialTarget(tutorialTargets, "trick"),
+                    holdTricks = holdTricks,
+                    onToggleHoldTricks = onToggleHoldTricks,
                     onTrickAcknowledged = onTrickAcknowledged,
                 )
                 if (dealState.dealing) {
@@ -428,55 +432,6 @@ private fun TrumpOrderRow() {
         }
         Spacer(Modifier.height(2.dp))
         Text("Trump order with spades as trumps", style = MaterialTheme.typography.labelSmall)
-    }
-}
-
-/**
- * A transient, non-blocking "N won the trick" note shown at the bottom of the felt when a trick
- * completes — anchored there so it never covers the trick cards in the centre. Purely
- * presentational: it never gates input, and it is disabled entirely at [AnimationSpeed.OFF].
- */
-@Composable
-private fun TrickWinnerPopup(
-    view: PlayerView,
-    botNames: Map<Seat, String>,
-    animationSpeed: AnimationSpeed,
-    modifier: Modifier = Modifier,
-) {
-    if (animationSpeed == AnimationSpeed.OFF) return
-    var text by remember { mutableStateOf("") }
-    var visible by remember { mutableStateOf(false) }
-    LaunchedEffect(view.lastTrick) {
-        val trick = view.lastTrick ?: return@LaunchedEffect
-        text = "${seatLabel(view, botNames, trick.winner)} won the trick"
-        visible = true
-        delay(
-            when (animationSpeed) {
-                AnimationSpeed.SLOW -> 2200L
-                AnimationSpeed.FAST -> 800L
-                else -> 1500L
-            }
-        )
-        visible = false
-    }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn() + scaleIn(initialScale = 0.85f),
-        exit = fadeOut(),
-        modifier = modifier,
-    ) {
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = Color(0xFFFAFAFA),
-            contentColor = MaterialTheme.colorScheme.primary,
-            shadowElevation = 8.dp,
-        ) {
-            Text(
-                text = text,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
-            )
-        }
     }
 }
 
@@ -757,11 +712,14 @@ private fun TrickArea(
     animationSpeed: AnimationSpeed,
     dealState: DealAnimationState,
     modifier: Modifier = Modifier,
+    holdTricks: Boolean = false,
+    onToggleHoldTricks: () -> Unit = {},
     onTrickAcknowledged: (Int, Int) -> Unit = { _, _ -> },
 ) {
-    // A completed trick stays on the felt until the player taps it away (unless a play by the
-    // human is what's pending, or animations are OFF) — time to memorise the cards for counting.
-    val holdingTrick = animationSpeed != AnimationSpeed.OFF &&
+    // With "Hold tricks" on, a completed trick stays on the felt until the player taps it away —
+    // time to memorise the cards for counting. Toggleable mid-hand for the tricks that matter.
+    val holdingTrick = holdTricks &&
+        animationSpeed != AnimationSpeed.OFF &&
         !dealState.dealing &&
         view.phase == Phase.PLAY &&
         view.currentTrick.isEmpty() &&
@@ -776,6 +734,33 @@ private fun TrickArea(
             .tappableWhen(holdingTrick) { onTrickAcknowledged(view.handNumber, view.trickNumber) },
         contentAlignment = Alignment.Center,
     ) {
+        // Visible for the whole hand so the player can hold exactly the tricks they care about
+        // (hidden at OFF, where no pacing — including the hold — applies).
+        if (view.phase == Phase.PLAY && !dealState.dealing && animationSpeed != AnimationSpeed.OFF) {
+            OutlinedButton(
+                onClick = onToggleHoldTricks,
+                colors = ButtonDefaults.outlinedButtonColors(
+                    containerColor = if (holdTricks) {
+                        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.18f)
+                    } else {
+                        Color.Transparent
+                    },
+                    contentColor = MaterialTheme.colorScheme.onBackground,
+                ),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 2.dp),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .height(30.dp)
+                    .testTag("holdToggle"),
+            ) {
+                Text(
+                    if (holdTricks) "Hold tricks: on" else "Hold tricks: off",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+        }
         if (dealState.dealing) {
             // Deck + growing kitty pile while cards fly out.
             DealFelt(dealState)
@@ -816,15 +801,6 @@ private fun TrickArea(
                 }
             }
         }
-        // Anchored at the felt's bottom edge so it never overlays the trick cards in the centre.
-        TrickWinnerPopup(
-            view = view,
-            botNames = botNames,
-            animationSpeed = animationSpeed,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp),
-        )
     }
 }
 

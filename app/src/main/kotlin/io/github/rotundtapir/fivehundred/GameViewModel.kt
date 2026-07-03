@@ -22,6 +22,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -62,6 +63,17 @@ class GameViewModel : ViewModel() {
     /** Called by the UI when a hand's deal animation completes; releases the first bidder. */
     fun dealAnimationFinished(handNumber: Int) {
         dealAnimationDone.value = maxOf(dealAnimationDone.value, handNumber)
+    }
+
+    /** Whether completed tricks stay on the felt until tapped away — set live from the UI toggle. */
+    val holdTricks = MutableStateFlow(false)
+
+    /** Timed fallback pause before the next trick when the hold toggle is off. */
+    private fun interTrickPauseMillis(speed: AnimationSpeed): Long = when (speed) {
+        AnimationSpeed.SLOW -> 1800L
+        AnimationSpeed.NORMAL -> 1000L
+        AnimationSpeed.FAST -> 400L
+        AnimationSpeed.OFF -> 0L
     }
 
     /** Key of the last completed trick the player has acknowledged (tapped past). */
@@ -138,13 +150,20 @@ class GameViewModel : ViewModel() {
                     delay(animationSpeed.value.botDelayMillis)
                 }
             }
-            // A bot about to lead a fresh trick (not the hand's first) waits until the player taps
-            // the completed trick away — it stays on the felt indefinitely so it can be memorised
-            // for card counting. Skipped at OFF (no pacing), where play flows uninterrupted.
+            // A bot about to lead a fresh trick (not the hand's first): with "Hold tricks" on, wait
+            // until the player taps the completed trick away (or turns the hold off mid-wait);
+            // otherwise a short timed pause keeps the trick readable. Nothing at OFF.
+            // (The hold, like all pacing, is inert at OFF — which also keeps tests deterministic.)
             if (view.currentTrick.isEmpty() && view.trickNumber > 0 &&
                 animationSpeed.value != AnimationSpeed.OFF
             ) {
-                trickAcked.first { it >= trickKey(view.handNumber, view.trickNumber) }
+                if (holdTricks.value) {
+                    val key = trickKey(view.handNumber, view.trickNumber)
+                    combine(trickAcked, holdTricks) { acked, hold -> !hold || acked >= key }
+                        .first { it }
+                } else {
+                    delay(interTrickPauseMillis(animationSpeed.value))
+                }
             }
             delay(animationSpeed.value.botDelayMillis)
             inner.decide(view)

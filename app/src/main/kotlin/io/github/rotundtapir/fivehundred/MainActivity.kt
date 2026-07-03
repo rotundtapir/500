@@ -97,6 +97,11 @@ private fun FiveHundredApp(
     val setNoTrumpsEnabled: (Boolean) -> Unit = { value ->
         scope.launch { settings.setNoTrumpsEnabled(value) }
     }
+    val holdTricks by settings.holdTricks.collectAsState(initial = false)
+    LaunchedEffect(holdTricks) { vm.holdTricks.value = holdTricks }
+    val toggleHoldTricks: () -> Unit = {
+        scope.launch { settings.setHoldTricks(!holdTricks) }
+    }
     // Stored by name so rememberSaveable needs no custom Saver.
     var modeName by rememberSaveable { mutableStateOf(GameMode.FOUR_PLAYER.name) }
     val mode = GameMode.valueOf(modeName)
@@ -177,6 +182,8 @@ private fun FiveHundredApp(
                 } else null,
                 onResultDismissed = vm::acknowledgeHandResult,
                 onDealAnimationFinished = vm::dealAnimationFinished,
+                holdTricks = holdTricks,
+                onToggleHoldTricks = toggleHoldTricks,
                 onTrickAcknowledged = vm::acknowledgeTrick,
             )
         }
