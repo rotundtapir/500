@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.ai
 
+import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.GameDriver
 import io.github.rotundtapir.cardkit.core.GameRules
 import io.github.rotundtapir.cardkit.core.Joker
@@ -8,13 +9,16 @@ import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.StrategyPlayer
 import io.github.rotundtapir.cardkit.core.Suit
+import io.github.rotundtapir.cardkit.core.SuitedCard
 import io.github.rotundtapir.cardkit.core.of
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
+import io.github.rotundtapir.fivehundred.engine.Contract
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.engine.GameState
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
+import io.github.rotundtapir.fivehundred.engine.TrickPlay
 import io.github.rotundtapir.fivehundred.engine.Trump
 import kotlinx.coroutines.test.runTest
 import kotlin.random.Random
@@ -101,6 +105,80 @@ class FiveHundredBotTest {
         assertTrue(Joker in discards)
         assertTrue((Rank.ACE of Suit.SPADES) in discards)
         assertTrue((Rank.ACE of Suit.HEARTS) in discards)
+    }
+
+    // A minimal PLAY-phase view for targeted choosePlay tests: seat 1 defending seat 0's Misère.
+    private fun misereDefenceView(
+        hand: List<Card>,
+        trick: List<TrickPlay>,
+        legal: List<Card> = hand,
+    ) = PlayerView(
+        seat = Seat(1),
+        phase = Phase.PLAY,
+        playerCount = 4,
+        teamCount = 2,
+        handNumber = 1,
+        hand = hand,
+        handSizes = emptyMap(),
+        dealer = Seat(0),
+        scores = emptyMap(),
+        toAct = Seat(1),
+        biddingHistory = emptyList(),
+        highBid = Bid.Misere,
+        highBidder = Seat(0),
+        legalBids = emptyList(),
+        contract = Contract(declarer = Seat(0), bid = Bid.Misere),
+        trump = Trump.NO_TRUMP,
+        leader = trick.firstOrNull()?.seat ?: Seat(1),
+        currentTrick = trick,
+        ledSuit = (trick.firstOrNull()?.card as? SuitedCard)?.suit,
+        lastTrick = null,
+        tricksWon = emptyMap(),
+        trickNumber = 1,
+        legalPlays = legal,
+        mustDiscard = 0,
+        exposedDeclarerHand = null,
+        activeSeats = listOf(Seat(0), Seat(1), Seat(3)),
+        lastHandResult = null,
+        winner = null,
+    )
+
+    @Test
+    fun `misere defender ducks under the declarer's card, shedding its highest safe card`() {
+        // Declarer (seat 0) played the 8♥ to a heart trick. The defender holds Q♥, 7♥ and 4♥:
+        // the Q would hand the trick to a defender, so shed the 7 — the biggest card that still
+        // leaves the declarer's 8 winning.
+        val hand = listOf(Rank.QUEEN of Suit.HEARTS, Rank.SEVEN of Suit.HEARTS, Rank.FOUR of Suit.HEARTS)
+        val view = misereDefenceView(
+            hand = hand,
+            trick = listOf(
+                TrickPlay(Seat(3), Rank.FIVE of Suit.HEARTS),
+                TrickPlay(Seat(0), Rank.EIGHT of Suit.HEARTS),
+            ),
+        )
+        assertEquals(Rank.SEVEN of Suit.HEARTS, bot.choosePlay(view))
+    }
+
+    @Test
+    fun `misere defender leads low so the declarer cannot duck`() {
+        val hand = listOf(Rank.ACE of Suit.SPADES, Rank.NINE of Suit.DIAMONDS, Rank.FIVE of Suit.CLUBS)
+        val view = misereDefenceView(hand = hand, trick = emptyList())
+        assertEquals(Rank.FIVE of Suit.CLUBS, bot.choosePlay(view))
+    }
+
+    @Test
+    fun `misere defender forced over the declarer sheds its most dangerous card`() {
+        // Declarer played the 4♥ and every legal card beats it — the trick can't stick to the
+        // declarer, so dump the Ace while it costs nothing.
+        val hand = listOf(Rank.ACE of Suit.HEARTS, Rank.SIX of Suit.HEARTS)
+        val view = misereDefenceView(
+            hand = hand,
+            trick = listOf(
+                TrickPlay(Seat(3), Rank.FIVE of Suit.HEARTS),
+                TrickPlay(Seat(0), Rank.FOUR of Suit.HEARTS),
+            ),
+        )
+        assertEquals(Rank.ACE of Suit.HEARTS, bot.choosePlay(view))
     }
 
     @Test

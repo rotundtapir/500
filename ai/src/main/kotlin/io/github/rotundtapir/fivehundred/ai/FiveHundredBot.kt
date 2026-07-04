@@ -131,6 +131,24 @@ class FiveHundredBot(
             else legal.minBy { rawStrength(it, eval) }
         }
 
+        // Misère defender: the only goal is to force the declarer to take a trick, and taking
+        // tricks ourselves costs nothing. Before the declarer has played, keep the trick as LOW
+        // as possible (they duck under whatever is winning); once the declarer's card is down,
+        // shed the highest card that still stays below it, so their card keeps the trick.
+        if (contract != null && contract.isMisere && view.seat != contract.declarer) {
+            val declarerPlay = trick.firstOrNull { it.seat == contract.declarer }
+            return if (declarerPlay == null) {
+                legal.minBy { rawStrength(it, eval) }
+            } else {
+                val target = eval.strength(declarerPlay.card, ledSuit)
+                legal.filter { eval.strength(it, ledSuit) < target }
+                    .maxByOrNull { rawStrength(it, eval) }
+                    // Every legal card overtakes the declarer, so this trick can't stick to them —
+                    // shed the most dangerous card while it's free.
+                    ?: legal.maxBy { rawStrength(it, eval) }
+            }
+        }
+
         if (leading) return legal.maxBy { rawStrength(it, eval) } // lead a strong card
 
         val best = trick.maxBy { eval.strength(it.card, ledSuit) }

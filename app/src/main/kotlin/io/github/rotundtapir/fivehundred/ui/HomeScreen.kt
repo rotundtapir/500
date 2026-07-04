@@ -148,8 +148,6 @@ fun HomeScreen(
                     modifier = Modifier.testTag("walkthroughButton"),
                 ) { Text("How to play") }
 
-                Spacer(Modifier.height(24.dp))
-                monetization.BannerSlot(Modifier.fillMaxWidth())
             }
         }
     }

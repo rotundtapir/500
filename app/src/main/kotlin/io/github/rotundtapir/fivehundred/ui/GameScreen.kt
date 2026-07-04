@@ -317,9 +317,20 @@ fun GameScreen(
         view = view,
         botNames = botNames,
         onDismissed = {
-            resultAckedHand = view.handNumber
-            onResultDismissed(view.handNumber)
-            if (tutorial != null) tutorialComplete = true
+            if (tutorial != null) {
+                // Deliberately never acknowledge the tutorial hand's result: the next deal's
+                // animation and the ViewModel's bots both gate on it, so the finished board
+                // stays put behind the epilogue pages instead of dealing a distracting hand 2.
+                tutorialComplete = true
+            } else {
+                resultAckedHand = view.handNumber
+                onResultDismissed(view.handNumber)
+                if (view.phase != Phase.COMPLETE) {
+                    // The natural break between hands — the game's only interstitial moment.
+                    // No-op in FOSS builds, when ads are removed, or before consent.
+                    monetization.maybeShowInterstitial(activity)
+                }
+            }
         },
     )
 
