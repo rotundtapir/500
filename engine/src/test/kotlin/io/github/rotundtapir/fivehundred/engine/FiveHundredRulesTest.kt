@@ -86,6 +86,27 @@ class FiveHundredRulesTest {
     }
 
     @Test
+    fun `every scored hand is appended to handResults`() {
+        var s = runOneHand(seed = 42L)
+        assertEquals(listOf(s.lastHandResult!!), s.handResults)
+
+        // Play a second hand: the history keeps hand 1's result and appends hand 2's.
+        val firstResult = s.lastHandResult!!
+        val startHand = s.handNumber
+        while (!rules.isTerminal(s) && s.handNumber == startHand) {
+            val actor = rules.currentActor(s) ?: break
+            s = rules.apply(s, actor, policy(rules.view(s, actor)))
+        }
+        assertEquals(listOf(firstResult, s.lastHandResult!!), s.handResults)
+        // The redacted view exposes the same history (it's public info).
+        assertEquals(s.handResults, rules.view(s, Seat(0)).handResults)
+        // Scores are exactly the sum of the recorded deltas.
+        for (team in 0 until 2) {
+            assertEquals(s.handResults.sumOf { it.teamDeltas[team] ?: 0 }, s.scores[team])
+        }
+    }
+
+    @Test
     fun `the match is deterministic for a given seed`() {
         assertEquals(runOneHand(7L).scores, runOneHand(7L).scores)
         assertEquals(runOneHand(7L).lastHandResult, runOneHand(7L).lastHandResult)

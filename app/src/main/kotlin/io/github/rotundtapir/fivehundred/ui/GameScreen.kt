@@ -22,15 +22,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -64,6 +68,8 @@ import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -160,6 +166,10 @@ fun GameScreen(
     // Highest hand number whose result dialog has been dismissed — the shuffle/deal animation of
     // the NEXT hand waits for this, so nothing moves behind the dialog while the player reads it.
     var resultAckedHand by remember { mutableStateOf(0) }
+    // Whether the FINAL hand's result dialog has been dismissed. resultAckedHand can't tell: between
+    // hands the dialog shows under the NEXT hand's number, so by game end it already reads current.
+    // Keyed on winner so it resets if this composable survives into another game.
+    var finalResultAcked by remember(view.winner) { mutableStateOf(false) }
 
     // Dealing animation: on each new hand (unless animations are OFF) fly card backs one at a time
     // from a centre deck to each seat's pile / the kitty in 500's 3-4-3 packet order, then flip the
@@ -294,30 +304,17 @@ fun GameScreen(
         )
     }
 
-    view.winner?.let { winningTeam ->
-        val youWon = winningTeam == view.myTeam
-        val finalScore = if (view.teamCount == 2) {
-            "Final score — you ${view.scores[view.myTeam]}, opponents ${view.scores[1 - view.myTeam]}"
-        } else {
-            // Three teams: list every team's score, ours first, the others named by their members.
-            val others = (0 until view.teamCount).filter { it != view.myTeam }
-            val parts = listOf("You ${view.scores[view.myTeam] ?: 0}") +
-                others.map { team -> "${teamLabel(view, botNames, team)} ${view.scores[team] ?: 0}" }
-            "Final score — ${parts.joinToString(" · ")}"
-        }
-        AlertDialog(
-            onDismissRequest = {},
-            title = { Text(if (youWon) "You win!" else "You lose") },
-            text = { Text(finalScore) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        // The game's only interstitial moment: once per finished game, on the way
-                        // out (a no-op that exits immediately in FOSS builds, when ads are
-                        // removed, or before consent).
-                        monetization.maybeShowInterstitial(activity, onDismissed = onExit)
-                    },
-                ) { Text("Back to menu") }
+    // At game end the final hand's score breakdown (HandResultDialog) shows first; the game-over
+    // score sheet only appears once it has been dismissed.
+    if (view.winner != null && finalResultAcked) {
+        GameOverDialog(
+            view = view,
+            botNames = botNames,
+            onBackToMenu = {
+                // The game's only interstitial moment: once per finished game, on the way out (a
+                // no-op that exits immediately in FOSS builds, when ads are removed, or before
+                // consent).
+                monetization.maybeShowInterstitial(activity, onDismissed = onExit)
             },
         )
     }
@@ -334,6 +331,7 @@ fun GameScreen(
             } else {
                 resultAckedHand = view.handNumber
                 onResultDismissed(view.handNumber)
+                if (view.winner != null) finalResultAcked = true
             }
         },
     )
@@ -547,7 +545,6 @@ private fun HandResultDialog(
     onDismissed: () -> Unit = {},
 ) {
     val result = view.lastHandResult ?: return
-    if (view.winner != null) return // the winner dialog handles game end
     var dismissed by remember(view.lastHandResult) { mutableStateOf(false) }
     if (dismissed) return
     val dismiss = {
@@ -656,6 +653,162 @@ private fun ScoreDeltaRow(label: String, delta: Int, explanation: String) {
             Text(signed(delta), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             if (explanation.isNotEmpty()) {
                 Text(explanation, style = MaterialTheme.typography.bodySmall)
+            }
+        }
+    }
+}
+
+/**
+ * End-of-game dialog: a win/lose banner, the final totals, and a hand-by-hand score sheet built
+ * from [PlayerView.handResults]. Shown only after the final hand's [HandResultDialog] has been
+ * dismissed, so the last hand's breakdown is never skipped.
+ */
+@Composable
+private fun GameOverDialog(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    onBackToMenu: () -> Unit,
+) {
+    val youWon = view.winner == view.myTeam
+    val headerColor = if (youWon) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val onHeaderColor = if (youWon) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError
+    // Our team first, then every other team in index order (just "Them" with two teams).
+    val teamsInOrder = listOf(view.myTeam) + (0 until view.teamCount).filter { it != view.myTeam }
+
+    fun columnLabel(team: Int): String = when {
+        team == view.myTeam -> "Us"
+        view.teamCount == 2 -> "Them"
+        else -> teamLabel(view, botNames, team)
+    }
+
+    val handCount = view.handResults.size
+    val teamCellWidth = if (view.teamCount == 2) 64.dp else 56.dp
+
+    Dialog(onDismissRequest = {}) {
+        Surface(
+            shape = RoundedCornerShape(20.dp),
+            color = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface,
+            tonalElevation = 6.dp,
+        ) {
+            Column {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(headerColor)
+                        .padding(horizontal = 24.dp, vertical = 16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        if (youWon) "You win!" else "You lose",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = onHeaderColor,
+                    )
+                    Text(
+                        "after $handCount ${if (handCount == 1) "hand" else "hands"}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = onHeaderColor,
+                    )
+                }
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                    // Final totals, the winning team's tinted to match the banner.
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        teamsInOrder.forEach { team ->
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            ) {
+                                Text(
+                                    columnLabel(team),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    "${view.scores[team] ?: 0}",
+                                    style = MaterialTheme.typography.headlineSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (team == view.winner) headerColor else MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    HorizontalDivider()
+                    Spacer(Modifier.height(12.dp))
+                    // Score sheet header: contract column, then one delta column per team.
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            "Hand",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        teamsInOrder.forEach { team ->
+                            Text(
+                                columnLabel(team),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.width(teamCellWidth),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 240.dp)
+                            .verticalScroll(rememberScrollState()),
+                    ) {
+                        view.handResults.forEachIndexed { i, r ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    "${i + 1}.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.width(24.dp),
+                                )
+                                Text(
+                                    "${r.contract.bid.label} · ${seatLabel(view, botNames, r.contract.declarer)}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    if (r.made) "✓" else "✗",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (r.made) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                                )
+                                teamsInOrder.forEach { team ->
+                                    Text(
+                                        signed(r.teamDeltas[team] ?: 0),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = if (team == view.myTeam) FontWeight.SemiBold else FontWeight.Normal,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.width(teamCellWidth),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = onBackToMenu,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("backToMenu"),
+                    ) { Text("Back to menu") }
+                }
             }
         }
     }

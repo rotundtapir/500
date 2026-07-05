@@ -80,6 +80,8 @@ data class GameState(
     val lastTrick: CompletedTrick? = null,
     val scores: Map<Int, Int> = mapOf(0 to 0, 1 to 0),
     val lastHandResult: HandResult? = null,
+    /** Every scored hand this match, oldest first. Passed-out deals score nothing and are not recorded. */
+    val handResults: List<HandResult> = emptyList(),
     val winner: Int? = null,
 )
 
@@ -114,6 +116,8 @@ data class PlayerView(
     val exposedDeclarerHand: List<Card>?,
     val activeSeats: List<Seat>,
     val lastHandResult: HandResult?,
+    /** Every scored hand this match, oldest first — public info, e.g. for an end-of-game score sheet. */
+    val handResults: List<HandResult> = emptyList(),
     val winner: Int?,
 ) {
     val myTeam: Int get() = teamOf(seat, teamCount)

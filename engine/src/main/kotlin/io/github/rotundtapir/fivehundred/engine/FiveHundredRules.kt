@@ -90,6 +90,7 @@ class FiveHundredRules(
             handNumber = 1,
             scores = (0 until teamCount).associateWith { 0 },
             lastResult = null,
+            handResults = emptyList(),
         )
 
     private fun dealHand(
@@ -98,6 +99,7 @@ class FiveHundredRules(
         handNumber: Int,
         scores: Map<Int, Int>,
         lastResult: HandResult?,
+        handResults: List<HandResult>,
     ): GameState {
         val shuffled = deck.shuffleWith(Random(seed))
         val dealt = deal(shuffled, playerCount, HAND_SIZE)
@@ -117,6 +119,7 @@ class FiveHundredRules(
             bidding = BiddingState(toAct = opener),
             scores = scores,
             lastHandResult = lastResult,
+            handResults = handResults,
         )
     }
 
@@ -192,6 +195,7 @@ class FiveHundredRules(
             exposedDeclarerHand = exposed,
             activeSeats = state.activeSeats,
             lastHandResult = state.lastHandResult,
+            handResults = state.handResults,
             winner = state.winner,
         )
     }
@@ -228,7 +232,7 @@ class FiveHundredRules(
                 enterKitty(state.copy(bidding = b.copy(history = history, passed = passed, highBid = highBid, highBidder = highBidder)))
             // Passed out: nobody bid. Redeal with the next dealer.
             active.isEmpty() ->
-                dealHand(nextSeed(state.rngSeed), next(state.dealer), state.handNumber + 1, state.scores, lastResult = null)
+                dealHand(nextSeed(state.rngSeed), next(state.dealer), state.handNumber + 1, state.scores, lastResult = null, handResults = state.handResults)
             // Continue the auction.
             else -> state.copy(
                 bidding = b.copy(
@@ -357,11 +361,12 @@ class FiveHundredRules(
         val result = scoreHand(contract, state.tricksWon, schedule, teamCount)
         val newScores = state.scores.mapValues { (team, s) -> s + (result.teamDeltas[team] ?: 0) }
         val matchWinner = determineWinner(newScores, result, teamCount)
+        val history = state.handResults + result
 
         return if (matchWinner != null) {
-            state.copy(phase = Phase.COMPLETE, scores = newScores, lastHandResult = result, winner = matchWinner)
+            state.copy(phase = Phase.COMPLETE, scores = newScores, lastHandResult = result, handResults = history, winner = matchWinner)
         } else {
-            dealHand(nextSeed(state.rngSeed), next(state.dealer), state.handNumber + 1, newScores, result)
+            dealHand(nextSeed(state.rngSeed), next(state.dealer), state.handNumber + 1, newScores, result, history)
         }
     }
 

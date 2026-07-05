@@ -514,6 +514,37 @@ class GameFlowTest {
         assertTrue("expected to reach at least one play turn", checks >= 1)
     }
 
+    /**
+     * Plays whole hands until the match ends: the final hand's result dialog must appear FIRST
+     * (before any game-over dialog), and dismissing it reveals the game-over score sheet with a
+     * row per scored hand and the exit button.
+     */
+    @Test
+    fun gameEnd_showsFinalHandBreakdown_thenScoreSheet() {
+        startGame()
+        val deadline = System.currentTimeMillis() + 300_000
+        while (System.currentTimeMillis() < deadline) {
+            playUntilHandResultOrGameEnd()
+            if (textExists("Contract made!") || textExists("Contract failed")) {
+                // Every hand — including the last — shows its breakdown before anything else.
+                assertTrue(
+                    "the game-over dialog must wait for the hand result to be dismissed",
+                    !textExists("You win!") && !textExists("You lose"),
+                )
+                rule.onNodeWithTag("handResultContinue").performClick()
+                rule.waitForIdle()
+            }
+            if (textExists("You win!") || textExists("You lose")) {
+                // The score sheet tallies the hands played and offers the way out.
+                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Hand") }
+                rule.onNodeWithTag("backToMenu").performClick()
+                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("New Game") }
+                return
+            }
+        }
+        throw AssertionError("game did not end within 300s")
+    }
+
     // ---------------------------------------------------------------------------------------------
     // Generic hand driver
     // ---------------------------------------------------------------------------------------------
@@ -566,5 +597,48 @@ class GameFlowTest {
             }
         }
         throw AssertionError("hand did not complete within 120s")
+    }
+
+    /**
+     * Like [playOneHandToCompletion], but keeps going across hands: only returns when a hand-result
+     * dialog is showing or the game is over. ("(last: …)" is visible during the NEXT hand's bidding,
+     * so it can't be used as a stop condition here.)
+     */
+    private fun playUntilHandResultOrGameEnd() {
+        val deadline = System.currentTimeMillis() + 120_000
+        while (System.currentTimeMillis() < deadline) {
+            rule.waitUntil(STEP_TIMEOUT_MS) {
+                textExists("Your bid:") ||
+                    textExists("Discard 3 cards", substring = true) ||
+                    textExists("Your turn — tap a card to play") ||
+                    textExists("Contract made!") || textExists("Contract failed") ||
+                    textExists("You win!") || textExists("You lose")
+            }
+            when {
+                // Check dialogs first: "Your bid:" can already exist behind the result dialog.
+                textExists("Contract made!") || textExists("Contract failed") -> return
+                textExists("You win!") || textExists("You lose") -> return
+                textExists("Your bid:") -> {
+                    rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()
+                    rule.waitForIdle()
+                }
+                textExists("Discard 3 cards", substring = true) -> {
+                    repeat(3) { i ->
+                        clickableCards()[i].performScrollTo().performClick()
+                        rule.waitForIdle()
+                    }
+                    rule.onNodeWithTag("discardButton").performClick()
+                    rule.waitForIdle()
+                }
+                textExists("Your turn — tap a card to play") -> {
+                    val playable = clickableCards()
+                    if (playable.fetchSemanticsNodes().isNotEmpty()) {
+                        playable[0].performScrollTo().performClick()
+                        rule.waitForIdle()
+                    }
+                }
+            }
+        }
+        throw AssertionError("no hand result or game end within 120s")
     }
 }
