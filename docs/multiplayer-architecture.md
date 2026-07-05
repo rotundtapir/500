@@ -148,3 +148,51 @@ Counterintuitively, the hosted server is the *more* self-hostable option:
 Authoritative hosted server: it is what the engine was shaped for, it is the only option
 that keeps misère honest, and its infrastructure burden (one tiny self-hostable VPS) is
 smaller than P2P's hidden signaling/TURN burden.
+
+## Hosting costs (researched 2026-07)
+
+Costs common to every scenario:
+
+| Item | Cost | Notes |
+|---|---|---|
+| Domain | ~$10–15/yr | Needed everywhere — it is also the TLS identity. Cloudflare Registrar sells at cost (~$10.44/yr for .com). Free DDNS subdomains work but look bad as an app's hardcoded default server |
+| TLS certificate | $0 | Let's Encrypt, or terminate at Cloudflare's edge |
+| Monitoring | $0 | UptimeRobot / healthchecks.io free tiers |
+| Backups | ~$0 | Game state is ephemeral (a crashed game is a lost hand, not lost data); config lives in git |
+| DDoS fronting | $0 | Cloudflare free plan proxies WebSockets on all plans |
+| Bandwidth | $0 marginal | ~1–3 kbit/s per game (above) is a rounding error against any VPS's included transfer |
+
+Compute options:
+
+- **Pi at home:** ~$8–15/yr electricity (3–6 W continuous) + the domain ⇒ **≈ $20–30/yr**
+  (hardware owned). Requires dynamic DNS (free — cron job against the Cloudflare API) and,
+  naively, a port forward. The forward is the real cost: the home IP is published in DNS
+  (grudge-DoS hits the household's internet), the open port's compromise lands inside the
+  LAN unless the Pi is VLAN-isolated, and ISP CGNAT may make forwarding impossible anyway.
+  **Mitigation: Cloudflare Tunnel** — `cloudflared` on the Pi makes an outbound-only
+  connection; free, WebSocket-capable, hides the home IP, works through CGNAT, no open
+  port at all. (Tailscale Funnel is the alternative.) Residual con: household power or
+  internet outages become the game's outages.
+- **Cheap VPS:** e.g. Vultr $2.50/mo (IPv6-only) or $3.50/mo (dual-stack), both
+  0.5 vCPU / 512 MB ⇒ **≈ $40–60/yr** with the domain. Hetzner CAX11 (2 ARM vCPU / 4 GB,
+  ~€4.50/mo with IPv4) is dramatically more headroom per dollar at the same price point.
+
+**Is 0.5 vCPU / 512 MB enough?** CPU: comfortably — the pure-reducer engine has no tick
+loop and idles between human taps. RAM is the resource to tune: JVM 21 + Ktor/Netty with
+the heap capped (`-Xmx192m`, SerialGC) runs ~150–250 MB RSS and hundreds of concurrent
+games fit inside that heap; budget ~80–100 MB for minimal Debian + sshd, add zram/swap as
+an OOM safety net and a systemd restart policy. GraalVM native-image (~50 MB RSS) is the
+escape hatch; the ~$5–6 1 GB tier buys the right to never think about any of this.
+
+**IPv6-only reachability is asymmetric.** Android on cellular is mostly fine (mobile
+carriers are heavily IPv6; their 464XLAT helps clients reach IPv4-only *servers*, not the
+reverse). Android on home Wi-Fi is the problem: the phone only has IPv6 if the home ISP
+provides it, and Google's traffic only crossed 50% IPv6 in March 2026 — with AU/NZ (500's
+likely audience) below the global average. A bare IPv6-only server refuses connections
+from a third to half of players, with a "works on mobile data, fails on my Wi-Fi" failure
+mode. Workaround: a proxied AAAA record behind free Cloudflare (dual-stack edge, origin
+reached over IPv6; WebSockets supported on the free plan; client heartbeats must stay
+under Cloudflare's ~100 s proxy idle timeout — heartbeats are already in the
+`cardkit-server` design). **Recommendation:** the $1/mo saving is not worth making basic
+reachability depend on a third-party proxy — take the dual-stack plan, and let Cloudflare
+be optional armor rather than load-bearing.
