@@ -309,7 +309,16 @@ fun GameScreen(
             onDismissRequest = {},
             title = { Text(if (youWon) "You win!" else "You lose") },
             text = { Text(finalScore) },
-            confirmButton = { TextButton(onClick = onExit) { Text("Back to menu") } },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // The game's only interstitial moment: once per finished game, on the way
+                        // out (a no-op that exits immediately in FOSS builds, when ads are
+                        // removed, or before consent).
+                        monetization.maybeShowInterstitial(activity, onDismissed = onExit)
+                    },
+                ) { Text("Back to menu") }
+            },
         )
     }
 
@@ -323,20 +332,8 @@ fun GameScreen(
                 // stays put behind the epilogue pages instead of dealing a distracting hand 2.
                 tutorialComplete = true
             } else {
-                val handNumber = view.handNumber
-                val acknowledge = {
-                    resultAckedHand = handNumber
-                    onResultDismissed(handNumber)
-                }
-                if (view.phase != Phase.COMPLETE) {
-                    // The natural break between hands — the game's only interstitial moment
-                    // (a no-op that continues immediately in FOSS builds, when ads are removed,
-                    // or before consent). Acknowledging is what releases the next deal and the
-                    // bots, so it waits for the ad to close — nothing animates under the ad.
-                    monetization.maybeShowInterstitial(activity, onDismissed = acknowledge)
-                } else {
-                    acknowledge()
-                }
+                resultAckedHand = view.handNumber
+                onResultDismissed(view.handNumber)
             }
         },
     )
