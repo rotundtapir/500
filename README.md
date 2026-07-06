@@ -3,7 +3,7 @@
 An Android app for **500**, the classic 4-player partnership trick-taking card
 game (Australian rules). Play against three AI opponents offline.
 
-Built on the shared [`cardkit`](https://github.com/rotund-tapir/cardkit) library
+Built on the shared [`cardkit`](https://github.com/rotundtapir/cardkit) library
 (included here as a git submodule), the first of a suite of card-game apps.
 
 ## Distribution
@@ -20,7 +20,7 @@ The two are the `play` and `foss` build flavors. The F-Droid build excludes the
 
 - **Google Play**: coming with the 0.1 release.
 - **GitHub**: signed ad-free APKs are attached to
-  [releases](https://github.com/rotund-tapir/500/releases) (sideload; updates keep
+  [releases](https://github.com/rotundtapir/500/releases) (sideload; updates keep
   the same signature).
 - **F-Droid**: submission planned after the first tagged release.
 
@@ -65,6 +65,6 @@ see [`LICENSE`](LICENSE) and [`LICENSE-EXCEPTION.md`](LICENSE-EXCEPTION.md).
 Contributions require a DCO sign-off; see [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 > **Namespace:** `io.github.rotundtapir.*` (and the `applicationId`
-> `io.github.rotundtapir.fivehundred`) is the `io.github.<org>` namespace for
-> the GitHub org `rotund-tapir`, with the hyphen dropped (hyphens aren't valid
-> in Java/Kotlin package names or Android application ids).
+> `io.github.rotundtapir.fivehundred`) is the `io.github.<account>` namespace
+> of the GitHub account [`rotundtapir`](https://github.com/rotundtapir) that
+> publishes this app.

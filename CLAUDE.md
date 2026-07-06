@@ -124,9 +124,9 @@ Editing shared/infra behaviour means changing files under `cardkit/`, which is a
 - New source files get the SPDX header:
   `// SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception`
 - Commits require a DCO sign-off (`git commit -s`); no CLA.
-- Namespace is `io.github.rotundtapir.*` (final — the sanitized `io.github.<org>` form of the
-  `rotund-tapir` GitHub org; hyphens are illegal in package names). `applicationId` is
-  `io.github.rotundtapir.fivehundred`.
+- Namespace is `io.github.rotundtapir.*` (final — matches the `rotundtapir` GitHub account, which
+  was renamed from `rotund-tapir` on 2026-07-06 precisely so the namespace is literally true).
+  `applicationId` is `io.github.rotundtapir.fivehundred`.
 - Monetization ids are real: the AdMob app id lives in `app/src/play/AndroidManifest.xml`; the play
   `MonetizationProvider` uses Google's test ad units in debug builds and the real units in release
   (never point debug builds at the real units — invalid-traffic risk). The `remove_ads` Play Console

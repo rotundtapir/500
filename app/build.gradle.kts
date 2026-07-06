@@ -35,7 +35,7 @@ android {
         create("foss") {
             dimension = "distribution"
             // Feedback goes to the public issue tracker — F-Droid users have GitHub, not Play.
-            buildConfigField("String", "FEEDBACK_URI", "\"https://github.com/rotund-tapir/500/issues\"")
+            buildConfigField("String", "FEEDBACK_URI", "\"https://github.com/rotundtapir/500/issues\"")
         }
         create("play") {
             dimension = "distribution"
