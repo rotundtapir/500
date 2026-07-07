@@ -1,0 +1,1 @@
+Your partner's name is now highlighted at the table, the deal animation is smoother, and suit symbols render in colour. 500 is now also playable in any modern browser at rotundtapir.github.io/500 — same rules, same bots, no install.
