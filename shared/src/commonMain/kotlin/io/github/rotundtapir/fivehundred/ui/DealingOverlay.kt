@@ -23,6 +23,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -292,10 +293,13 @@ internal fun DealFelt(state: DealAnimationState) {
                     animationSpec = tween(120),
                     label = "shuffleTilt",
                 )
+                // Lambda offset + graphicsLayer keep the riffle in the placement/draw phases:
+                // reading `split`/`tilt` during composition would recompose (and the plain
+                // offset(x=) overload relayout) every animation frame — visible jank on wasm.
                 Box(Modifier.dealAnchor(state, DeckAnchor)) {
                     Box(
                         Modifier
-                            .offset(x = -split)
+                            .offset { IntOffset(-split.roundToPx(), 0) }
                             .graphicsLayer { rotationZ = -tilt },
                     ) {
                         repeat(2) { i ->
@@ -304,7 +308,7 @@ internal fun DealFelt(state: DealAnimationState) {
                     }
                     Box(
                         Modifier
-                            .offset(x = split)
+                            .offset { IntOffset(split.roundToPx(), 0) }
                             .graphicsLayer { rotationZ = tilt },
                     ) {
                         repeat(2) { i ->
@@ -396,13 +400,17 @@ private fun FlippingCard(card: Card, index: Int, width: Dp, timings: DealTimings
         delay(index * timings.flipStaggerMillis.toLong())
         rotation.animateTo(180f, tween(timings.flipMillis, easing = FastOutSlowInEasing))
     }
+    // The rotation itself is read only inside graphicsLayer (draw phase); the back/face switch
+    // goes through derivedStateOf so each card recomposes exactly once (at 90°) rather than on
+    // every frame of the flip — ten cards recomposing per frame stuttered visibly on wasm.
+    val showBack by remember { derivedStateOf { rotation.value <= 90f } }
     Box(
         Modifier.graphicsLayer {
             rotationY = rotation.value
             cameraDistance = 8f * density
         },
     ) {
-        if (rotation.value <= 90f) {
+        if (showBack) {
             CardBack(width = width)
         } else {
             Box(Modifier.graphicsLayer { rotationY = 180f }) { PlayingCard(card, width = width) }
