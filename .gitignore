@@ -27,3 +27,4 @@ Thumbs.db
 
 # Logs / misc
 *.log
+.claude/

@@ -54,6 +54,13 @@ ANDROID_SERIAL=emulator-5554 ./gradlew :app:connectedFossDebugAndroidTest
 ./gradlew :web:wasmJsBrowserRun          # http://localhost:8080
 ./gradlew :web:wasmJsBrowserDistribution
 # Web analogue of the test intent extras: ?seed=42&animationSpeed=OFF&soundVolume=0
+
+# Web E2E (Playwright over the production dist, served under the Pages /500/ prefix).
+# Build the distribution first; uses system Chrome (channel: 'chrome'), no browser download.
+cd web/e2e && npm ci && npx playwright test
+# Locate semantically but click via page.mouse at the locator's box centre — the canvas
+# intercepts pointer events, so plain .click() fails actionability. Playable cards are
+# a11y buttons ("Q♣"); unplayable cards are imgs.
 ```
 
 Enable the pre-commit hook once per clone: `git config core.hooksPath scripts/hooks` (runs

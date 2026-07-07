@@ -22,6 +22,7 @@ import io.github.rotundtapir.fivehundred.web.generated.resources.symbol_fallback
 import kotlin.random.Random
 import kotlinx.browser.document
 import kotlinx.browser.window
+import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 import org.jetbrains.compose.resources.configureWebResources
 import org.jetbrains.compose.resources.preloadFont
@@ -49,9 +50,6 @@ fun main() {
         ?.let { name -> AnimationSpeed.entries.find { it.name == name } }
     val soundVolumeOverride = params.get("soundVolume")?.toFloatOrNull()
 
-    // The wasm module is running — replace the static "loading" placeholder with the app.
-    document.getElementById("loading")?.remove()
-
     ComposeViewport(document.body!!) {
         // The embedded default font lacks the symbols the UI draws (card suits, arrows, the
         // settings gear, check marks) and the web canvas has no system fonts to fall back on, so
@@ -66,7 +64,17 @@ fun main() {
                 fontsReady = true
             }
         }
+        // If the font never arrives (network failure), show the app anyway after a grace period —
+        // missing suit glyphs beat a permanently blank page.
+        LaunchedEffect(Unit) {
+            delay(5_000)
+            fontsReady = true
+        }
         if (!fontsReady) return@ComposeViewport
+        // First real frame is about to compose — only now retire the static "loading" placeholder.
+        LaunchedEffect(Unit) {
+            document.getElementById("loading")?.remove()
+        }
         CardkitTheme {
             Box {
                 // Web image loading is async: warm every card bitmap into the resource cache at

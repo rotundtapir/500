@@ -1,0 +1,12 @@
+{
+  "name": "fivehundred-web-e2e",
+  "private": true,
+  "description": "Playwright E2E smoke suite for the wasm build, run against the production distribution",
+  "license": "GPL-3.0-or-later",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.0"
+  }
+}

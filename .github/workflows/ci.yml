@@ -43,6 +43,24 @@ jobs:
       - name: Build web distribution (wasmJs)
         run: ./gradlew :web:wasmJsBrowserDistribution
 
+      # E2E smoke of the production wasm artifact: served under a /500/ prefix (the Pages
+      # subpath), driven with Playwright against the runner's Chrome (WasmGC-capable).
+      - name: Web E2E (Playwright)
+        working-directory: web/e2e
+        run: |
+          npm ci
+          npx playwright test
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            web/e2e/playwright-report
+            web/e2e/test-results
+          if-no-files-found: ignore
+
       - name: Verify FOSS build has no proprietary deps
         run: |
           ./gradlew :app:dependencies --configuration fossReleaseRuntimeClasspath > foss-deps.txt
@@ -127,7 +145,8 @@ jobs:
       - name: Build web distribution
         run: ./gradlew :web:wasmJsBrowserDistribution
 
-      # Pages runs Jekyll by default, which drops files it doesn't understand.
+      # Actions-sourced Pages deployments skip Jekyll anyway; this is belt-and-braces in case
+      # the Pages source is ever switched back to a branch.
       - name: Disable Jekyll
         run: touch web/build/dist/wasmJs/productionExecutable/.nojekyll
 
