@@ -32,7 +32,7 @@ fun TutorialIntroDialog(onStart: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("How to play") },
-        text = { Text(TUTORIAL_INTRO) },
+        text = { SuitText(TUTORIAL_INTRO) },
         dismissButton = {
             TextButton(onClick = onDismiss) { Text("Cancel") }
         },
@@ -167,7 +167,7 @@ private fun RuleSection(title: String, body: String) {
         if (title.isNotEmpty()) {
             Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
         }
-        Text(body, style = MaterialTheme.typography.bodyMedium)
+        SuitText(body, style = MaterialTheme.typography.bodyMedium)
     }
 }
 

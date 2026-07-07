@@ -9,8 +9,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.window.ComposeViewport
 import io.github.rotundtapir.cardkit.monetization.browser.BrowserMonetization
+import io.github.rotundtapir.cardkit.ui.CardArtWarmup
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
 import io.github.rotundtapir.fivehundred.AnimationSpeed
 import io.github.rotundtapir.fivehundred.AppConfig
@@ -66,14 +68,19 @@ fun main() {
         }
         if (!fontsReady) return@ComposeViewport
         CardkitTheme {
-            FiveHundredApp(
-                monetization = remember { BrowserMonetization(DONATION_URL) },
-                settings = remember { LocalStorageSettingsRepository() },
-                appConfig = AppConfig(feedbackUri = FEEDBACK_URI),
-                nextSeed = { seedOverride ?: Random.nextLong() },
-                animationSpeedOverride = animationSpeedOverride,
-                soundVolumeOverride = soundVolumeOverride,
-            )
+            Box {
+                // Web image loading is async: warm every card bitmap into the resource cache at
+                // startup so the first deal doesn't show blank backs/faces while PNGs stream in.
+                CardArtWarmup()
+                FiveHundredApp(
+                    monetization = remember { BrowserMonetization(DONATION_URL) },
+                    settings = remember { LocalStorageSettingsRepository() },
+                    appConfig = AppConfig(feedbackUri = FEEDBACK_URI),
+                    nextSeed = { seedOverride ?: Random.nextLong() },
+                    animationSpeedOverride = animationSpeedOverride,
+                    soundVolumeOverride = soundVolumeOverride,
+                )
+            }
         }
     }
 }

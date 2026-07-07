@@ -456,7 +456,7 @@ private fun TutorialBubble(
                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Text("Tutorial", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
                         Spacer(Modifier.height(4.dp))
-                        Text(text, fontSize = 17.sp, lineHeight = 23.sp)
+                        SuitText(text, fontSize = 17.sp, lineHeight = 23.sp)
                         if (showTrumpOrder) {
                             Spacer(Modifier.height(8.dp))
                             TrumpOrderRow()
@@ -618,7 +618,7 @@ private fun HandResultDialog(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Text(bidLine, style = MaterialTheme.typography.bodyMedium)
+                    SuitText(bidLine, style = MaterialTheme.typography.bodyMedium)
                     Text(tricksLine, style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     teamsInOrder.forEach { team ->
@@ -789,7 +789,7 @@ private fun GameOverDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.width(24.dp),
                                 )
-                                Text(
+                                SuitText(
                                     "${r.contract.bid.label} · ${seatLabel(view, botNames, r.contract.declarer)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     // Long contracts ("Misère · Thelma") wrap rather than losing
@@ -887,7 +887,7 @@ private fun ContractLine(view: PlayerView, botNames: Map<Seat, String>) {
     val last = view.lastHandResult?.let {
         "  (last: ${it.contract.bid.label} ${if (it.made) "made" else "failed"})"
     } ?: ""
-    Text(text + last)
+    SuitText(text + last)
 }
 
 @Composable
@@ -952,7 +952,7 @@ private fun OpponentStatus(
         // then passed still told you where their strength is.
         if (view.phase == Phase.BIDDING) {
             val lastAction = view.biddingHistory.lastOrNull { it.first == seat }?.second
-            Text(
+            SuitText(
                 when {
                     lastAction == null -> "—"
                     lastAction == Bid.Pass -> "passed"
@@ -963,7 +963,7 @@ private fun OpponentStatus(
         } else if (view.phase == Phase.KITTY) {
             val lastRealBid = view.biddingHistory
                 .lastOrNull { it.first == seat && it.second != Bid.Pass }?.second
-            Text(
+            SuitText(
                 if (lastRealBid != null) "bid ${lastRealBid.label}" else "no bid",
                 style = textStyle,
             )
@@ -1161,7 +1161,7 @@ private fun ActionArea(
         // "You" mirror of the opponents' status line — during the auction it shows your latest bid instead.
         val myLastBid =
             if (view.phase == Phase.BIDDING) view.biddingHistory.lastOrNull { it.first == view.seat }?.second else null
-        Text(
+        SuitText(
             when {
                 myLastBid == Bid.Pass -> "You — passed"
                 myLastBid != null -> "You — bid: ${myLastBid.label}"
@@ -1268,7 +1268,7 @@ private fun BiddingPanel(
                 modifier = Modifier
                     .testTag("bid:${bid.label}")
                     .tutorialTarget(if (bid == anchorBid) targets else null, "action"),
-            ) { Text(bid.label) }
+            ) { SuitText(bid.label) }
         }
     }
     Spacer(Modifier.height(8.dp))
