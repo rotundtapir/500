@@ -20,7 +20,7 @@ import io.github.rotundtapir.fivehundred.engine.Trump
  *
  *   Bots: seat 1 = Olive, seat 2 = Mabel (your partner), seat 3 = Edna
  *   Your deal: 10♠ J♠ J♦ 9♠ 5♣ K♠ 7♦ Q♥ Joker A♥ · kitty: Q♣ 8♣ K♥
- *   Auction: Olive Pass · Mabel 6♥ · Edna Pass · You 7♠ · Mabel Pass
+ *   Auction: Olive Pass · Mabel Pass · Edna Pass · You 7♠
  *   Discards: 5♣ 7♦ 8♣
  *   Tricks (your card first marked): Joker✓ · J♠✓ · K♠ (Olive's J♣ wins) · J♦ (Olive wins) ·
  *     Q♣ (Mabel wins) · Q♥ (Mabel wins) · K♥✓ · 10♠✓ · 9♠✓ · A♥✓  — 8 tricks, 7♠ made, +140/+20.
@@ -92,8 +92,8 @@ val tutorialSteps: List<TutorialStep> = listOf(
     TutorialStep.BidStep(
         bid = Bid.Named(7, Trump.SPADES),
         advice = "Look at your spades: the Joker, the J♠ (the \"right bower\"), K♠, 10♠ and 9♠ — " +
-            "five top trumps, plus the A♥ on the side. That's worth about seven tricks, so " +
-            "outbid Mabel's 6♥ with 7♠.",
+            "five top trumps, plus the A♥ on the side. That's worth about seven tricks, and the " +
+            "others have all passed, so open the bidding with 7♠.",
     ),
     TutorialStep.DiscardStep(
         cards = listOf(

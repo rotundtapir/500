@@ -25,8 +25,10 @@ import kotlin.random.Random
  * engine (e.g. Monte-Carlo) later without touching call sites.
  *
  * Behaviour:
- *  - **Bidding** estimates tricks for the best denomination (trump length + the kitty + side aces/kings)
- *    and bids that level if it reaches 6; bids Misère on a suitably weak hand; otherwise passes.
+ *  - **Bidding** estimates makeable tricks for *every* denomination — suits by trump winners and
+ *    length, no-trumps by stoppers (so NT competes on balanced hands) — and offers a bid for each
+ *    that reaches 6, plus Misère / Open Misère on suitably weak hands. It then places the
+ *    highest-ranked contract that is legal here, or passes. Every bid family is reachable.
  *  - **Kitty** keeps trumps and high cards for a suit contract (discards the weakest), and sheds the
  *    most dangerous high cards for a Misère.
  *  - **Play** wins tricks as cheaply as possible, lets a winning teammate be, dumps low otherwise,
@@ -40,8 +42,12 @@ class FiveHundredBot(
 
     override fun decide(view: PlayerView, random: Random): Action = when (view.phase) {
         Phase.BIDDING -> {
-            val bid = proposeBid(view.hand, view.highBid)
-            Action.PlaceBid(if (bid == Bid.Pass || bid in view.legalBids) bid else Bid.Pass)
+            // Bid the highest-ranked contract we fancy that is actually legal here — this routes
+            // Misère/Open Misère through the "misère after seven" gate and any house-rule toggles,
+            // and falls back to the next-best legal bid rather than collapsing straight to Pass.
+            val bid = candidateBids(view.hand).filter { it in view.legalBids }
+                .maxByOrNull { schedule.rank(it) } ?: Bid.Pass
+            Action.PlaceBid(bid)
         }
         Phase.KITTY -> {
             val c = view.contract!!
@@ -53,34 +59,87 @@ class FiveHundredBot(
 
     // --- Bidding ---------------------------------------------------------------------------------
 
-    /** The bid this bot would like to make given its [hand] and the current [highBid] (may be Pass). */
-    fun proposeBid(hand: List<Card>, highBid: Bid?): Bid {
-        val (bestTrump, estimate) = Trump.entries
-            .map { it to estimateTricks(hand, it) }
-            .maxBy { it.second }
-
-        val candidates = buildList {
-            val level = floor(estimate).toInt()
-            if (level >= 6) add(Bid.Named(level.coerceAtMost(10), bestTrump))
-            if (looksLikeMisere(hand)) add(Bid.Misere)
-        }
-        return candidates
+    /**
+     * The bid this bot would like to make given its [hand] and the current [highBid] (may be `null`):
+     * the highest-ranked contract it fancies that still outranks [highBid], or [Bid.Pass].
+     *
+     * This weighs *desirability* only and ignores table legality (house-rule toggles and the
+     * "misère after seven" gate); [decide] additionally filters against [PlayerView.legalBids].
+     */
+    fun proposeBid(hand: List<Card>, highBid: Bid?): Bid =
+        candidateBids(hand)
             .filter { highBid == null || schedule.outranks(it, highBid) }
             .maxByOrNull { schedule.rank(it) }
             ?: Bid.Pass
+
+    /**
+     * Every contract this [hand] is worth bidding, unranked and ignoring table legality: a
+     * [Bid.Named] for each denomination it estimates it can make (level >= 6, so **no-trumps
+     * competes on equal footing with the suits**), plus [Bid.Misere] / [Bid.OpenMisere] on suitably
+     * weak hands. Callers pick the winner with [ScoreSchedule.rank], which prefers the
+     * higher-scoring denomination when trick estimates tie.
+     */
+    private fun candidateBids(hand: List<Card>): List<Bid> = buildList {
+        for (trump in Trump.entries) {
+            val level = floor(estimateTricks(hand, trump)).toInt()
+            if (level >= 6) add(Bid.Named(level.coerceAtMost(10), trump))
+        }
+        // Both variants are offered when the stronger one qualifies, so that if Open Misère is
+        // illegal here (gate not reached, or disabled) plain Misère can still be chosen.
+        if (looksLikeMisere(hand)) add(Bid.Misere)
+        if (looksLikeOpenMisere(hand)) add(Bid.OpenMisere)
     }
 
-    /** Rough expected tricks for [trump]: trump length, +1 for the kitty, plus side-suit high cards. */
-    private fun estimateTricks(hand: List<Card>, trump: Trump): Double {
+    /** Expected tricks for [trump], dispatching to the suit or no-trump model. */
+    private fun estimateTricks(hand: List<Card>, trump: Trump): Double =
+        if (trump.isNoTrump) estimateNoTrumpTricks(hand) else estimateSuitTricks(hand, trump)
+
+    /**
+     * Suit contract: trump *winners* (honours count fully, low trumps half) + the kitty, plus
+     * side-suit aces/kings at a **ruff discount** — off-suit winners can be trumped, so they are
+     * worth less than the same cards would be at no-trump.
+     */
+    private fun estimateSuitTricks(hand: List<Card>, trump: Trump): Double {
         val eval = TrickEvaluator(trump)
-        var tricks = hand.count { eval.isTrump(it) }.toDouble() + 1.0 // +1 for the kitty
+        val trumps = hand.filter { eval.isTrump(it) }
+        val honours = trumps.count { isTrumpHonor(it, eval) }
+        val low = trumps.size - honours
+        // Honours are near-sure winners; low trumps win about half the time, plus a length bonus for
+        // a long suit (once trumps are drawn the small ones start to win). + 1 for the kitty.
+        var tricks = honours + 0.5 * low + 0.5 * maxOf(0, trumps.size - 4) + 1.0
         for (suit in Suit.entries) {
             if (trump.suit == suit) continue
             val inSuit = hand.filterIsInstance<SuitedCard>().filter { eval.effectiveSuit(it) == suit }
-            if (inSuit.any { it.rank == Rank.ACE }) tricks += 1.0
-            if (inSuit.any { it.rank == Rank.KING } && inSuit.size >= 2) tricks += 0.5
+            if (inSuit.any { it.rank == Rank.ACE }) tricks += 0.9
+            if (inSuit.any { it.rank == Rank.KING } && inSuit.size >= 2) tricks += 0.4
         }
         return tricks
+    }
+
+    /**
+     * No-trump: the Joker (always a winner here) + the kitty, plus each suit's top cards at full
+     * value (nothing can be ruffed) and a length allowance for long suits once the honours are gone.
+     */
+    private fun estimateNoTrumpTricks(hand: List<Card>): Double {
+        var tricks = 1.0 // kitty
+        if (hand.any { it is Joker }) tricks += 1.0
+        for (suit in Suit.entries) {
+            val inSuit = hand.filterIsInstance<SuitedCard>().filter { it.suit == suit }
+            if (inSuit.isEmpty()) continue
+            if (inSuit.any { it.rank == Rank.ACE }) tricks += 1.0
+            if (inSuit.any { it.rank == Rank.KING } && inSuit.size >= 2) tricks += 0.5
+            if (inSuit.any { it.rank == Rank.QUEEN } && inSuit.size >= 3) tricks += 0.25
+            if (inSuit.size >= 4) tricks += (inSuit.size - 3) * 0.5
+        }
+        return tricks
+    }
+
+    /** A "sure" trump winner: the Joker, either bower, or the A/K/Q of the trump suit. */
+    private fun isTrumpHonor(card: Card, eval: TrickEvaluator): Boolean = when {
+        card is Joker -> true
+        eval.isRightBower(card) || eval.isLeftBower(card) -> true
+        card is SuitedCard -> eval.isTrump(card) && card.rank.ordinal >= Rank.QUEEN.ordinal
+        else -> false
     }
 
     private fun looksLikeMisere(hand: List<Card>): Boolean {
@@ -90,6 +149,15 @@ class FiveHundredBot(
         val highs = hand.count { it is SuitedCard && it.rank.ordinal >= Rank.QUEEN.ordinal }
         return kings == 0 && highs <= 1
     }
+
+    /**
+     * A hand safe enough for **Open Misère** (played with the declarer's hand exposed): everything
+     * [looksLikeMisere] wants, and no card high enough to be forced to win even when the opponents
+     * can see it. Deliberately conservative — Open Misère is the rarest and riskiest bid.
+     */
+    private fun looksLikeOpenMisere(hand: List<Card>): Boolean =
+        looksLikeMisere(hand) &&
+            hand.all { it is SuitedCard && it.rank.ordinal <= Rank.SEVEN.ordinal }
 
     // --- Kitty -----------------------------------------------------------------------------------
 

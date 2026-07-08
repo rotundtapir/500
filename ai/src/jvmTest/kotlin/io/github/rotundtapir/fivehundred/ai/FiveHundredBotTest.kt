@@ -77,6 +77,80 @@ class FiveHundredBotTest {
     }
 
     @Test
+    fun `bids no-trumps on a balanced stopper-rich hand`() {
+        // Aces (and guarded kings) spread across every suit, but no suit long enough to be worth
+        // trumping: no-trump ties the suits at level 6 and outranks them, so it should be chosen.
+        val balanced = listOf(
+            Rank.ACE of Suit.SPADES, Rank.KING of Suit.SPADES, Rank.FIVE of Suit.SPADES,
+            Rank.ACE of Suit.HEARTS, Rank.KING of Suit.HEARTS, Rank.FIVE of Suit.HEARTS,
+            Rank.ACE of Suit.DIAMONDS, Rank.FIVE of Suit.DIAMONDS,
+            Rank.ACE of Suit.CLUBS, Rank.FIVE of Suit.CLUBS,
+        )
+        val bid = bot.proposeBid(balanced, highBid = null)
+        assertTrue(bid is Bid.Named, "expected a named bid, got $bid")
+        assertEquals(Trump.NO_TRUMP, (bid as Bid.Named).trump)
+        assertTrue(bid.level >= 6)
+    }
+
+    @Test
+    fun `bids open misere on a rock-bottom hand once the auction has passed seven`() {
+        // Nothing above a 7 in any suit — safe to expose. Open Misère is only legal after the
+        // auction reaches seven, so the bot must reach it through decide's legalBids filter.
+        val rockBottom = listOf(
+            Rank.FOUR of Suit.HEARTS, Rank.FIVE of Suit.HEARTS, Rank.SIX of Suit.HEARTS,
+            Rank.FOUR of Suit.DIAMONDS, Rank.FIVE of Suit.DIAMONDS, Rank.SIX of Suit.DIAMONDS,
+            Rank.FIVE of Suit.SPADES, Rank.SIX of Suit.SPADES,
+            Rank.FIVE of Suit.CLUBS, Rank.SIX of Suit.CLUBS,
+        )
+        // Desirability alone (over a 7♠ high bid) already prefers Open Misère to plain Misère.
+        assertEquals(Bid.OpenMisere, bot.proposeBid(rockBottom, highBid = Bid.Named(7, Trump.SPADES)))
+
+        // ...and it is actually placed when the gate has opened and it is among the legal bids.
+        val view = biddingView(
+            hand = rockBottom,
+            highBid = Bid.Named(7, Trump.SPADES),
+            legalBids = listOf(Bid.Pass, Bid.Named(8, Trump.SPADES), Bid.Misere, Bid.OpenMisere),
+        )
+        assertEquals(Action.PlaceBid(Bid.OpenMisere), bot.decide(view, Random(0)))
+    }
+
+    // A minimal BIDDING-phase view for targeted decide tests: seat 0 opening or replying.
+    private fun biddingView(
+        hand: List<Card>,
+        highBid: Bid?,
+        legalBids: List<Bid>,
+    ) = PlayerView(
+        seat = Seat(0),
+        phase = Phase.BIDDING,
+        playerCount = 4,
+        teamCount = 2,
+        handNumber = 1,
+        hand = hand,
+        handSizes = emptyMap(),
+        dealer = Seat(3),
+        scores = emptyMap(),
+        toAct = Seat(0),
+        biddingHistory = emptyList(),
+        highBid = highBid,
+        highBidder = highBid?.let { Seat(1) },
+        legalBids = legalBids,
+        contract = null,
+        trump = null,
+        leader = Seat(0),
+        currentTrick = emptyList(),
+        ledSuit = null,
+        lastTrick = null,
+        tricksWon = emptyMap(),
+        trickNumber = 0,
+        legalPlays = emptyList(),
+        mustDiscard = 0,
+        exposedDeclarerHand = null,
+        activeSeats = listOf(Seat(0), Seat(1), Seat(2), Seat(3)),
+        lastHandResult = null,
+        winner = null,
+    )
+
+    @Test
     fun `keeps trumps and high cards, discards weakest for a suit contract`() {
         val hand = listOf(
             Rank.ACE of Suit.SPADES, Rank.KING of Suit.SPADES, Rank.QUEEN of Suit.SPADES, // trumps
