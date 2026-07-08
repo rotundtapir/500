@@ -128,8 +128,32 @@ private fun sortedForDisplay(hand: List<Card>, trump: Trump?): List<Card> {
 
 private fun signed(delta: Int): String = if (delta < 0) "−${-delta}" else "+$delta"
 
-/** Amber used to make the partner's name pop against the felt (readable on the dark green). */
+/** Amber used to make your own team's names pop against the felt (readable on the dark green). */
 private val PartnerHighlight = Color(0xFFFFD54F)
+
+/**
+ * Distinct, felt-readable colours for the OPPOSING teams, assigned in team-index order (your own
+ * team is always the amber [PartnerHighlight]). Kept light so they read on the dark green felt and
+ * stay clear of the amber. Telling teams apart by colour matters most in the 6-player,
+ * three-teams-of-two game, where five other names crowd the table.
+ */
+private val OpponentTeamColors = listOf(
+    Color(0xFF64B5F6), // blue
+    Color(0xFFEF9A9A), // coral
+)
+
+/**
+ * The colour a [seat]'s name is drawn in: your own team in amber, each opposing team a distinct
+ * hue. Opposing teams are coloured by their order among the *other* teams (skipping yours), so the
+ * palette is used from its start regardless of which team index you were dealt into. Returns
+ * [Color.Unspecified] (inherit) if the palette runs out — it never does at the supported counts.
+ */
+private fun teamColor(view: PlayerView, seat: Seat): Color {
+    val team = teamOf(seat, view.teamCount)
+    if (team == view.myTeam) return PartnerHighlight
+    val idx = (0 until view.teamCount).filter { it != view.myTeam }.indexOf(team)
+    return OpponentTeamColors.getOrElse(idx) { Color.Unspecified }
+}
 
 @Composable
 fun GameScreen(
@@ -928,17 +952,19 @@ private fun OpponentStatus(
     val textStyle = if (compact) MaterialTheme.typography.bodySmall else LocalTextStyle.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         val active = seat in view.activeSeats
-        // Your partner's tricks are your tricks, so their name reads at a glance: always bold,
-        // in a warm yellow that stands out on the felt without fighting the white text.
+        // Colour each name by its team so sides read at a glance across the table: your own team in
+        // amber (your partner's tricks are your tricks), each opposing team its own hue. Your team
+        // is always bold too, so it stands out even where the palette can't (e.g. mono displays).
         val isPartner = teamOf(seat, view.teamCount) == view.myTeam
+        val nameColor = teamColor(view, seat)
         Text(
             seatLabel(view, botNames, seat),
             style = textStyle,
-            color = if (isPartner) PartnerHighlight else Color.Unspecified,
+            color = nameColor,
             fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
         )
         if (isPartner) {
-            Text("(partner)", style = MaterialTheme.typography.labelSmall, color = PartnerHighlight)
+            Text("(partner)", style = MaterialTheme.typography.labelSmall, color = nameColor)
         }
         if (active) {
             OpponentPile(
@@ -1131,10 +1157,16 @@ private fun EmptyTrickSlot(view: PlayerView, botNames: Map<Seat, String>, seat: 
                 ),
         )
         Spacer(Modifier.height(4.dp))
+        // Team-tinted like the played cells, but dimmed — this seat hasn't played yet.
+        val base = teamColor(view, seat)
         Text(
             seatLabel(view, botNames, seat),
             maxLines = 1,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f),
+            color = if (base == Color.Unspecified) {
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+            } else {
+                base.copy(alpha = 0.55f)
+            },
         )
     }
 }
@@ -1144,7 +1176,15 @@ private fun TrickPlayCell(view: PlayerView, botNames: Map<Seat, String>, play: T
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         PlayingCard(play.card, width = 56.dp)
         Spacer(Modifier.height(4.dp))
-        Text(seatLabel(view, botNames, play.seat), maxLines = 1)
+        // Colour the name by team so you can read whose card this is at a glance — your own team
+        // (you and your partner) in amber and bold, each opposing team its own hue.
+        val isMyTeam = teamOf(play.seat, view.teamCount) == view.myTeam
+        Text(
+            seatLabel(view, botNames, play.seat),
+            maxLines = 1,
+            color = teamColor(view, play.seat),
+            fontWeight = if (isMyTeam) FontWeight.Bold else FontWeight.Normal,
+        )
     }
 }
 
