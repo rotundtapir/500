@@ -133,13 +133,14 @@ private val PartnerHighlight = Color(0xFFFFD54F)
 
 /**
  * Distinct, felt-readable colours for the OPPOSING teams, assigned in team-index order (your own
- * team is always the amber [PartnerHighlight]). Kept light so they read on the dark green felt and
- * stay clear of the amber. Telling teams apart by colour matters most in the 6-player,
+ * team is always the amber [PartnerHighlight]). Drawn from the Okabe–Ito palette so the amber /
+ * blue / purple triad stays distinguishable under all common colour-vision deficiencies (the
+ * red↔green axis is avoided). Telling teams apart by colour matters most in the 6-player,
  * three-teams-of-two game, where five other names crowd the table.
  */
 private val OpponentTeamColors = listOf(
-    Color(0xFF64B5F6), // blue
-    Color(0xFFEF9A9A), // coral
+    Color(0xFF56B4E9), // sky blue      (Okabe–Ito)
+    Color(0xFFCC79A7), // reddish purple (Okabe–Ito)
 )
 
 /**
