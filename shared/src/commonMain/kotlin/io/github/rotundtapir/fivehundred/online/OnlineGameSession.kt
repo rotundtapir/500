@@ -45,14 +45,23 @@ class OnlineGameSession(
     /** Milliseconds left on the current turn clock (whoever's turn it is), or null when not ticking. */
     val turnRemainingMillis: StateFlow<Long?> = _turnRemainingMillis.asStateFlow()
 
-    private val _stateVersion = MutableStateFlow<Int?>(null)
+    private val _authoritativeStateVersion = MutableStateFlow<Int?>(null)
 
-    /** The stateVersion of the currently rendered view — echoed back when submitting an action. */
-    val stateVersion: StateFlow<Int?> = _stateVersion.asStateFlow()
+    /**
+     * The stateVersion of the latest *server* view — echoed back when submitting an action. Kept
+     * separate from what is on screen so an optimistic (client-applied) view never changes the
+     * version we submit against.
+     */
+    val authoritativeStateVersion: StateFlow<Int?> = _authoritativeStateVersion.asStateFlow()
 
     private var previousActor: Seat? = null
     private var consumer: Job? = null
     private var countdown: Job? = null
+
+    // Optimistic play: the human's move is shown immediately; the next server view (our echo) or an
+    // error (reject) resolves it. [lastAuthoritative] is what we revert to on reject.
+    private var optimisticPending = false
+    private var lastAuthoritative: PlayerView? = null
 
     /** Start consuming queued views. Call once per game. */
     fun start() {
@@ -71,25 +80,50 @@ class OnlineGameSession(
     fun reset() {
         pacing.reset()
         previousActor = null
+        optimisticPending = false
+        lastAuthoritative = null
         countdown?.cancel()
         _views.value = null
         _turnRemainingMillis.value = null
-        _stateVersion.value = null
+        _authoritativeStateVersion.value = null
+    }
+
+    /**
+     * Show the human's own move immediately, before the server confirms it. Publishes [view] with no
+     * gate/beat and stops the turn clock; the next server view replaces it (confirm) or [revert]
+     * restores the last server view (reject). Does not touch [authoritativeStateVersion].
+     */
+    fun applyOptimistic(view: PlayerView) {
+        optimisticPending = true
+        countdown?.cancel()
+        _turnRemainingMillis.value = null
+        _views.value = view
+        previousActor = view.toAct
+    }
+
+    /** Undo a pending optimistic move (the server rejected it), restoring the last server view. */
+    fun revertOptimistic() {
+        if (!optimisticPending) return
+        optimisticPending = false
+        lastAuthoritative?.let { _views.value = it }
     }
 
     private suspend fun process(queued: Queued) {
         val view = queued.update.view
-        if (queued.snapshot) {
-            pacing.preAcknowledge(view)
-        } else {
-            pacing.awaitGates(view)
-            // Beat before a move made by someone else so it is visible; our own action echoes now.
-            if (previousActor != null && previousActor != view.seat) {
-                delay(pacing.botBeatMillis)
-            }
+        lastAuthoritative = view
+        _authoritativeStateVersion.value = queued.update.stateVersion
+        // Online, pacing must NOT gate rendering: the local game's gates hold a *bot's decision*
+        // until an animation/tap signal, but here they would hold the *view* — and the signal only
+        // fires once that view renders, so a hold-tricks/deal gate would deadlock with no backstop.
+        // Instead we publish every view and just insert a short "beat" before someone else's move so
+        // it is visible (own moves and reconnect snapshots publish instantly). GameScreen still runs
+        // the deal animation and trick display off the published views.
+        val instant = queued.snapshot || _views.value == null || optimisticPending
+        if (!instant && previousActor != null && previousActor != view.seat) {
+            delay(pacing.botBeatMillis)
         }
+        optimisticPending = false
         _views.value = view
-        _stateVersion.value = queued.update.stateVersion
         previousActor = view.toAct
         startCountdown(queued.update.turnRemainingMillis)
     }

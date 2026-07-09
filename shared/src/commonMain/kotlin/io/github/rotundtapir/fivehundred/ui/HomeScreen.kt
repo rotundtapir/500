@@ -98,7 +98,7 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.Center,
             ) {
                 Text("500", fontSize = 72.sp, fontWeight = FontWeight.Bold)
-                Text("Australian rules · you vs the bots", fontSize = 16.sp)
+                Text("Australian rules", fontSize = 16.sp)
                 Spacer(Modifier.height(24.dp))
 
                 // The four game modes, as a compact 2×2 grid of two-line buttons.
@@ -124,7 +124,7 @@ fun HomeScreen(
                         containerColor = Color(0xFFFAFAFA),
                         contentColor = MaterialTheme.colorScheme.primary,
                     ),
-                ) { Text("New Game", fontWeight = FontWeight.Bold) }
+                ) { Text("Play offline", fontWeight = FontWeight.Bold) }
                 Spacer(Modifier.height(16.dp))
 
                 OutlinedButton(

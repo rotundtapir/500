@@ -10,11 +10,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -38,6 +42,10 @@ import io.github.rotundtapir.fivehundred.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
+import io.github.rotundtapir.fivehundred.net.Emote
+import io.github.rotundtapir.fivehundred.net.EmoteReceived
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -58,6 +66,8 @@ fun GameScreen(
     soundHook: ((SoundEffect) -> Unit)? = null,
     // Online games override the leave-confirm body — leaving hands the seat to a bot, not a loss.
     leaveConfirmText: String? = null,
+    // Non-null in an online game: adds the emote control to the top bar and shows incoming emotes.
+    online: OnlineGameControls? = null,
 ) {
     val animationSpeed = settings.animationSpeed
     // Captured by the deal LaunchedEffect below; rememberUpdatedState so a recomposition that
@@ -66,6 +76,19 @@ fun GameScreen(
     var sortHand by rememberSaveable { mutableStateOf(settings.sortByDefault) }
     var showSettings by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
+    // The most recent incoming emote, shown briefly as a speech bubble pointing at its sender.
+    // seatAnchors records each seat's on-screen position for the bubble to point at.
+    val seatAnchors = if (online != null) remember { TutorialAnchors() } else null
+    var latestEmote by remember { mutableStateOf<EmoteReceived?>(null) }
+    if (online != null) {
+        LaunchedEffect(online) {
+            online.incomingEmotes.collect { received ->
+                latestEmote = received
+                delay(EMOTE_TOAST_MILLIS)
+                latestEmote = null
+            }
+        }
+    }
     // Set once the tutorial's scripted hand has been scored and its result dialog dismissed.
     var tutorialComplete by rememberSaveable { mutableStateOf(false) }
     // Highest hand number whose result dialog has been dismissed — the shuffle/deal animation of
@@ -129,10 +152,11 @@ fun GameScreen(
                     botNames = botNames,
                     onOpenSettings = { showSettings = true },
                     onMenu = { showLeaveConfirm = true },
+                    trailing = online?.let { { OnlineEmoteButton(it) } },
                 )
                 ContractLine(view, botNames)
                 Spacer(Modifier.height(12.dp))
-                OpponentsRow(view, botNames, dealState)
+                OpponentsRow(view, botNames, dealState, seatAnchors)
                 ExposedDeclarerHand(view, botNames)
                 TrickArea(
                     view = view,
@@ -158,21 +182,35 @@ fun GameScreen(
                         timings = dealTimings(animationSpeed),
                     )
                 } else {
-                    ActionArea(
-                        view = view,
-                        botNames = botNames,
-                        sortHand = sortHand,
-                        onToggleSort = { sortHand = !sortHand },
-                        onBid = onBid,
-                        onDiscard = onDiscard,
-                        onPlay = onPlay,
-                        tutorial = tutorial,
-                        targets = tutorialAnchors,
-                        peekDiscardHand = tutorial != null && animationSpeed != AnimationSpeed.OFF,
-                    )
+                    Box(Modifier.fillMaxWidth().tutorialTarget(seatAnchors, "seat:${view.seat.index}")) {
+                        ActionArea(
+                            view = view,
+                            botNames = botNames,
+                            sortHand = sortHand,
+                            onToggleSort = { sortHand = !sortHand },
+                            onBid = onBid,
+                            onDiscard = onDiscard,
+                            onPlay = onPlay,
+                            tutorial = tutorial,
+                            targets = tutorialAnchors,
+                            peekDiscardHand = tutorial != null && animationSpeed != AnimationSpeed.OFF,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(8.dp))
                 monetization.BannerSlot(Modifier.fillMaxWidth())
+            }
+            // Incoming emote, as a speech bubble pointing at its sender's seat.
+            val emote = latestEmote
+            if (emote != null && seatAnchors != null) {
+                seatAnchors["seat:${emote.seat.index}"]?.let { rect ->
+                    EmoteBubble(
+                        target = rect,
+                        overlayOrigin = dealState.overlayOrigin,
+                        text = "${seatLabel(view, botNames, emote.seat)}: ${emoteLabel(emote.emote)}",
+                        tailDown = emote.seat == view.seat,
+                    )
+                }
             }
             // The one card back currently in flight from the deck to a pile, drawn above everything.
             FlyingDealCard(dealState)
@@ -270,3 +308,49 @@ fun GameScreen(
         }
     }
 }
+
+/** The online-game hooks GameScreen needs: incoming emotes to show, and a way to send one. */
+@Immutable
+class OnlineGameControls(
+    val incomingEmotes: SharedFlow<EmoteReceived>,
+    val onSendEmote: (Emote) -> Unit,
+)
+
+/** The emote picker in the top bar: a small button opening a dropdown of the canned phrases. */
+@Composable
+private fun OnlineEmoteButton(controls: OnlineGameControls) {
+    var open by remember { mutableStateOf(false) }
+    Box {
+        TextButton(
+            onClick = { open = true },
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+            modifier = Modifier.testTag("emoteButton"),
+        ) { Text("Emote") }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            EMOTE_OPTIONS.forEach { (emote, label) ->
+                DropdownMenuItem(
+                    text = { Text(label) },
+                    onClick = {
+                        controls.onSendEmote(emote)
+                        open = false
+                    },
+                    modifier = Modifier.testTag("emote:${emote.name}"),
+                )
+            }
+        }
+    }
+}
+
+private fun emoteLabel(emote: Emote): String =
+    EMOTE_OPTIONS.firstOrNull { it.first == emote }?.second ?: emote.name
+
+private const val EMOTE_TOAST_MILLIS = 2500L
+
+private val EMOTE_OPTIONS = listOf(
+    Emote.WELL_PLAYED to "Well played",
+    Emote.NICE_HAND to "Nice hand",
+    Emote.OOPS to "Oops",
+    Emote.THINKING to "Hmm",
+    Emote.HURRY_UP to "Hurry up",
+    Emote.GOOD_GAME to "Good game",
+)

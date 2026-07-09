@@ -78,6 +78,11 @@ class Room(
     private var closed = false
     private var emptySince: Long? = null
 
+    /** The most recent accepted move, for idempotent handling of duplicate submissions. */
+    private var lastAccepted: AcceptedMove? = null
+
+    private data class AcceptedMove(val stateVersion: Int, val seat: Seat, val action: Action)
+
     private val turnTimeoutMillis: Long
         get() = config.turnTimeoutMillisOverride ?: (lobbyConfig.turnTimeoutSeconds * 1000L)
 
@@ -247,6 +252,7 @@ class Room(
             players[slot.seat] = host
         }
         phase = RoomPhase.PLAYING
+        lastAccepted = null
         broadcastLobby()
         metrics.gameStarted()
         val initial = gameRules.newGame(seed)
@@ -280,6 +286,10 @@ class Room(
         val slot = slotOf(cmd.connection) ?: return rejectNotInLobby(cmd.connection)
         val gameRules = rules ?: return
         val state = latestState ?: return
+        // Idempotency: an accidental duplicate of a move we already accepted (a resend, or a
+        // double-tap during a laggy round-trip) is a harmless no-op, not a stale rejection. Keyed on
+        // (stateVersion, seat, action) which is unique per applied move — stateVersion is monotonic.
+        if (lastAccepted == AcceptedMove(cmd.stateVersion, slot.seat, cmd.action)) return
         if (cmd.stateVersion != stateVersion || currentActor != slot.seat) {
             return reject(cmd.connection, ErrorCode.STALE_ACTION, "Not your turn / stale", fatal = false)
         }
@@ -291,8 +301,12 @@ class Room(
             metrics.rejected(ErrorCode.ILLEGAL_ACTION)
             return reject(cmd.connection, ErrorCode.ILLEGAL_ACTION, "Illegal action", fatal = false)
         }
-        slot.host?.submit(cmd.action)
-        markActivity()
+        // Only remember it as accepted (for idempotency) if it actually reached the seat host —
+        // otherwise a resend must be allowed through rather than deduped into oblivion.
+        if (slot.host?.submit(cmd.action) == true) {
+            lastAccepted = AcceptedMove(cmd.stateVersion, slot.seat, cmd.action)
+            markActivity()
+        }
     }
 
     private fun onSeatTimedOut(seat: Seat) {

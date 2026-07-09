@@ -38,8 +38,10 @@ class SeatHost(
     @Volatile
     var permanentBot: Boolean = false
 
-    // Rendezvous: the human's submitted action is handed straight to the waiting decide().
-    private val responses = Channel<Action>(Channel.RENDEZVOUS)
+    // Capacity 1 (not rendezvous): a validated action is buffered even if decide() is a hair away
+    // from awaiting it, so a submit is never silently dropped by a timing race. At most one action
+    // is outstanding per turn (the room validates stateVersion first), so it can't buffer a stale one.
+    private val responses = Channel<Action>(capacity = 1)
 
     override suspend fun decide(view: PlayerView): Action {
         val conn = occupant

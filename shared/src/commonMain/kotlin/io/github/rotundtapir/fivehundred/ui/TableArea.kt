@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -86,6 +89,9 @@ internal fun ScoreBar(
     botNames: Map<Seat, String>,
     onOpenSettings: () -> Unit,
     onMenu: () -> Unit,
+    // Online games slot an emote control in here (next to Settings) so it lives in the top bar
+    // rather than overlaying the hand / ad / nav at the bottom.
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val myTeam = view.myTeam
     Row(
@@ -110,6 +116,7 @@ internal fun ScoreBar(
             )
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
+            trailing?.invoke()
             IconButton(
                 onClick = onOpenSettings,
                 modifier = Modifier.testTag("gameSettingsButton"),
@@ -142,7 +149,12 @@ internal fun ContractLine(view: PlayerView, botNames: Map<Seat, String>) {
 }
 
 @Composable
-internal fun OpponentsRow(view: PlayerView, botNames: Map<Seat, String>, dealState: DealAnimationState) {
+internal fun OpponentsRow(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    dealState: DealAnimationState,
+    seatAnchors: TutorialAnchors? = null,
+) {
     // With 5 opponents (6-player game) the row gets tight: shrink each column and allow the row to
     // scroll horizontally as a safety valve on narrow screens.
     val compact = view.playerCount == 6
@@ -157,10 +169,17 @@ internal fun OpponentsRow(view: PlayerView, botNames: Map<Seat, String>, dealSta
         modifier = rowModifier,
         horizontalArrangement = if (compact) Arrangement.spacedBy(12.dp) else Arrangement.SpaceEvenly,
     ) {
-        for (i in 0 until view.playerCount) {
-            val seat = Seat(i)
-            if (seat == view.seat) continue
-            OpponentStatus(view, botNames, seat, compact, dealState)
+        // Order opponents going clockwise from the local player, so the seating reads like a real
+        // table: your partner lands opposite (in the middle) and the two other-team seats flank it,
+        // matching the turn order shown in the trick area. (Raw seat order put the partner first,
+        // which hid that you sit between the two opponents.)
+        for (offset in 1 until view.playerCount) {
+            val seat = Seat((view.seat.index + offset) % view.playerCount)
+            // Equal-width columns so a long name (e.g. a bot-substituted human's "Name (bot)") is
+            // ellipsised within its slot instead of stretching it and squishing the others. Compact
+            // (6-player) keeps its fixed-width scrolling columns.
+            val columnModifier = if (compact) Modifier else Modifier.weight(1f)
+            OpponentStatus(view, botNames, seat, compact, dealState, columnModifier, seatAnchors)
         }
     }
 }
@@ -172,9 +191,14 @@ private fun OpponentStatus(
     seat: Seat,
     compact: Boolean,
     dealState: DealAnimationState,
+    modifier: Modifier = Modifier,
+    seatAnchors: TutorialAnchors? = null,
 ) {
     val textStyle = if (compact) MaterialTheme.typography.bodySmall else LocalTextStyle.current
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier.tutorialTarget(seatAnchors, "seat:${seat.index}"),
+    ) {
         val active = seat in view.activeSeats
         // Colour each name by its team so sides read at a glance across the table: your own team in
         // amber (your partner's tricks are your tricks), each opposing team its own hue. Your team
@@ -186,6 +210,10 @@ private fun OpponentStatus(
             style = textStyle,
             color = nameColor,
             fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         if (isPartner) {
             Text("(partner)", style = MaterialTheme.typography.labelSmall, color = nameColor)
@@ -386,6 +414,9 @@ private fun EmptyTrickSlot(view: PlayerView, botNames: Map<Seat, String>, seat: 
         Text(
             seatLabel(view, botNames, seat),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = TRICK_NAME_MAX_WIDTH),
             color = if (base == Color.Unspecified) {
                 MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
             } else {
@@ -406,8 +437,14 @@ private fun TrickPlayCell(view: PlayerView, botNames: Map<Seat, String>, play: T
         Text(
             seatLabel(view, botNames, play.seat),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.widthIn(max = TRICK_NAME_MAX_WIDTH),
             color = teamColor(view, play.seat),
             fontWeight = if (isMyTeam) FontWeight.Bold else FontWeight.Normal,
         )
     }
 }
+
+/** Cap on a played-card's name label so a long name can't stretch the trick cell past its card. */
+private val TRICK_NAME_MAX_WIDTH = 72.dp

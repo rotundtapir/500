@@ -136,7 +136,7 @@ class OnlineGameSessionTest {
         session.offer(ViewUpdate(1, testView(handNumber = 1), turnRemainingMillis = null), snapshot = true)
         session.offer(ViewUpdate(2, testView(handNumber = 1, phase = Phase.KITTY), turnRemainingMillis = null), false)
         advanceUntilIdle()
-        assertEquals(2, session.stateVersion.value)
+        assertEquals(2, session.authoritativeStateVersion.value)
         assertEquals(Phase.KITTY, session.views.value?.phase)
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
     }
@@ -150,7 +150,7 @@ class OnlineGameSessionTest {
         // A hand-start view would normally wait for the deal signal; as a snapshot it publishes now.
         session.offer(ViewUpdate(5, testView(handNumber = 1), turnRemainingMillis = null), snapshot = true)
         advanceUntilIdle()
-        assertEquals(5, session.stateVersion.value)
+        assertEquals(5, session.authoritativeStateVersion.value)
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
     }
 }
@@ -255,7 +255,7 @@ class OnlineViewModelTest {
         client.push(ViewUpdate(9, testView(handNumber = 3, phase = Phase.PLAY, trickNumber = 4), turnRemainingMillis = 20_000))
         advanceUntilIdle()
         // The snapshot published immediately (no deal signal was ever sent) at NORMAL speed.
-        assertEquals(9, vm.session.stateVersion.value)
+        assertEquals(9, vm.session.authoritativeStateVersion.value)
         vm.exit()
     }
 }

@@ -9,7 +9,7 @@ test('seeded game: suit glyphs render, bidding works, a trick completes', async 
   await page.goto(FIXTURE);
   await awaitAppBoot(page);
 
-  await clickByRole(page, 'button', 'New Game');
+  await clickByRole(page, 'button', 'Play offline');
 
   // Bid ladder for the fixture — the suit symbols come through the accessibility tree, which
   // catches the missing-glyph (tofu) regression without a pixel diff. The panel is a

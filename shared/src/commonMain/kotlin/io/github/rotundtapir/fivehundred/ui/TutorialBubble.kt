@@ -87,69 +87,42 @@ internal fun TutorialBubble(
     val target = anchors[targetKey] ?: anchors["hand"] ?: anchors["trick"] ?: return
     val showTrumpOrder = isHumanDecision && step?.showTrumpOrder == true
 
-    val density = LocalDensity.current
-    var bubbleLeft by remember { mutableIntStateOf(0) }
-    val local = target.translate(-overlayOrigin)
-    val tailWidth = with(density) { 26.dp.toPx() }
-
-    Layout(
-        content = {
-            Column {
-                if (!tailDown) {
-                    BubbleTail(
-                        pointUp = true,
-                        offsetX = { (local.center.x - bubbleLeft - tailWidth / 2).roundToInt() },
-                    )
-                }
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = Color(0xFFFAFAFA),
-                    contentColor = MaterialTheme.colorScheme.primary,
-                    shadowElevation = 8.dp,
-                    modifier = Modifier.testTag("tutorialAdvice"),
-                ) {
-                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                        Text("Tutorial", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
-                        SuitText(text, fontSize = 17.sp, lineHeight = 23.sp)
-                        if (showTrumpOrder) {
-                            Spacer(Modifier.height(8.dp))
-                            TrumpOrderRow()
-                        }
-                    }
-                }
-                if (tailDown) {
-                    BubbleTail(
-                        pointUp = false,
-                        offsetX = { (local.center.x - bubbleLeft - tailWidth / 2).roundToInt() },
-                    )
-                }
+    BubbleLayout(
+        target = target,
+        overlayOrigin = overlayOrigin,
+        tailDown = tailDown,
+        maxWidth = 520.dp,
+        yPlacement = { local, height, gap ->
+            if (tailDown) {
+                (local.top - height - gap).roundToInt()
+            } else {
+                (local.bottom - height - gap).roundToInt()
             }
         },
-    ) { measurables, constraints ->
-        val margin = with(density) { 12.dp.roundToPx() }
-        val maxWidth = minOf(constraints.maxWidth - margin * 2, with(density) { 520.dp.roundToPx() })
-        val placeable = measurables[0].measure(
-            Constraints(minWidth = 0, maxWidth = maxWidth, minHeight = 0, maxHeight = constraints.maxHeight),
-        )
-        layout(constraints.maxWidth, constraints.maxHeight) {
-            val x = (local.center.x - placeable.width / 2f).roundToInt()
-                .coerceIn(margin, (constraints.maxWidth - placeable.width - margin).coerceAtLeast(margin))
-            val gap = with(density) { 2.dp.roundToPx() }
-            val y = if (tailDown) {
-                (local.top - placeable.height - gap).roundToInt().coerceAtLeast(margin)
-            } else {
-                (local.bottom - placeable.height - gap).roundToInt().coerceAtLeast(margin)
+    ) {
+        Surface(
+            shape = RoundedCornerShape(14.dp),
+            color = Color(0xFFFAFAFA),
+            contentColor = MaterialTheme.colorScheme.primary,
+            shadowElevation = 8.dp,
+            modifier = Modifier.testTag("tutorialAdvice"),
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                Text("Tutorial", style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(4.dp))
+                SuitText(text, fontSize = 17.sp, lineHeight = 23.sp)
+                if (showTrumpOrder) {
+                    Spacer(Modifier.height(8.dp))
+                    TrumpOrderRow()
+                }
             }
-            bubbleLeft = x
-            placeable.place(x, y)
         }
     }
 }
 
 /** The bubble's little triangular tail, slid horizontally to point at the anchor. */
 @Composable
-private fun BubbleTail(pointUp: Boolean, offsetX: () -> Int) {
+internal fun BubbleTail(pointUp: Boolean, offsetX: () -> Int) {
     val tailColor = Color(0xFFFAFAFA)
     Canvas(
         modifier = Modifier

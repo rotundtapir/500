@@ -96,7 +96,7 @@ class GameFlowTest {
     private fun clickableCards() = rule.onAllNodes(clickableCard, useUnmergedTree = true)
 
     private fun startGame() {
-        rule.onNodeWithText("New Game").performClick()
+        rule.onNodeWithText("Play offline").performClick()
     }
 
     /** Waits until it is the human's bidding turn and the bid panel is up. */
@@ -109,7 +109,7 @@ class GameFlowTest {
     @Test
     fun homeScreen_showsTitleAndActions() {
         rule.onNodeWithText("500").assertIsDisplayed()
-        rule.onNodeWithText("New Game").assertIsDisplayed()
+        rule.onNodeWithText("Play offline").assertIsDisplayed()
         rule.onNodeWithTag("settingsButton").assertIsDisplayed()
     }
 
@@ -216,7 +216,7 @@ class GameFlowTest {
 
         rule.onNodeWithTag("tutorialComplete").assertIsDisplayed()
         rule.onNodeWithTag("tutorialCompleteContinue").performClick()
-        rule.onNodeWithText("New Game").assertIsDisplayed()
+        rule.onNodeWithText("Play offline").assertIsDisplayed()
     }
 
     @Test
@@ -228,7 +228,7 @@ class GameFlowTest {
         assertTrue("scoring table must show the 10NT value", textExists("520", substring = true))
         rule.onNodeWithTag("rulesClose").performClick()
         rule.onNodeWithText("Done").performClick()
-        rule.onNodeWithText("New Game").assertIsDisplayed()
+        rule.onNodeWithText("Play offline").assertIsDisplayed()
     }
 
     @Test
@@ -243,7 +243,7 @@ class GameFlowTest {
         waitForText("Byron Knoll", substring = true)
         rule.onNodeWithTag("acknowledgmentsClose").performClick()
         rule.onNodeWithText("Done").performClick()
-        rule.onNodeWithText("New Game").assertIsDisplayed()
+        rule.onNodeWithText("Play offline").assertIsDisplayed()
     }
 
     @Test
@@ -320,7 +320,7 @@ class GameFlowTest {
         rule.onNodeWithTag("settingsButton").performClick()
         rule.onNodeWithTag("animationSpeed").assertIsDisplayed()
         rule.onNodeWithText("Done").performClick()
-        rule.onNodeWithText("New Game").assertIsDisplayed()
+        rule.onNodeWithText("Play offline").assertIsDisplayed()
     }
 
     /** How many nodes currently show exactly [text] (e.g. counting "(partner)" markers). */
@@ -379,7 +379,7 @@ class GameFlowTest {
         rule.onNodeWithText("Menu").performClick()
         waitForText("Leave game?")
         rule.onNodeWithTag("confirmLeave").performClick()
-        rule.onNodeWithText("New Game").assertIsDisplayed()
+        rule.onNodeWithText("Play offline").assertIsDisplayed()
     }
 
     @Test
@@ -391,7 +391,7 @@ class GameFlowTest {
         rule.onNodeWithText("Cancel").performClick()
         rule.waitUntil(STEP_TIMEOUT_MS) { !textExists("Leave game?") }
         assertTrue("cancelling the leave dialog must keep the game up", textExists("Your bid:"))
-        assertTrue("home screen must not be shown after Cancel", !textExists("New Game"))
+        assertTrue("home screen must not be shown after Cancel", !textExists("Play offline"))
     }
 
     @Test
@@ -401,7 +401,7 @@ class GameFlowTest {
         rule.onNodeWithText("Menu").performClick()
         waitForText("Leave game?")
         rule.onNodeWithTag("confirmLeave").performClick()
-        rule.onNodeWithText("New Game").performClick()
+        rule.onNodeWithText("Play offline").performClick()
         waitForBidPanel()
         assertEquals("fresh hand after restarting from the menu", 10, cardsOnScreen())
         rule.onNodeWithText("Us: 0").assertIsDisplayed()
@@ -538,7 +538,7 @@ class GameFlowTest {
                 // The score sheet tallies the hands played and offers the way out.
                 rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Hand") }
                 rule.onNodeWithTag("backToMenu").performClick()
-                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("New Game") }
+                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Play offline") }
                 return
             }
         }
@@ -565,7 +565,7 @@ class GameFlowTest {
                     textExists(" &\n", substring = true),
                 )
                 rule.onNodeWithTag("backToMenu").performClick()
-                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("New Game") }
+                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Play offline") }
                 return
             }
         }

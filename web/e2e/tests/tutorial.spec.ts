@@ -17,9 +17,9 @@ test('starting the tutorial boots the game screen on wasm without errors', async
   await expect(page.getByRole('button', { name: 'Start' })).toBeVisible({ timeout: 15_000 });
   await clickByRole(page, 'button', 'Start');
 
-  // We left the home screen for the tutorial hand: its "New Game" button is gone, the canvas is
+  // We left the home screen for the tutorial hand: its "Play offline" button is gone, the canvas is
   // still rendering, and nothing threw while the ViewModel spun up the scripted game.
-  await expect(page.getByRole('button', { name: 'New Game' })).toHaveCount(0, { timeout: 30_000 });
+  await expect(page.getByRole('button', { name: 'Play offline' })).toHaveCount(0, { timeout: 30_000 });
   await expect(page.locator('canvas')).toHaveCount(1);
   await page.waitForTimeout(1_000);
   expect(errors, 'the tutorial must boot console-error clean').toEqual([]);

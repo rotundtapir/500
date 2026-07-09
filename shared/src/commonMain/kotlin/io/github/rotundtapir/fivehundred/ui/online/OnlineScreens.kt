@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.ui.online
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,6 +14,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -173,7 +176,7 @@ internal fun JoinLobbyScreen(
     }
 }
 
-/** A row of single-select chips over [options]. */
+/** A row of single-select chips over [options]; the selected one gets a filled, high-contrast look. */
 @Composable
 private fun <T> ChipRow(
     options: List<T>,
@@ -181,16 +184,28 @@ private fun <T> ChipRow(
     label: (T) -> String,
     onSelect: (T) -> Unit,
 ) {
+    val onBackground = MaterialTheme.colorScheme.onBackground
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { option ->
+            val isSelected = option == selected
             OutlinedButton(
                 onClick = { onSelect(option) },
+                colors = if (isSelected) {
+                    ButtonDefaults.outlinedButtonColors(
+                        containerColor = onBackground.copy(alpha = 0.18f),
+                        contentColor = onBackground,
+                    )
+                } else {
+                    ButtonDefaults.outlinedButtonColors(contentColor = onBackground.copy(alpha = 0.7f))
+                },
+                border = BorderStroke(
+                    if (isSelected) 2.dp else 1.dp,
+                    onBackground.copy(alpha = if (isSelected) 1f else 0.4f),
+                ),
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                 modifier = Modifier.weight(1f),
             ) {
-                Text(
-                    label(option),
-                    fontWeight = if (option == selected) FontWeight.Bold else FontWeight.Normal,
-                )
+                Text(label(option), fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
             }
         }
     }

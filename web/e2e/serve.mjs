@@ -36,7 +36,14 @@ createServer(async (req, res) => {
   }
   try {
     const body = await readFile(file);
-    res.writeHead(200, { 'content-type': types[extname(file)] ?? 'application/octet-stream' });
+    res.writeHead(200, {
+      'content-type': types[extname(file)] ?? 'application/octet-stream',
+      // Local dev server only: never cache, so a plain reload always picks up a fresh rebuild
+      // (the loader fivehundred.js has a stable name, so browsers would otherwise serve a cached
+      // copy pointing at the previous, now-deleted content-hashed wasm). Production Pages is
+      // unaffected — this file is not deployed.
+      'cache-control': 'no-store, must-revalidate',
+    });
     res.end(body);
   } catch {
     res.writeHead(404);

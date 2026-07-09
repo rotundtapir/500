@@ -10,6 +10,7 @@ import io.github.rotundtapir.fivehundred.AnimationSpeed
 import io.github.rotundtapir.fivehundred.PacingGates
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
+import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.net.ClientMessage
 import io.github.rotundtapir.fivehundred.net.ConfigureLobby
 import io.github.rotundtapir.fivehundred.net.ConnectionState
@@ -217,13 +218,30 @@ class OnlineViewModel(
         _screen.value = OnlineScreen.ENTRY
     }
 
-    // --- Game actions -----------------------------------------------------------------------------
-    fun placeBid(bid: Bid) = submitAction(Action.PlaceBid(bid))
-    fun discard(cards: List<Card>) = submitAction(Action.ExchangeKitty(cards))
-    fun playCard(card: Card, nominate: Suit? = null) = submitAction(Action.PlayCard(card, nominate))
+    // --- Game actions (optimistic) ----------------------------------------------------------------
+    // Each move is checked against the current view's legal set, shown immediately (so play feels
+    // instant), then sent. The server's echo confirms it; a reject reverts it (see onError).
+    fun placeBid(bid: Bid) {
+        val view = session.views.value ?: return
+        if (!view.isMyTurn || bid !in view.legalBids) return
+        optimisticSubmit(view.withOptimisticBid(bid), Action.PlaceBid(bid))
+    }
 
-    private fun submitAction(action: Action) {
-        val version = session.stateVersion.value ?: return
+    fun discard(cards: List<Card>) {
+        val view = session.views.value ?: return
+        if (view.mustDiscard != cards.size || !view.hand.containsAll(cards)) return
+        optimisticSubmit(view.withOptimisticDiscard(cards), Action.ExchangeKitty(cards))
+    }
+
+    fun playCard(card: Card, nominate: Suit? = null) {
+        val view = session.views.value ?: return
+        if (!view.isMyTurn || card !in view.legalPlays) return
+        optimisticSubmit(view.withOptimisticPlay(card, nominate), Action.PlayCard(card, nominate))
+    }
+
+    private fun optimisticSubmit(optimistic: PlayerView, action: Action) {
+        val version = session.authoritativeStateVersion.value ?: return
+        session.applyOptimistic(optimistic)
         send(SubmitAction(version, action))
     }
 
@@ -297,6 +315,9 @@ class OnlineViewModel(
     }
 
     private fun onError(message: ErrorMessage) {
+        // A rejected move (stale/illegal) undoes the optimistic view; the message is surfaced as a
+        // brief, non-blocking banner (see OnlineFlow) rather than a modal that would stall the game.
+        session.revertOptimistic()
         _errorMessage.value = message.message.ifBlank { message.code.name }
     }
 
