@@ -1,0 +1,45 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
+# The one compose file used both for the official server and by self-hosters. CI writes IMAGE_TAG
+# (and any overrides) into a sibling .env; self-hosters create their own. The game server publishes
+# NO host ports — only Caddy is reachable from outside — so a stray firewall gap can't expose it.
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"   # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      SERVER_DOMAIN: ${SERVER_DOMAIN:-500.29022617.xyz}
+      ACME_EMAIL: ${ACME_EMAIL:-rotund_tapir@protonmail.com}
+    mem_limit: 128m
+    depends_on:
+      - server
+
+  server:
+    image: ghcr.io/rotundtapir/500-server:${IMAGE_TAG:-latest}
+    container_name: 500-server        # stable name for fail2ban's journald match
+    restart: unless-stopped
+    expose:
+      - "8080"                         # internal only — never map to a host port
+    environment:
+      JAVA_OPTS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=96m"
+      TRUST_PROXY: "true"              # X-Forwarded-For comes from Caddy
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://rotundtapir.github.io}
+      MIN_APP_VERSION: ${MIN_APP_VERSION:-0.3.0}
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  caddy_data:
+  caddy_config:

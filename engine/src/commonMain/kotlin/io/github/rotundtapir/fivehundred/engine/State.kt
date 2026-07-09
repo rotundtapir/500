@@ -4,6 +4,8 @@ package io.github.rotundtapir.fivehundred.engine
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Suit
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
 /** Phases of a match. Between hands the engine deals again and returns to [BIDDING]. */
 enum class Phase { BIDDING, KITTY, PLAY, COMPLETE }
@@ -27,6 +29,7 @@ fun teammatesOf(seat: Seat, playerCount: Int, teamCount: Int): List<Seat> =
     (0 until playerCount).map(::Seat).filter { it != seat && teamOf(it, teamCount) == teamOf(seat, teamCount) }
 
 /** The winning bid and who made it. */
+@Serializable
 data class Contract(val declarer: Seat, val bid: Bid) {
     val trump: Trump get() = (bid as? Bid.Named)?.trump ?: Trump.NO_TRUMP
     val level: Int get() = (bid as? Bid.Named)?.level ?: 0
@@ -44,9 +47,11 @@ data class BiddingState(
 )
 
 /** The most recently completed trick, kept so UIs can show it (and its winner) between tricks. */
+@Serializable
 data class CompletedTrick(val plays: List<TrickPlay>, val winner: Seat)
 
 /** The scored outcome of one completed hand. */
+@Serializable
 data class HandResult(
     val contract: Contract,
     val declarerTricks: Int,
@@ -90,6 +95,7 @@ data class GameState(
 )
 
 /** The redacted, per-seat projection handed to a [io.github.rotundtapir.cardkit.core.Player]. */
+@Serializable
 data class PlayerView(
     val seat: Seat,
     val phase: Phase,
@@ -129,13 +135,20 @@ data class PlayerView(
 }
 
 /** An action a seat can take. */
+@Serializable
 sealed interface Action {
     /** During [Phase.BIDDING]: place a bid (possibly [Bid.Pass]). */
+    @Serializable
+    @SerialName("placeBid")
     data class PlaceBid(val bid: Bid) : Action
 
     /** During [Phase.KITTY]: the declarer discards exactly [KITTY_SIZE] cards after taking the kitty. */
+    @Serializable
+    @SerialName("exchangeKitty")
     data class ExchangeKitty(val discards: List<Card>) : Action
 
     /** During [Phase.PLAY]: play [card]; [nominate] names the led suit when leading the Joker at no-trump. */
+    @Serializable
+    @SerialName("playCard")
     data class PlayCard(val card: Card, val nominate: Suit? = null) : Action
 }

@@ -64,6 +64,8 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(SettingsDefaults.NO_TRUMPS_ENABLED, repo.noTrumpsEnabled.first())
         assertEquals(SettingsDefaults.HOLD_TRICKS, repo.holdTricks.first())
         assertEquals(SettingsDefaults.SOUND_VOLUME, repo.soundVolume.first())
+        assertEquals(SettingsDefaults.SERVER_URL, repo.serverUrl.first())
+        assertEquals(SettingsDefaults.PLAYER_NAME, repo.playerName.first())
     }
 
     @Test
@@ -76,6 +78,8 @@ class DataStoreSettingsRepositoryTest {
         repo.setNoTrumpsEnabled(false)
         repo.setHoldTricks(true)
         repo.setSoundVolume(0.3f)
+        repo.setServerUrl("ws://localhost:8080")
+        repo.setPlayerName("Alice")
 
         // A fresh repository over the same store reads back the persisted values.
         val reopened = DataStoreSettingsRepository(store)
@@ -85,6 +89,15 @@ class DataStoreSettingsRepositoryTest {
         assertEquals(false, reopened.noTrumpsEnabled.first())
         assertEquals(true, reopened.holdTricks.first())
         assertEquals(0.3f, reopened.soundVolume.first())
+        assertEquals("ws://localhost:8080", reopened.serverUrl.first())
+        assertEquals("Alice", reopened.playerName.first())
+    }
+
+    @Test
+    fun `a blank stored server url falls back to the default`() = runTest {
+        val store = newStore()
+        store.edit { it[stringPreferencesKey(SettingsKeys.SERVER_URL)] = "   " }
+        assertEquals(SettingsDefaults.SERVER_URL, DataStoreSettingsRepository(store).serverUrl.first())
     }
 
     @Test

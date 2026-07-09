@@ -45,6 +45,8 @@ fun main() {
     val seedOverride = params.get("seed")?.toLongOrNull()
     val animationSpeedOverride = AnimationSpeed.fromName(params.get("animationSpeed"))
     val soundVolumeOverride = params.get("soundVolume")?.toFloatOrNull()
+    val serverUrlOverride = params.get("serverUrl")
+    val playerNameOverride = params.get("playerName")
 
     ComposeViewport(document.body!!) {
         // The embedded default font lacks the symbols the UI draws (card suits, arrows, the
@@ -79,10 +81,16 @@ fun main() {
                 FiveHundredApp(
                     monetization = remember { BrowserMonetization(ProjectLinks.DONATION_URL) },
                     settings = remember { LocalStorageSettingsRepository() },
-                    appConfig = AppConfig(feedbackUri = ProjectLinks.ISSUE_TRACKER),
+                    appConfig = AppConfig(
+                        feedbackUri = ProjectLinks.ISSUE_TRACKER,
+                        version = AppBuildInfo.VERSION,
+                        platform = io.github.rotundtapir.fivehundred.net.Platform.WEB,
+                    ),
                     nextSeed = { seedOverride ?: Random.nextLong() },
                     animationSpeedOverride = animationSpeedOverride,
                     soundVolumeOverride = soundVolumeOverride,
+                    serverUrlOverride = serverUrlOverride,
+                    playerNameOverride = playerNameOverride,
                 )
             }
         }

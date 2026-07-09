@@ -9,6 +9,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -27,6 +28,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.fivehundred.LocalAppConfig
+import io.github.rotundtapir.fivehundred.SettingsDefaults
 
 private const val CARD_ART_URL = "https://code.google.com/archive/p/vector-playing-cards/"
 
@@ -137,6 +139,23 @@ fun SettingsDialog(
                         enabled = !inGame,
                         modifier = Modifier.testTag("noTrumpsEnabled"),
                     )
+                }
+
+                HorizontalDivider()
+
+                Text("Online", style = MaterialTheme.typography.labelMedium)
+                OutlinedTextField(
+                    value = settings.serverUrl,
+                    onValueChange = settings.onSetServerUrl,
+                    label = { Text("Game server") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().testTag("serverUrl"),
+                )
+                if (settings.serverUrl != SettingsDefaults.SERVER_URL) {
+                    TextButton(
+                        onClick = { settings.onSetServerUrl(SettingsDefaults.SERVER_URL) },
+                        modifier = Modifier.testTag("serverUrlReset"),
+                    ) { Text("Reset to official server") }
                 }
 
                 HorizontalDivider()

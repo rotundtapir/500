@@ -26,6 +26,7 @@ kotlin {
         commonMain.dependencies {
             api(project(":engine"))
             api(project(":ai"))
+            api(project(":net"))
             api(libs.cardkit.ui)
             api(libs.cardkit.monetization)
             implementation(compose.runtime)

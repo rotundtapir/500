@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred.engine
 
 import io.github.rotundtapir.cardkit.core.Suit
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /** The denomination of a suit/no-trump bid, in ascending bidding order. */
@@ -20,10 +21,12 @@ enum class Trump(val suit: Suit?, val symbol: String) {
 sealed interface Bid {
     /** Pass. Not part of the ranked bid ladder. */
     @Serializable
+    @SerialName("pass")
     data object Pass : Bid
 
     /** A contract to win [level] (6..10) tricks in a given [trump]. */
     @Serializable
+    @SerialName("named")
     data class Named(val level: Int, val trump: Trump) : Bid {
         init {
             require(level in 6..10) { "Bid level must be 6..10, was $level" }
@@ -32,10 +35,12 @@ sealed interface Bid {
 
     /** Misère: a contract to win **no** tricks. The bidder's partner sits out. */
     @Serializable
+    @SerialName("misere")
     data object Misere : Bid
 
     /** Open Misère: as [Misere] but the bidder's hand is exposed. The highest possible bid. */
     @Serializable
+    @SerialName("openMisere")
     data object OpenMisere : Bid
 }
 

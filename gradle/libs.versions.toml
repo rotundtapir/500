@@ -3,6 +3,10 @@ kotlin = "2.3.21"
 agp = "8.11.2"
 coroutines = "1.10.2"
 serialization = "1.9.0"
+# Ktor 3.x is the first line with a kotlinx-wasm-js client target; keep in step with the Kotlin
+# version (Ktor's Kotlin metadata must be <= the consumer's 2.3.21).
+ktor = "3.2.3"
+logback = "1.5.18"
 junit = "5.11.3"
 # Quality gates
 detekt = "2.0.0-alpha.3"          # only detekt built against Kotlin 2.3.21; move in lockstep with kotlin
@@ -34,7 +38,22 @@ compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref 
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 kotlinx-browser = { module = "org.jetbrains.kotlinx:kotlinx-browser", version.ref = "kotlinxBrowser" }
+
+# Ktor — WebSocket transport for online multiplayer. Client is multiplatform (jvm/android + wasmJs);
+# server is JVM-only (:server). All FOSS (Apache-2.0) so the F-Droid build graph stays clean.
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-websockets = { module = "io.ktor:ktor-client-websockets", version.ref = "ktor" }
+ktor-client-cio = { module = "io.ktor:ktor-client-cio", version.ref = "ktor" }
+ktor-client-js = { module = "io.ktor:ktor-client-js", version.ref = "ktor" }
+ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }
+ktor-server-forwarded-header = { module = "io.ktor:ktor-server-forwarded-header", version.ref = "ktor" }
+ktor-server-status-pages = { module = "io.ktor:ktor-server-status-pages", version.ref = "ktor" }
+ktor-server-test-host = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
+logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
 jetbrains-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "jetbrainsLifecycle" }
 
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }

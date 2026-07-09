@@ -22,15 +22,16 @@ F-Droid submission follows the first stable tag.
   interstitial invariants in `cardkit-monetization-play` — needs careful
   emulator verification of first-launch, purchase, and reinstall flows.
 
-- **Online multiplayer.** The engine was built for this: `GameState` is a pure
-  reducer, `PlayerView` is redacted per seat, and `Player` is a suspend seam, so
-  a remote player slots in without engine changes. Architecture analysis (on the
-  `multiplayer` branch, `docs/multiplayer-architecture.md`) leans towards an
-  authoritative hosted server — Ktor/WebSockets reusing `GameDriver`,
-  self-hostable JAR — over P2P, because a P2P host peer would see every hand and
-  the kitty (fatal for misère). Final decision deferred until after v0.1.
-  Likely split: generic `cardkit-server` + `cardkit-net-client` modules in
-  cardkit; the 500-specific server binary and lobby UI here.
+- **Online multiplayer** *(landed — being stabilised)*. Implemented as the
+  authoritative hosted server the analysis (`docs/multiplayer-architecture.md`)
+  recommended: a Ktor/WebSocket server (`:server`) that runs the same
+  `GameDriver` one room at a time, with the wire protocol and client in a new
+  `:net` module and the lobby/online UI in `:shared`. Invite-code lobbies, all
+  four table flavours, bot fill-in, disconnect→bot substitution with
+  session-token seat reclaim, canned emotes, a configurable/self-hostable server
+  URL, and CI deployment to the VPS on `v*` tags. Still to do: extract the
+  generic parts into `cardkit-server` / `cardkit-net-client`, a public lobby
+  browser, chat beyond emotes, and cross-process-death rejoin.
 
 - **Stronger bot AI.** The current `FiveHundredBot` is heuristic (bid
   estimation, misère defence, simple card-play rules). Candidates, roughly in

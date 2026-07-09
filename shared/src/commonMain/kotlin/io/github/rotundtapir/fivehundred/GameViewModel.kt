@@ -15,20 +15,15 @@ import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.engine.GameState
-import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
-import io.github.rotundtapir.fivehundred.ui.dealTimings
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.random.Random
 
 /**
@@ -50,45 +45,23 @@ class GameViewModel : ViewModel() {
     /** How quickly bot turns play out — set by the activity from the persisted setting, read live. */
     val animationSpeed = MutableStateFlow(AnimationSpeed.NORMAL)
 
-    /** Highest hand number whose end-of-hand result dialog the player has dismissed. */
-    private val handResultAcked = MutableStateFlow(0)
-
-    /** Called by the UI when the hand-result dialog is dismissed; unblocks the next hand. */
-    fun acknowledgeHandResult(handNumber: Int) {
-        handResultAcked.value = maxOf(handResultAcked.value, handNumber)
-    }
-
-    /** Highest hand number whose shuffle/deal animation has finished on screen. */
-    private val dealAnimationDone = MutableStateFlow(0)
-
-    /** Called by the UI when a hand's deal animation completes; releases the first bidder. */
-    fun dealAnimationFinished(handNumber: Int) {
-        dealAnimationDone.value = maxOf(dealAnimationDone.value, handNumber)
-    }
-
     /** Whether completed tricks stay on the felt until tapped away — set live from the UI toggle. */
     val holdTricks = MutableStateFlow(false)
 
-    /** Timed fallback pause before the next trick when the hold toggle is off. */
-    private fun interTrickPauseMillis(speed: AnimationSpeed): Long = when (speed) {
-        AnimationSpeed.SLOW -> 1800L
-        AnimationSpeed.NORMAL -> 1000L
-        AnimationSpeed.FAST -> 400L
-        AnimationSpeed.OFF -> 0L
-    }
+    /** Signal-driven pacing shared with the online client; see [PacingGates]. */
+    private val pacing = PacingGates(animationSpeed, holdTricks)
 
-    /** Key of the last completed trick the player has acknowledged (tapped past). */
-    private val trickAcked = MutableStateFlow(0)
+    /** Called by the UI when the hand-result dialog is dismissed; unblocks the next hand. */
+    fun acknowledgeHandResult(handNumber: Int) = pacing.acknowledgeHandResult(handNumber)
 
-    private fun trickKey(handNumber: Int, trickNumber: Int) = handNumber * 1000 + trickNumber
+    /** Called by the UI when a hand's deal animation completes; releases the first bidder. */
+    fun dealAnimationFinished(handNumber: Int) = pacing.dealAnimationFinished(handNumber)
 
     /**
      * Called by the UI when the player taps the completed trick away; releases the next leader.
      * The completed trick stays on the felt until then so it can be memorised for counting.
      */
-    fun acknowledgeTrick(handNumber: Int, trickNumber: Int) {
-        trickAcked.value = maxOf(trickAcked.value, trickKey(handNumber, trickNumber))
-    }
+    fun acknowledgeTrick(handNumber: Int, trickNumber: Int) = pacing.acknowledgeTrick(handNumber, trickNumber)
 
     private val _botNames = MutableStateFlow<Map<Seat, String>>(emptyMap())
 
@@ -111,9 +84,7 @@ class GameViewModel : ViewModel() {
     ) {
         gameJob?.cancel()
         state.value = null
-        handResultAcked.value = 0
-        dealAnimationDone.value = 0
-        trickAcked.value = 0
+        pacing.reset()
         rules = FiveHundredRules(
             playerCount = playerCount,
             misereEnabled = misereEnabled,
@@ -132,52 +103,13 @@ class GameViewModel : ViewModel() {
         }
     }
 
-    /** Wraps a bot so its turns are visibly paced by the current [animationSpeed]. */
+    /** Wraps a bot so its turns are visibly paced by the current [animationSpeed] (see [PacingGates]). */
     private fun paced(inner: Player<PlayerView, Action>): Player<PlayerView, Action> =
         Player { view ->
-            // The hand's very first bidder holds until the previous hand's result dialog has been
-            // dismissed (nothing — not even the shuffle — moves while the player reads it), then
-            // until the UI reports the shuffle + deal animation has actually finished — a signal,
-            // not a timer, so slow devices can't have the auction start mid-deal. The timeout is a
-            // deadlock backstop (e.g. activity recreated mid-deal, where no signal will come).
-            if (view.phase == Phase.BIDDING && view.biddingHistory.isEmpty()) {
-                if (view.lastHandResult != null && view.winner == null) {
-                    handResultAcked.first { it >= view.handNumber }
-                }
-                if (animationSpeed.value != AnimationSpeed.OFF) {
-                    withTimeoutOrNull(dealPauseMillis(animationSpeed.value) * 3) {
-                        dealAnimationDone.first { it >= view.handNumber }
-                    }
-                    delay(animationSpeed.value.botDelayMillis)
-                }
-            }
-            // A bot about to lead a fresh trick (not the hand's first): with "Hold tricks" on, wait
-            // until the player taps the completed trick away (or turns the hold off mid-wait);
-            // otherwise a short timed pause keeps the trick readable. Nothing at OFF.
-            // (The hold, like all pacing, is inert at OFF — which also keeps tests deterministic.)
-            if (view.currentTrick.isEmpty() && view.trickNumber > 0 &&
-                animationSpeed.value != AnimationSpeed.OFF
-            ) {
-                if (holdTricks.value) {
-                    val key = trickKey(view.handNumber, view.trickNumber)
-                    combine(trickAcked, holdTricks) { acked, hold -> !hold || acked >= key }
-                        .first { it }
-                } else {
-                    delay(interTrickPauseMillis(animationSpeed.value))
-                }
-            }
-            delay(animationSpeed.value.botDelayMillis)
+            pacing.awaitGates(view)
+            delay(pacing.botBeatMillis)
             inner.decide(view)
         }
-
-    /**
-     * The full expected duration of GameScreen's shuffle + deal animation at [speed], derived from
-     * the same [dealTimings] table the animation runs on (plus slack for frame scheduling). Only
-     * used ×3 as the deadlock backstop above — the real release is the dealAnimationDone signal.
-     */
-    private fun dealPauseMillis(speed: AnimationSpeed): Long =
-        if (speed == AnimationSpeed.OFF) 0L
-        else dealTimings(speed).run { shuffleMillis + flyBudgetMillis + flipTotalMillis + PAUSE_SLACK_MILLIS }
 
     fun placeBid(bid: Bid) = submit(Action.PlaceBid(bid))
     fun discard(cards: List<Card>) = submit(Action.ExchangeKitty(cards))
@@ -190,9 +122,6 @@ class GameViewModel : ViewModel() {
     }
 
     internal companion object {
-        /** Slack on top of the animation's own budget before the backstop is even eligible. */
-        const val PAUSE_SLACK_MILLIS = 250L
-
         /**
          * Pool of friendly bot names; `playerCount - 1` distinct ones are drawn per game, seeded by
          * the game seed. Internal so TutorialScriptTest can pin the tutorial's scripted names

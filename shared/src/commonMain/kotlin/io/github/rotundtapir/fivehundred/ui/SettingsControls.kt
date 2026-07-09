@@ -24,4 +24,8 @@ data class SettingsControls(
     val onSetMisereEnabled: (Boolean) -> Unit,
     val noTrumpsEnabled: Boolean,
     val onSetNoTrumpsEnabled: (Boolean) -> Unit,
+    val serverUrl: String,
+    val onSetServerUrl: (String) -> Unit,
+    val playerName: String,
+    val onSetPlayerName: (String) -> Unit,
 )

@@ -13,12 +13,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameScreen
 import io.github.rotundtapir.fivehundred.ui.HomeScreen
 import io.github.rotundtapir.fivehundred.ui.SettingsControls
 import io.github.rotundtapir.fivehundred.ui.TUTORIAL_SEED
 import io.github.rotundtapir.fivehundred.ui.TutorialScriptState
+import io.github.rotundtapir.fivehundred.ui.online.OnlineFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -27,6 +29,9 @@ import kotlinx.coroutines.launch
  * the [AppConfig] values AGP's BuildConfig used to carry, a seed source, and optional overrides
  * (intent extras on Android, URL parameters on web) that pin animation speed and volume for tests.
  */
+// FiveHundredApp owns the ViewModels and hands the online one to OnlineFlow (the app's own flow, not
+// a reusable component); threading its ~15 lobby/game callbacks individually would be far less clear.
+@Suppress("ViewModelForwarding")
 @Composable
 fun FiveHundredApp(
     monetization: Monetization,
@@ -35,14 +40,20 @@ fun FiveHundredApp(
     nextSeed: () -> Long,
     animationSpeedOverride: AnimationSpeed? = null,
     soundVolumeOverride: Float? = null,
+    // Test overrides (web URL params): seed the server URL / player name so e2e can point at a local
+    // server and skip canvas text entry.
+    serverUrlOverride: String? = null,
+    playerNameOverride: String? = null,
     // Injected as a parameter (an explicit dependency) rather than fetched inside the body. The
     // default keeps the wasm-safe explicit initializer — a bare viewModel() uses the reflection
     // factory, which is JVM-only and throws on wasm.
     vm: GameViewModel = viewModel { GameViewModel() },
+    // Explicit initializer for the same wasm reason as [vm]: the reflective factory throws on wasm.
+    onlineVm: OnlineViewModel = viewModel { OnlineViewModel() },
 ) {
-    // Saveable so an in-progress game survives activity recreation (rotation, theme change, …);
+    // Which top-level screen shows. Saveable so an in-progress game survives activity recreation;
     // the game itself lives in the ViewModel. (On web this degrades to remember {}.)
-    var inGame by rememberSaveable { mutableStateOf(false) }
+    var appScreen by rememberSaveable { mutableStateOf(AppScreen.HOME.name) }
     val view by vm.humanView.collectAsState()
     val botNames by vm.botNames.collectAsState()
 
@@ -59,6 +70,8 @@ fun FiveHundredApp(
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
     val playSound = rememberGameSoundEffects(view = view, volume = soundVolume)
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
+    val serverUrl by settings.serverUrl.collectAsState(initial = SettingsDefaults.SERVER_URL)
+    val playerName by settings.playerName.collectAsState(initial = SettingsDefaults.PLAYER_NAME)
     // Current values + write-through callbacks as one unit, for the screens' shared settings dialog.
     val settingsControls = SettingsControls(
         animationSpeed = animationSpeed,
@@ -73,6 +86,10 @@ fun FiveHundredApp(
         onSetMisereEnabled = { value -> scope.launch { settings.setMisereEnabled(value) } },
         noTrumpsEnabled = noTrumpsEnabled,
         onSetNoTrumpsEnabled = { value -> scope.launch { settings.setNoTrumpsEnabled(value) } },
+        serverUrl = serverUrl,
+        onSetServerUrl = { value -> scope.launch { settings.setServerUrl(value) } },
+        playerName = playerName,
+        onSetPlayerName = { value -> scope.launch { settings.setPlayerName(value) } },
     )
     // Stored by name so rememberSaveable needs no custom Saver.
     var modeName by rememberSaveable { mutableStateOf(GameMode.FOUR_PLAYER.name) }
@@ -85,35 +102,42 @@ fun FiveHundredApp(
     // The tutorial forces the trick hold on so each completed trick waits to be explained by the
     // bubble; otherwise the user's setting applies. (Like all pacing, the hold is inert at OFF.)
     LaunchedEffect(holdTricks, tutorialActive) { vm.holdTricks.value = holdTricks || tutorialActive }
+    // The online game reuses the same pacing, so mirror the animation/hold settings into its VM.
+    LaunchedEffect(animationSpeed) { onlineVm.animationSpeed.value = animationSpeed }
+    LaunchedEffect(holdTricks) { onlineVm.holdTricks.value = holdTricks }
+    // Test overrides: seed the server URL / player name into settings so the whole online flow uses
+    // them (e2e points at a local server and prefills the name to skip canvas text entry).
+    LaunchedEffect(serverUrlOverride, playerNameOverride) {
+        serverUrlOverride?.let { settings.setServerUrl(it) }
+        playerNameOverride?.let { settings.setPlayerName(it) }
+    }
     val startTutorial: () -> Unit = {
         // The tutorial script depends on the exact table: 4 players, 2 teams, misère and no-trumps
         // enabled — pinned here regardless of the user's mode selection and house-rule settings.
         vm.newGame(TUTORIAL_SEED, playerCount = 4, misereEnabled = true, noTrumpsEnabled = true, teamCount = 2)
         tutorialStepIndex = 0
         tutorialActive = true
-        inGame = true
+        appScreen = AppScreen.GAME.name
     }
 
     CompositionLocalProvider(LocalAppConfig provides appConfig) {
-        // A single HomeScreen call also covers the first frame after newGame() (inGame set, view
-        // still null), so its internal state survives the transition instead of being rebuilt.
+        // A single HomeScreen call also covers the first frame after newGame() (screen set to GAME,
+        // view still null), so its internal state survives the transition instead of being rebuilt.
         val current = view
-        if (!inGame || current == null) {
-            HomeScreen(
-                monetization = monetization,
-                onNewGame = {
-                    vm.newGame(nextSeed(), mode.players, misereEnabled, noTrumpsEnabled, mode.teams)
-                    tutorialActive = false
-                    inGame = true
-                },
-                onStartTutorial = startTutorial,
+        val onGameScreen = appScreen == AppScreen.GAME.name && current != null
+        when {
+            appScreen == AppScreen.ONLINE.name -> OnlineFlow(
+                vm = onlineVm,
                 settings = settingsControls,
-                mode = mode,
-                onModeChange = { modeName = it.name },
+                monetization = monetization,
+                soundVolume = soundVolume,
+                onExit = {
+                    onlineVm.exit()
+                    appScreen = AppScreen.HOME.name
+                },
             )
-        } else {
-            GameScreen(
-                view = current,
+            onGameScreen -> GameScreen(
+                view = current!!,
                 botNames = botNames,
                 settings = settingsControls,
                 monetization = monetization,
@@ -121,7 +145,7 @@ fun FiveHundredApp(
                 onDiscard = vm::discard,
                 onPlay = { card -> vm.playCard(card) },
                 onExit = {
-                    inGame = false
+                    appScreen = AppScreen.HOME.name
                     tutorialActive = false
                 },
                 tutorial = if (tutorialActive) {
@@ -132,6 +156,25 @@ fun FiveHundredApp(
                 onTrickAcknowledge = vm::acknowledgeTrick,
                 soundHook = playSound,
             )
+            else -> HomeScreen(
+                monetization = monetization,
+                onNewGame = {
+                    vm.newGame(nextSeed(), mode.players, misereEnabled, noTrumpsEnabled, mode.teams)
+                    tutorialActive = false
+                    appScreen = AppScreen.GAME.name
+                },
+                onStartTutorial = startTutorial,
+                onPlayOnline = {
+                    onlineVm.enter(serverUrl, appConfig.version, appConfig.platform)
+                    appScreen = AppScreen.ONLINE.name
+                },
+                settings = settingsControls,
+                mode = mode,
+                onModeChange = { modeName = it.name },
+            )
         }
     }
 }
+
+/** Top-level screens the app switches between. */
+private enum class AppScreen { HOME, GAME, ONLINE }

@@ -1,0 +1,21 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception -->
+<configuration>
+    <!--
+      Single-line output to stdout. The `abuse` logger's messages are already logfmt
+      (ABUSE event=... ip=... detail=...); the surrounding pattern only prepends an ISO timestamp
+      and level, which the shipped fail2ban filter tolerates. Docker's journald driver captures this.
+    -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level %logger - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Keep normal chatter at INFO; Ktor/Netty internals at WARN to keep the box quiet. -->
+    <logger name="io.ktor" level="INFO"/>
+    <logger name="io.netty" level="WARN"/>
+
+    <root level="INFO">
+        <appender-ref ref="STDOUT"/>
+    </root>
+</configuration>

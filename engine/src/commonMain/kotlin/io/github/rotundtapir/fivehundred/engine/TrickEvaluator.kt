@@ -7,8 +7,10 @@ import io.github.rotundtapir.cardkit.core.Joker
 import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Suit
 import io.github.rotundtapir.cardkit.core.SuitedCard
+import kotlinx.serialization.Serializable
 
 /** One card played to a trick, by a seat, optionally nominating a suit (Joker led at no-trump). */
+@Serializable
 data class TrickPlay(val seat: io.github.rotundtapir.cardkit.core.Seat, val card: Card, val nominated: Suit? = null)
 
 /**

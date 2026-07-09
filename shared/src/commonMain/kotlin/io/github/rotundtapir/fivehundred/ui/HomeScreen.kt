@@ -57,6 +57,7 @@ fun HomeScreen(
     monetization: Monetization,
     onNewGame: () -> Unit,
     onStartTutorial: () -> Unit,
+    onPlayOnline: () -> Unit,
     settings: SettingsControls,
     mode: GameMode,
     onModeChange: (GameMode) -> Unit,
@@ -127,6 +128,14 @@ fun HomeScreen(
                 Spacer(Modifier.height(16.dp))
 
                 OutlinedButton(
+                    onClick = onPlayOnline,
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+                    modifier = Modifier.testTag("playOnlineButton"),
+                ) { Text("Play online") }
+                Spacer(Modifier.height(16.dp))
+
+                OutlinedButton(
                     onClick = { showTutorialIntro = true },
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
@@ -158,7 +167,7 @@ fun HomeScreen(
 
 /** One option in the game-mode selector: player count over its team structure; the selected one gets filled emphasis. */
 @Composable
-private fun GameModeButton(
+internal fun GameModeButton(
     mode: GameMode,
     selected: Boolean,
     onClick: () -> Unit,

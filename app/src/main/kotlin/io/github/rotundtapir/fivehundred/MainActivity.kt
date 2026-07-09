@@ -21,6 +21,12 @@ class MainActivity : ComponentActivity() {
 
         /** Intent extra (Float) overriding the persisted sound volume — tests pass 0f. */
         const val EXTRA_SOUND_VOLUME = "io.github.rotundtapir.fivehundred.SOUND_VOLUME"
+
+        /**
+         * Intent extra overriding the online server URL — for manual/opt-in online testing against a
+         * host-run server (the emulator reaches it at `ws://10.0.2.2:8080`).
+         */
+        const val EXTRA_SERVER_URL = "io.github.rotundtapir.fivehundred.SERVER_URL"
     }
 
     private lateinit var monetization: Monetization
@@ -45,10 +51,15 @@ class MainActivity : ComponentActivity() {
                 FiveHundredApp(
                     monetization = monetization,
                     settings = remember { DataStoreSettingsRepository(applicationContext) },
-                    appConfig = AppConfig(feedbackUri = BuildConfig.FEEDBACK_URI),
+                    appConfig = AppConfig(
+                        feedbackUri = BuildConfig.FEEDBACK_URI,
+                        version = BuildConfig.VERSION_NAME,
+                        platform = io.github.rotundtapir.fivehundred.net.Platform.ANDROID,
+                    ),
                     nextSeed = ::newGameSeed,
                     animationSpeedOverride = animationSpeedOverride(),
                     soundVolumeOverride = soundVolumeOverride(),
+                    serverUrlOverride = intent?.getStringExtra(EXTRA_SERVER_URL),
                 )
             }
         }

@@ -64,6 +64,8 @@ includeBuild("cardkit")
 
 include(":engine")
 include(":ai")
+include(":net")
+include(":server")
 include(":shared")
 include(":app")
 include(":web")

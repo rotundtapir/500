@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import io.github.rotundtapir.fivehundred.net.Platform
 
 /**
  * Build-specific values the shared UI needs, supplied by each entry point (they came from AGP's
@@ -10,6 +11,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
 data class AppConfig(
     /** Where "Submit feedback" goes: the GitHub issue tracker (FOSS/web) or a mailto (Play). */
     val feedbackUri: String,
+    /** This build's user-facing version (e.g. "0.3.0"), reported to the online server on connect. */
+    val version: String,
+    /** Which client build this is, reported to the online server for cross-play diagnostics. */
+    val platform: Platform,
 )
 
 /** Provided by [FiveHundredApp]; read where the UI needs a build-specific value. */

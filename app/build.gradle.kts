@@ -23,8 +23,8 @@ android {
         applicationId = "io.github.rotundtapir.fivehundred"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = providers.gradleProperty("appVersionCode").get().toInt()
+        versionName = providers.gradleProperty("appVersionName").get()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

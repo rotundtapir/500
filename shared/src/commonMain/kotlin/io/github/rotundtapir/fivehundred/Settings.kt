@@ -33,6 +33,8 @@ object SettingsKeys {
     const val NO_TRUMPS_ENABLED = "no_trumps_enabled"
     const val HOLD_TRICKS = "hold_tricks"
     const val SOUND_VOLUME = "sound_volume"
+    const val SERVER_URL = "server_url"
+    const val PLAYER_NAME = "player_name"
 }
 
 /**
@@ -46,6 +48,12 @@ object SettingsDefaults {
     const val NO_TRUMPS_ENABLED = true
     const val HOLD_TRICKS = false
     const val SOUND_VOLUME = 0.7f
+
+    /** The official game server. Self-hosters / local testing point this elsewhere. */
+    const val SERVER_URL = "wss://500.29022617.xyz"
+
+    /** Empty until the player picks a name on the online entry screen. */
+    const val PLAYER_NAME = ""
 }
 
 /**
@@ -83,4 +91,14 @@ interface SettingsRepository {
     val soundVolume: Flow<Float>
 
     suspend fun setSoundVolume(value: Float)
+
+    /** The online game server URL (`wss://…`); [SettingsDefaults.SERVER_URL] when unset. */
+    val serverUrl: Flow<String>
+
+    suspend fun setServerUrl(value: String)
+
+    /** The player's chosen display name for online games; [SettingsDefaults.PLAYER_NAME] when unset. */
+    val playerName: Flow<String>
+
+    suspend fun setPlayerName(value: String)
 }

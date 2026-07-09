@@ -74,4 +74,23 @@ class LocalStorageSettingsRepository : SettingsRepository {
         store(SettingsKeys.SOUND_VOLUME, coerced.toString())
         soundVolumeFlow.value = coerced
     }
+
+    private val serverUrlFlow = MutableStateFlow(
+        stored(SettingsKeys.SERVER_URL)?.takeIf { it.isNotBlank() } ?: SettingsDefaults.SERVER_URL,
+    )
+    override val serverUrl: Flow<String> = serverUrlFlow
+
+    override suspend fun setServerUrl(value: String) {
+        val trimmed = value.trim()
+        store(SettingsKeys.SERVER_URL, trimmed)
+        serverUrlFlow.value = trimmed.ifBlank { SettingsDefaults.SERVER_URL }
+    }
+
+    private val playerNameFlow = MutableStateFlow(stored(SettingsKeys.PLAYER_NAME) ?: SettingsDefaults.PLAYER_NAME)
+    override val playerName: Flow<String> = playerNameFlow
+
+    override suspend fun setPlayerName(value: String) {
+        store(SettingsKeys.PLAYER_NAME, value)
+        playerNameFlow.value = value
+    }
 }

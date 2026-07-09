@@ -36,6 +36,7 @@ import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.SoundEffect
 import io.github.rotundtapir.fivehundred.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
+import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import kotlinx.coroutines.flow.first
 
@@ -55,6 +56,8 @@ fun GameScreen(
     onDealAnimationFinish: (Int) -> Unit = {},
     onTrickAcknowledge: (Int, Int) -> Unit = { _, _ -> },
     soundHook: ((SoundEffect) -> Unit)? = null,
+    // Online games override the leave-confirm body — leaving hands the seat to a bot, not a loss.
+    leaveConfirmText: String? = null,
 ) {
     val animationSpeed = settings.animationSpeed
     // Captured by the deal LaunchedEffect below; rememberUpdatedState so a recomposition that
@@ -87,6 +90,14 @@ fun GameScreen(
         if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
         if (view.handNumber == lastAnimatedHand) return@LaunchedEffect
         lastAnimatedHand = view.handNumber
+        // Only animate a genuine hand start (empty auction and no cards played yet). A view first
+        // seen mid-hand — an online (re)connection snapshot — must not replay the deal; just release
+        // the pacing signal so play proceeds.
+        val handStart = view.phase == Phase.BIDDING && view.biddingHistory.isEmpty() && view.currentTrick.isEmpty()
+        if (!handStart) {
+            currentOnDealAnimationFinish(view.handNumber)
+            return@LaunchedEffect
+        }
         // Hold the shuffle until the previous hand's result dialog is dismissed.
         if (view.lastHandResult != null && view.winner == null) {
             snapshotFlow { resultAckedHand }.first { it >= view.handNumber }
@@ -184,7 +195,7 @@ fun GameScreen(
         AlertDialog(
             onDismissRequest = { showLeaveConfirm = false },
             title = { Text("Leave game?") },
-            text = { Text("The current game will be lost.") },
+            text = { Text(leaveConfirmText ?: "The current game will be lost.") },
             confirmButton = {
                 TextButton(onClick = onExit, modifier = Modifier.testTag("confirmLeave")) {
                     Text("Leave")

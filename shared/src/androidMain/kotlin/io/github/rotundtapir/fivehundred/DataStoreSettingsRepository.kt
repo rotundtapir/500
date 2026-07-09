@@ -74,6 +74,22 @@ class DataStoreSettingsRepository internal constructor(
         dataStore.edit { preferences -> preferences[SOUND_VOLUME_KEY] = value.coerceIn(0f, 1f) }
     }
 
+    override val serverUrl: Flow<String> = dataStore.data.map { preferences ->
+        preferences[SERVER_URL_KEY]?.takeIf { it.isNotBlank() } ?: SettingsDefaults.SERVER_URL
+    }
+
+    override suspend fun setServerUrl(value: String) {
+        dataStore.edit { preferences -> preferences[SERVER_URL_KEY] = value.trim() }
+    }
+
+    override val playerName: Flow<String> = dataStore.data.map { preferences ->
+        preferences[PLAYER_NAME_KEY] ?: SettingsDefaults.PLAYER_NAME
+    }
+
+    override suspend fun setPlayerName(value: String) {
+        dataStore.edit { preferences -> preferences[PLAYER_NAME_KEY] = value }
+    }
+
     private companion object {
         val ANIMATION_SPEED_KEY = stringPreferencesKey(SettingsKeys.ANIMATION_SPEED)
         val SORT_HAND_BY_DEFAULT_KEY = booleanPreferencesKey(SettingsKeys.SORT_HAND_BY_DEFAULT)
@@ -81,5 +97,7 @@ class DataStoreSettingsRepository internal constructor(
         val NO_TRUMPS_ENABLED_KEY = booleanPreferencesKey(SettingsKeys.NO_TRUMPS_ENABLED)
         val HOLD_TRICKS_KEY = booleanPreferencesKey(SettingsKeys.HOLD_TRICKS)
         val SOUND_VOLUME_KEY = floatPreferencesKey(SettingsKeys.SOUND_VOLUME)
+        val SERVER_URL_KEY = stringPreferencesKey(SettingsKeys.SERVER_URL)
+        val PLAYER_NAME_KEY = stringPreferencesKey(SettingsKeys.PLAYER_NAME)
     }
 }
