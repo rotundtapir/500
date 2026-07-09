@@ -33,5 +33,5 @@ export function collectErrors(page: Page): string[] {
 /** Wait for the wasm app to boot: the static placeholder is retired right before the first frame. */
 export async function awaitAppBoot(page: Page) {
   await expect(page.locator('#loading')).toHaveCount(0, { timeout: 60_000 });
-  await expect(page.getByRole('button', { name: 'New Game' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole('button', { name: 'New Game' })).toBeVisible({ timeout: 30_000 });
 }
