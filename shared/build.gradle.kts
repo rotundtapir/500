@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
 
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
@@ -61,4 +62,17 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+}
+
+// TODO(KT-82989): revisit on Kotlin upgrade. The Compose compiler plugin emits top-level
+// declarations, which Kotlin/JS+Wasm incremental compilation mishandles (KT-82395) — it can
+// silently under-recompile a changed commonMain file, shipping a stale wasm binary (a green build
+// over source it never recompiled). KT-82395 is marked fixed in 2.3.21-RC but the symptom persists
+// here. The proper switch (Kotlin2JsCompile.incrementalJsKlib) is still `internal` — KT-82989 tracks
+// exposing it — so until then we wipe this task's IC state before each run, forcing a correct full
+// (non-incremental) wasm compile. Cheap for this module; drop this (and the matching block in
+// web/build.gradle.kts) once KT-82989 ships a public per-task switch and the staleness is gone.
+tasks.withType<Kotlin2JsCompile>().configureEach {
+    val icStateDir = layout.buildDirectory.dir("kotlin/$name")
+    doFirst { icStateDir.get().asFile.deleteRecursively() }
 }
