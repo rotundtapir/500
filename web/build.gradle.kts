@@ -1,8 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
+import org.jetbrains.kotlin.gradle.tasks.Kotlin2JsCompile
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.compose.compiler)
+}
+
+// TODO(KT-82989): see shared/build.gradle.kts. The Compose compiler plugin's top-level declarations
+// break Kotlin JS/Wasm incremental compilation (KT-82395), silently shipping a stale wasm binary.
+// The proper switch (Kotlin2JsCompile.incrementalJsKlib) is still `internal` (KT-82989), so wipe the
+// IC state before each run to force a correct full compile. Drop this once KT-82989 ships.
+tasks.withType<Kotlin2JsCompile>().configureEach {
+    val icStateDir = layout.buildDirectory.dir("kotlin/$name")
+    doFirst { icStateDir.get().asFile.deleteRecursively() }
 }
 
 // Generate a tiny AppBuildInfo with the app version from the single source (root gradle.properties),
