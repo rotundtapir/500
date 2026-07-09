@@ -6,6 +6,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -34,10 +35,11 @@ fun FiveHundredApp(
     nextSeed: () -> Long,
     animationSpeedOverride: AnimationSpeed? = null,
     soundVolumeOverride: Float? = null,
+    // Injected as a parameter (an explicit dependency) rather than fetched inside the body. The
+    // default keeps the wasm-safe explicit initializer — a bare viewModel() uses the reflection
+    // factory, which is JVM-only and throws on wasm.
+    vm: GameViewModel = viewModel { GameViewModel() },
 ) {
-    // Explicit initializer: the reflection-based default ViewModel factory is JVM-only, so a
-    // bare viewModel() throws UnsupportedOperationException on wasm.
-    val vm: GameViewModel = viewModel { GameViewModel() }
     // Saveable so an in-progress game survives activity recreation (rotation, theme change, …);
     // the game itself lives in the ViewModel. (On web this degrades to remember {}.)
     var inGame by rememberSaveable { mutableStateOf(false) }
@@ -55,7 +57,7 @@ fun FiveHundredApp(
     val soundVolume = soundVolumeOverride ?: persistedVolume
     // One sound engine for the whole app: reacts to game-state transitions, and hands back a play
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
-    val playSound = GameSoundEffects(view = view, volume = soundVolume)
+    val playSound = rememberGameSoundEffects(view = view, volume = soundVolume)
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
     // Current values + write-through callbacks as one unit, for the screens' shared settings dialog.
     val settingsControls = SettingsControls(
@@ -79,7 +81,7 @@ fun FiveHundredApp(
     // The interactive "How to play" tutorial: a scripted hand on TUTORIAL_SEED. The step index is
     // saveable so an activity recreation mid-tutorial resumes at the same point in the script.
     var tutorialActive by rememberSaveable { mutableStateOf(false) }
-    var tutorialStepIndex by rememberSaveable { mutableStateOf(0) }
+    var tutorialStepIndex by rememberSaveable { mutableIntStateOf(0) }
     // The tutorial forces the trick hold on so each completed trick waits to be explained by the
     // bubble; otherwise the user's setting applies. (Like all pacing, the hold is inert at OFF.)
     LaunchedEffect(holdTricks, tutorialActive) { vm.holdTricks.value = holdTricks || tutorialActive }
@@ -125,9 +127,9 @@ fun FiveHundredApp(
                 tutorial = if (tutorialActive) {
                     TutorialScriptState(tutorialStepIndex) { tutorialStepIndex++ }
                 } else null,
-                onResultDismissed = vm::acknowledgeHandResult,
-                onDealAnimationFinished = vm::dealAnimationFinished,
-                onTrickAcknowledged = vm::acknowledgeTrick,
+                onResultDismiss = vm::acknowledgeHandResult,
+                onDealAnimationFinish = vm::dealAnimationFinished,
+                onTrickAcknowledge = vm::acknowledgeTrick,
                 soundHook = playSound,
             )
         }

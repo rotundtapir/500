@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.ui
 
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
@@ -12,6 +14,25 @@ import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.TrickEvaluator
 import io.github.rotundtapir.fivehundred.engine.Trump
 import io.github.rotundtapir.fivehundred.engine.teamOf
+
+/**
+ * Screen-space rects of the tutorial's interaction targets (a bid button, a card, the felt),
+ * recorded by [tutorialTarget] as each element is laid out and read back by the tutorial bubble to
+ * anchor itself. A stable holder over a snapshot map, passed instead of a raw mutable collection so
+ * composable signatures stay stable and side-effect-free to read.
+ */
+@Stable
+class TutorialAnchors {
+    private val rects = mutableStateMapOf<String, Rect>()
+
+    /** Record [key]'s current on-screen [rect] (called from layout). */
+    fun record(key: String, rect: Rect) {
+        rects[key] = rect
+    }
+
+    /** The rect last recorded for [key], or null if that target isn't on screen. */
+    operator fun get(key: String): Rect? = rects[key]
+}
 
 internal fun seatLabel(view: PlayerView, botNames: Map<Seat, String>, seat: Seat): String =
     if (seat == view.seat) "You" else botNames[seat] ?: "Seat ${seat.index}"
@@ -46,15 +67,18 @@ internal fun sortedForDisplay(hand: List<Card>, trump: Trump?): List<Card> {
  * points at what the player can see rather than at the covered remainder.
  */
 internal fun Modifier.tutorialTarget(
-    map: MutableMap<String, Rect>?,
+    anchors: TutorialAnchors?,
     key: String,
     widthFraction: Float = 1f,
 ): Modifier =
-    if (map == null) this else onGloballyPositioned { coords ->
+    if (anchors == null) this else onGloballyPositioned { coords ->
         val bounds = coords.boundsInRoot()
-        map[key] = if (widthFraction >= 1f) {
-            bounds
-        } else {
-            Rect(bounds.left, bounds.top, bounds.left + bounds.width * widthFraction, bounds.bottom)
-        }
+        anchors.record(
+            key,
+            if (widthFraction >= 1f) {
+                bounds
+            } else {
+                Rect(bounds.left, bounds.top, bounds.left + bounds.width * widthFraction, bounds.bottom)
+            },
+        )
     }

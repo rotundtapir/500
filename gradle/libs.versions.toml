@@ -4,6 +4,12 @@ agp = "8.11.2"
 coroutines = "1.10.2"
 serialization = "1.9.0"
 junit = "5.11.3"
+# Quality gates
+detekt = "2.0.0-alpha.3"          # only detekt built against Kotlin 2.3.21; move in lockstep with kotlin
+composeRulesDetekt = "0.6.0"      # targets detekt 2.0.0-alpha.3 + Kotlin 2.3.21 exactly
+cpdPlugin = "3.5"
+pmd = "7.26.0"
+kover = "0.9.8"
 # Compose Multiplatform; its Jetpack mapping must agree with composeBom below.
 composeMultiplatform = "1.11.1"
 # JetBrains' multiplatform androidx.lifecycle — the version paired with this CMP release.
@@ -24,6 +30,7 @@ datastore = "1.1.1"
 cardkit = "0.1.0-SNAPSHOT"
 
 [libraries]
+compose-rules-detekt = { module = "io.nlopez.compose.rules:detekt", version.ref = "composeRulesDetekt" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
@@ -73,3 +80,6 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "composeMultiplatform" }
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
+detekt = { id = "dev.detekt", version.ref = "detekt" }
+cpd = { id = "de.aaschmid.cpd", version.ref = "cpdPlugin" }
+kover = { id = "org.jetbrains.kotlinx.kover", version.ref = "kover" }

@@ -26,6 +26,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -101,7 +102,7 @@ internal class DealAnimationState {
     var flyingTarget by mutableStateOf<DealTarget?>(null)
 
     /** How many card backs the in-flight packet contains (3/4 to a seat, 1 to the kitty). */
-    var flyingCount by mutableStateOf(1)
+    var flyingCount by mutableIntStateOf(1)
 
     /** Centre of the in-flight card, in root coordinates. */
     val flyingPos = Animatable(Offset.Zero, Offset.VectorConverter)

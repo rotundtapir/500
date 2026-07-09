@@ -181,6 +181,10 @@ class FiveHundredBot(
     // --- Play ------------------------------------------------------------------------------------
 
     /** The card this bot plays given the current [view]. Always one of `view.legalPlays`. */
+    // Guard-clause dispatch across the play strategies (misère declarer/defender, lead, follow):
+    // each returns early, which reads more clearly than one nested expression despite tripping the
+    // complexity/return thresholds.
+    @Suppress("CyclomaticComplexMethod", "ReturnCount")
     fun choosePlay(view: PlayerView): Card {
         val trump = view.trump ?: Trump.NO_TRUMP
         val eval = TrickEvaluator(trump)

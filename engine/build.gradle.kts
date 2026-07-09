@@ -2,6 +2,7 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kover)
 }
 
 // Pure Kotlin: the authoritative rules of Australian 500. No Android dependency, so it is fully
@@ -29,4 +30,16 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     useJUnitPlatform()
+}
+
+// Coverage ratchet for the pure rules engine — currently ~96% line coverage; the bound sits just
+// below so it guards regressions without becoming a chore.
+kover {
+    reports {
+        verify {
+            rule {
+                minBound(90)
+            }
+        }
+    }
 }

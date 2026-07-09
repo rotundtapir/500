@@ -1,0 +1,81 @@
+# Detekt configuration shared by the 500 repo and the cardkit submodule (kept byte-identical, like
+# the pre-commit hook). Plain-analysis mode only — no type resolution — so it runs fast and uniformly
+# over commonMain/androidMain/wasmJsMain source sets. buildUponDefaultConfig keeps detekt's defaults
+# and overrides only what card-game / Compose code needs. Property names follow detekt 2.0.
+
+complexity:
+  CyclomaticComplexMethod:
+    active: true
+    allowedComplexity: 15
+    ignoreAnnotated: ['Composable'] # UI composables branch heavily but read top-to-bottom
+    excludes: ['**/*[tT]est/**'] # verbose driver loops in tests are not a smell
+  LongMethod:
+    active: true
+    allowedLines: 60
+    ignoreAnnotated: ['Composable'] # composables read top-to-bottom and run long by nature
+    excludes: ['**/*[tT]est/**'] # verbose driver loops in tests are not a smell
+  LongParameterList:
+    active: true
+    allowedFunctionParameters: 6
+    allowedConstructorParameters: 7
+    ignoreDefaultParameters: true
+    ignoreAnnotated: ['Composable']
+  NestedBlockDepth:
+    active: true
+    allowedDepth: 4
+    excludes: ['**/*[tT]est/**'] # verbose driver loops in tests are not a smell
+  TooManyFunctions:
+    active: false # UI files legitimately hold many small composables
+  LargeClass:
+    active: true
+    allowedLines: 600
+
+naming:
+  MatchingDeclarationName:
+    active: false # files are organised by theme (Deck.kt, Cards.kt) and hold several declarations
+  FunctionNaming:
+    active: true
+    ignoreAnnotated: ['Composable'] # PascalCase composables are the Compose convention
+  TopLevelPropertyNaming:
+    active: true
+    constantPattern: '[A-Z][A-Za-z0-9_]*' # allow both HAND_SIZE and compose-style DefaultCardWidth
+
+style:
+  MagicNumber:
+    active: false # rank/score/geometry constants are pervasive and self-explanatory in context
+  LoopWithTooManyJumpStatements:
+    active: true
+    excludes: ['**/*[tT]est/**'] # verbose driver loops in tests are not a smell
+  ReturnCount:
+    active: true
+    max: 4
+    excludes: ['**/*[tT]est/**'] # verbose driver loops in tests are not a smell
+  UnusedPrivateProperty:
+    active: true
+  UnusedImport:
+    active: true
+  MaxLineLength:
+    active: false # formatting is governed by kotlin.code.style=official + the IDE, not detekt
+  WildcardImport:
+    active: true # generated Compose-resource facades are the one legitimate wildcard; suppressed per-file
+  ForbiddenImport:
+    active: true
+    # The one module allowed these is the proprietary quarantine itself; the point of the rule is
+    # to keep them OUT of everything the FOSS build can reach.
+    excludes: ['**/cardkit-monetization-play/**']
+    forbiddenImports:
+      - value: 'com.google.android.gms.**'
+        reason: 'Proprietary ads/billing must stay quarantined in cardkit-monetization-play (FOSS purity).'
+      - value: 'com.android.billingclient.**'
+        reason: 'Proprietary billing must stay quarantined in cardkit-monetization-play (FOSS purity).'
+      - value: 'com.google.android.ump.**'
+        reason: 'Proprietary consent SDK must stay quarantined in cardkit-monetization-play (FOSS purity).'
+
+# io.nlopez.compose.rules — the full ruleset (annotation-triggered, inert on non-Compose code).
+# Adopted wholesale: every finding is fixed in the code rather than suppressed. LocalAppConfig is a
+# deliberate, correct CompositionLocal, so it is allowlisted rather than the rule being disabled.
+Compose:
+  CompositionLocalAllowlist:
+    active: true
+    allowedCompositionLocals:
+      - LocalAppConfig

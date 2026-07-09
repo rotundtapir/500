@@ -268,7 +268,7 @@ internal fun TrickArea(
     // Forces the hold on regardless of the setting — the tutorial uses this so every completed
     // trick waits to be explained.
     forceHold: Boolean = false,
-    onTrickAcknowledged: (Int, Int) -> Unit = { _, _ -> },
+    onTrickAcknowledge: (Int, Int) -> Unit = { _, _ -> },
 ) {
     // With "Hold completed tricks" on (in settings), a completed trick stays on the felt until the
     // player taps it away — time to memorise the cards for counting.
@@ -285,7 +285,7 @@ internal fun TrickArea(
             .fillMaxWidth()
             .padding(vertical = 12.dp)
             .background(Color(0x22000000), RoundedCornerShape(16.dp))
-            .tappableWhen(holdingTrick) { onTrickAcknowledged(view.handNumber, view.trickNumber) },
+            .tappableWhen(holdingTrick) { onTrickAcknowledge(view.handNumber, view.trickNumber) },
         contentAlignment = Alignment.Center,
     ) {
         if (dealState.dealing) {

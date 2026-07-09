@@ -23,9 +23,9 @@ if [ -z "${JAVA_HOME:-}" ] || ! "${JAVA_HOME}/bin/java" -version 2>&1 | grep -q 
     done
 fi
 
-echo "[pre-commit] ./gradlew lint jvmTest   (JAVA_HOME=${JAVA_HOME:-<default>})"
-if ! ./gradlew --console=plain --quiet lint jvmTest; then
+echo "[pre-commit] ./gradlew qualityCheck lint jvmTest   (JAVA_HOME=${JAVA_HOME:-<default>})"
+if ! ./gradlew --console=plain --quiet qualityCheck lint jvmTest; then
     echo >&2
-    echo "[pre-commit] Gradle lint/test failed — fix the issues above, or bypass with 'git commit --no-verify'." >&2
+    echo "[pre-commit] Gradle quality/lint/test failed — fix the issues above, or bypass with 'git commit --no-verify'." >&2
     exit 1
 fi

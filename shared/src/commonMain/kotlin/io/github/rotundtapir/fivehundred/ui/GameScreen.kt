@@ -17,14 +17,14 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.testTag
@@ -49,13 +49,17 @@ fun GameScreen(
     onDiscard: (List<Card>) -> Unit,
     onPlay: (Card) -> Unit,
     onExit: () -> Unit,
+    modifier: Modifier = Modifier,
     tutorial: TutorialScriptState? = null,
-    onResultDismissed: (Int) -> Unit = {},
-    onDealAnimationFinished: (Int) -> Unit = {},
-    onTrickAcknowledged: (Int, Int) -> Unit = { _, _ -> },
+    onResultDismiss: (Int) -> Unit = {},
+    onDealAnimationFinish: (Int) -> Unit = {},
+    onTrickAcknowledge: (Int, Int) -> Unit = { _, _ -> },
     soundHook: ((SoundEffect) -> Unit)? = null,
 ) {
     val animationSpeed = settings.animationSpeed
+    // Captured by the deal LaunchedEffect below; rememberUpdatedState so a recomposition that
+    // changes the callback identity doesn't leave the running effect holding a stale one.
+    val currentOnDealAnimationFinish by rememberUpdatedState(onDealAnimationFinish)
     var sortHand by rememberSaveable { mutableStateOf(settings.sortByDefault) }
     var showSettings by remember { mutableStateOf(false) }
     var showLeaveConfirm by remember { mutableStateOf(false) }
@@ -63,7 +67,7 @@ fun GameScreen(
     var tutorialComplete by rememberSaveable { mutableStateOf(false) }
     // Highest hand number whose result dialog has been dismissed — the shuffle/deal animation of
     // the NEXT hand waits for this, so nothing moves behind the dialog while the player reads it.
-    var resultAckedHand by remember { mutableStateOf(0) }
+    var resultAckedHand by remember { mutableIntStateOf(0) }
     // Whether the FINAL hand's result dialog has been dismissed. resultAckedHand can't tell: between
     // hands the dialog shows under the NEXT hand's number, so by game end it already reads current.
     // Keyed on winner so it resets if this composable survives into another game.
@@ -77,8 +81,8 @@ fun GameScreen(
     val dealState = remember { DealAnimationState() }
     dealState.soundHook = soundHook
     // Screen rects of the tutorial's interaction targets (bid button, cards, felt), for the bubble.
-    val tutorialTargets = if (tutorial != null) remember { mutableStateMapOf<String, Rect>() } else null
-    var lastAnimatedHand by rememberSaveable { mutableStateOf(0) }
+    val tutorialAnchors = if (tutorial != null) remember { TutorialAnchors() } else null
+    var lastAnimatedHand by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(view.handNumber) {
         if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
         if (view.handNumber == lastAnimatedHand) return@LaunchedEffect
@@ -90,11 +94,11 @@ fun GameScreen(
         runDealAnimation(dealState, view.playerCount, view.dealer, animationSpeed)
         // Release the first bidder: the ViewModel waits on this signal, not a timer, so slow
         // devices can't start the auction mid-deal.
-        onDealAnimationFinished(view.handNumber)
+        currentOnDealAnimationFinish(view.handNumber)
     }
 
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
@@ -126,12 +130,12 @@ fun GameScreen(
                     dealState = dealState,
                     modifier = Modifier
                         .weight(1f)
-                        .tutorialTarget(tutorialTargets, "trick"),
+                        .tutorialTarget(tutorialAnchors, "trick"),
                     holdTricks = settings.holdTricks,
                     // The tutorial always holds completed tricks so the bubble can explain each
                     // outcome (still inert at OFF, like all pacing).
                     forceHold = tutorial != null,
-                    onTrickAcknowledged = onTrickAcknowledged,
+                    onTrickAcknowledge = onTrickAcknowledge,
                 )
                 if (dealState.dealing) {
                     DealingHandRow(
@@ -152,7 +156,7 @@ fun GameScreen(
                         onDiscard = onDiscard,
                         onPlay = onPlay,
                         tutorial = tutorial,
-                        targets = tutorialTargets,
+                        targets = tutorialAnchors,
                         peekDiscardHand = tutorial != null && animationSpeed != AnimationSpeed.OFF,
                     )
                 }
@@ -161,8 +165,8 @@ fun GameScreen(
             }
             // The one card back currently in flight from the deck to a pile, drawn above everything.
             FlyingDealCard(dealState)
-            if (tutorial != null && tutorialTargets != null && !dealState.dealing) {
-                TutorialBubble(tutorial, view, botNames, tutorialTargets, dealState.overlayOrigin)
+            if (tutorial != null && tutorialAnchors != null && !dealState.dealing) {
+                TutorialBubble(tutorial, view, botNames, tutorialAnchors, dealState.overlayOrigin)
             }
         }
     }
@@ -210,7 +214,7 @@ fun GameScreen(
     HandResultDialog(
         view = view,
         botNames = botNames,
-        onDismissed = {
+        onDismiss = {
             if (tutorial != null) {
                 // Deliberately never acknowledge the tutorial hand's result: the next deal's
                 // animation and the ViewModel's bots both gate on it, so the finished board
@@ -218,7 +222,7 @@ fun GameScreen(
                 tutorialComplete = true
             } else {
                 resultAckedHand = view.handNumber
-                onResultDismissed(view.handNumber)
+                onResultDismiss(view.handNumber)
                 if (view.winner != null) finalResultAcked = true
             }
         },
@@ -226,7 +230,7 @@ fun GameScreen(
 
     if (tutorial != null && tutorialComplete) {
         // A short epilogue (misère, no-trumps) pages before the completion dialog.
-        var epiloguePage by rememberSaveable { mutableStateOf(0) }
+        var epiloguePage by rememberSaveable { mutableIntStateOf(0) }
         if (epiloguePage < tutorialEpilogue.size) {
             val page = tutorialEpilogue[epiloguePage]
             AlertDialog(

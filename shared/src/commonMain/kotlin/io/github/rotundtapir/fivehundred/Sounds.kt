@@ -25,7 +25,7 @@ import io.github.rotundtapir.fivehundred.engine.PlayerView
  * `DealAnimationState.soundHook`.
  */
 @Composable
-fun GameSoundEffects(view: PlayerView?, volume: Float): (SoundEffect) -> Unit {
+fun rememberGameSoundEffects(view: PlayerView?, volume: Float): (SoundEffect) -> Unit {
     val manager = rememberSoundManager(volume)
 
     var previous by remember { mutableStateOf<PlayerView?>(null) }

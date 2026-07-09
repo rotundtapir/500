@@ -34,8 +34,14 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Unit tests (engine + ai) and lint
-        run: ./gradlew :engine:jvmTest :ai:jvmTest lint
+      - name: Static analysis (detekt + CPD)
+        run: ./gradlew qualityCheck
+
+      - name: Unit tests (engine + ai + shared) and lint
+        run: ./gradlew :engine:jvmTest :ai:jvmTest :shared:testDebugUnitTest lint
+
+      - name: Coverage verification (engine + ai)
+        run: ./gradlew :engine:koverVerify :ai:koverVerify
 
       - name: Assemble both flavors (debug)
         run: ./gradlew assembleFossDebug assemblePlayDebug
@@ -59,6 +65,16 @@ jobs:
           path: |
             web/e2e/playwright-report
             web/e2e/test-results
+          if-no-files-found: ignore
+
+      - name: Upload quality reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-reports
+          path: |
+            **/build/reports/detekt/
+            **/build/reports/cpd/
           if-no-files-found: ignore
 
       - name: Verify FOSS build has no proprietary deps

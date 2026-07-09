@@ -27,7 +27,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -53,7 +52,7 @@ internal fun ActionArea(
     onDiscard: (List<Card>) -> Unit,
     onPlay: (Card) -> Unit,
     tutorial: TutorialScriptState? = null,
-    targets: MutableMap<String, Rect>? = null,
+    targets: TutorialAnchors? = null,
     // Tutorial: peek-scroll the hand on the kitty-exchange step so the off-screen cards are seen.
     peekDiscardHand: Boolean = false,
 ) {
@@ -147,33 +146,35 @@ private fun BiddingPanel(
     onBid: (Bid) -> Unit,
     bidEnabled: (Bid) -> Boolean = { true },
     anchorBid: Bid? = null,
-    targets: MutableMap<String, Rect>? = null,
+    targets: TutorialAnchors? = null,
 ) {
     // Guard against double taps: one bid per PlayerView.
     var acted by remember(view) { mutableStateOf(false) }
-    Text("Your bid:", fontWeight = FontWeight.Bold)
-    Spacer(Modifier.height(4.dp))
-    Row(
-        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        // Pass first, then the ranked contracts.
-        view.legalBids.sortedBy { it != Bid.Pass }.forEach { bid ->
-            OutlinedButton(
-                onClick = {
-                    acted = true
-                    onBid(bid)
-                },
-                enabled = !acted && bidEnabled(bid),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
-                modifier = Modifier
-                    .testTag("bid:${bid.label}")
-                    .tutorialTarget(if (bid == anchorBid) targets else null, "action"),
-            ) { SuitText(bid.label) }
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Your bid:", fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(4.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Pass first, then the ranked contracts.
+            view.legalBids.sortedBy { it != Bid.Pass }.forEach { bid ->
+                OutlinedButton(
+                    onClick = {
+                        acted = true
+                        onBid(bid)
+                    },
+                    enabled = !acted && bidEnabled(bid),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+                    modifier = Modifier
+                        .testTag("bid:${bid.label}")
+                        .tutorialTarget(if (bid == anchorBid) targets else null, "action"),
+                ) { SuitText(bid.label) }
+            }
         }
+        Spacer(Modifier.height(8.dp))
     }
-    Spacer(Modifier.height(8.dp))
 }
 
 @Composable
@@ -185,44 +186,46 @@ private fun DiscardPanel(
     // Tutorial constraint: when non-null, only these cards are selectable and the discard arms
     // only once exactly they are selected.
     requiredDiscards: Set<Card>? = null,
-    targets: MutableMap<String, Rect>? = null,
+    targets: TutorialAnchors? = null,
     peekOnAppear: Boolean = false,
 ) {
     var selected by remember(view.hand) { mutableStateOf(emptySet<Card>()) }
     // Guard against double taps: one discard per PlayerView.
     var acted by remember(view) { mutableStateOf(false) }
-    Text(
-        "Discard $KITTY_SIZE cards to the kitty (${selected.size}/$KITTY_SIZE selected)",
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.tutorialTarget(targets, "action"),
-    )
-    Spacer(Modifier.height(4.dp))
-    Button(
-        onClick = {
-            acted = true
-            onDiscard(selected.toList())
-        },
-        enabled = selected.size == KITTY_SIZE && !acted &&
-            (requiredDiscards == null || selected == requiredDiscards),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = Color(0xFFFAFAFA),
-            contentColor = MaterialTheme.colorScheme.primary,
-        ),
-        modifier = Modifier.testTag("discardButton"),
-    ) { Text("Discard") }
-    Spacer(Modifier.height(4.dp))
-    HumanHand(
-        view = view,
-        sortHand = sortHand,
-        onToggleSort = onToggleSort,
-        playable = { requiredDiscards == null || it in requiredDiscards },
-        selected = selected,
-        onClick = { card ->
-            selected = if (card in selected) selected - card
-            else if (selected.size < KITTY_SIZE) selected + card else selected
-        },
-        peekOnAppear = peekOnAppear,
-    )
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(
+            "Discard $KITTY_SIZE cards to the kitty (${selected.size}/$KITTY_SIZE selected)",
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.tutorialTarget(targets, "action"),
+        )
+        Spacer(Modifier.height(4.dp))
+        Button(
+            onClick = {
+                acted = true
+                onDiscard(selected.toList())
+            },
+            enabled = selected.size == KITTY_SIZE && !acted &&
+                (requiredDiscards == null || selected == requiredDiscards),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFFAFAFA),
+                contentColor = MaterialTheme.colorScheme.primary,
+            ),
+            modifier = Modifier.testTag("discardButton"),
+        ) { Text("Discard") }
+        Spacer(Modifier.height(4.dp))
+        HumanHand(
+            view = view,
+            sortHand = sortHand,
+            onToggleSort = onToggleSort,
+            playable = { requiredDiscards == null || it in requiredDiscards },
+            selected = selected,
+            onClick = { card ->
+                selected = if (card in selected) selected - card
+                else if (selected.size < KITTY_SIZE) selected + card else selected
+            },
+            peekOnAppear = peekOnAppear,
+        )
+    }
 }
 
 /** Fan exposure: each card advances this fraction of a card width, so only that strip is visible. */
@@ -237,7 +240,7 @@ private fun HumanHand(
     onClick: (Card) -> Unit,
     dimUnplayable: Boolean = true,
     selected: Set<Card> = emptySet(),
-    targets: MutableMap<String, Rect>? = null,
+    targets: TutorialAnchors? = null,
     // One slow scroll to the fan's end and back when the hand first appears — shows the player the
     // full extent of a fan wider than the screen (the tutorial's kitty-exchange step uses this).
     peekOnAppear: Boolean = false,

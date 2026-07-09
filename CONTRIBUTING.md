@@ -52,7 +52,7 @@ Add a SPDX header to new source files:
 ## Building
 
 ```bash
-./gradlew :engine:test              # fast, pure-Kotlin unit tests
+./gradlew :engine:jvmTest           # fast, pure-Kotlin unit tests
 ./gradlew assembleFossDebug         # ad-free build
 ./gradlew assemblePlayDebug         # ad-supported build
 ```
@@ -61,7 +61,7 @@ Requires JDK 21 and the Android SDK (`compileSdk 35`).
 
 ## Git hooks
 
-A pre-commit hook runs `./gradlew lint test` so CI lint/test failures are caught
+A pre-commit hook runs `./gradlew qualityCheck lint jvmTest` so CI lint/test failures are caught
 locally. Enable it once per clone:
 
 ```bash

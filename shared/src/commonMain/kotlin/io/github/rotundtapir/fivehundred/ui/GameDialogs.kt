@@ -45,7 +45,7 @@ private fun signed(delta: Int): String = if (delta < 0) "−${-delta}" else "+$d
 internal fun HandResultDialog(
     view: PlayerView,
     botNames: Map<Seat, String>,
-    onDismissed: () -> Unit = {},
+    onDismiss: () -> Unit = {},
 ) {
     val result = view.lastHandResult ?: return
     // Keyed on the scored-hand COUNT, not the HandResult value: two consecutive hands can score
@@ -55,7 +55,7 @@ internal fun HandResultDialog(
     if (dismissed) return
     val dismiss = {
         dismissed = true
-        onDismissed()
+        onDismiss()
     }
 
     val contract = result.contract

@@ -17,7 +17,7 @@
 ## Checklist
 
 - [ ] Tests are included for every added feature (and a regression test for every bug fix)
-- [ ] `./gradlew lint jvmTest` passes locally (the pre-commit hook runs this too)
+- [ ] `./gradlew qualityCheck lint jvmTest` passes locally (the pre-commit hook runs this too — detekt + CPD duplication + lint + tests)
 - [ ] If engine or bot behaviour changed: the seed-pinned fixtures still pass or were updated together — the seed-42 suites (`GameFlowTest`, `web/e2e/tests/game.spec.ts`) and the seed-9 tutorial trace in `ui/Tutorial.kt`
 - [ ] If dependencies changed: the FOSS gate still prints nothing
       (`./gradlew :app:dependencies --configuration fossDebugRuntimeClasspath | grep -Ei 'gms|billing|firebase|monetization-play'`)

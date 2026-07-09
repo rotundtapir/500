@@ -60,12 +60,13 @@ fun HomeScreen(
     settings: SettingsControls,
     mode: GameMode,
     onModeChange: (GameMode) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showTutorialIntro by remember { mutableStateOf(false) }
 
     Surface(
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {

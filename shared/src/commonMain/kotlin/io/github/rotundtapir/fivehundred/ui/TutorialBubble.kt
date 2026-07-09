@@ -17,13 +17,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.Layout
@@ -54,7 +54,7 @@ internal fun TutorialBubble(
     tutorial: TutorialScriptState,
     view: PlayerView,
     botNames: Map<Seat, String>,
-    targets: Map<String, Rect>,
+    anchors: TutorialAnchors,
     overlayOrigin: Offset,
 ) {
     val step = tutorial.step
@@ -84,11 +84,11 @@ internal fun TutorialBubble(
         else -> "action" // discard: sit above the whole panel (header anchor), tail at its centre
     }
     val tailDown = targetKey != "trick"
-    val target = targets[targetKey] ?: targets["hand"] ?: targets["trick"] ?: return
+    val target = anchors[targetKey] ?: anchors["hand"] ?: anchors["trick"] ?: return
     val showTrumpOrder = isHumanDecision && step?.showTrumpOrder == true
 
     val density = LocalDensity.current
-    var bubbleLeft by remember { mutableStateOf(0) }
+    var bubbleLeft by remember { mutableIntStateOf(0) }
     val local = target.translate(-overlayOrigin)
     val tailWidth = with(density) { 26.dp.toPx() }
 
