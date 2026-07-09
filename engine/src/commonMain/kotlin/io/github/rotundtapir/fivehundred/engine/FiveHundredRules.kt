@@ -136,15 +136,18 @@ class FiveHundredRules(
 
     override fun isTerminal(state: GameState): Boolean = state.phase == Phase.COMPLETE
 
+    /** The bids callable right now: Pass plus every biddable contract over the current high bid. */
+    private fun legalBidsFor(state: GameState): List<Bid> = buildList {
+        add(Bid.Pass)
+        biddableLadder
+            .filter { isBiddable(it, state.bidding.highBid) }
+            .forEach { add(it) }
+    }
+
     override fun legalActions(state: GameState, seat: Seat): List<Action> {
         if (currentActor(state) != seat) return emptyList()
         return when (state.phase) {
-            Phase.BIDDING -> buildList {
-                add(Action.PlaceBid(Bid.Pass))
-                biddableLadder
-                    .filter { isBiddable(it, state.bidding.highBid) }
-                    .forEach { add(Action.PlaceBid(it)) }
-            }
+            Phase.BIDDING -> legalBidsFor(state).map { Action.PlaceBid(it) }
             Phase.KITTY -> emptyList() // discard is a constructed action; the view says how many
             Phase.PLAY -> legalPlaysFor(state, seat).map { Action.PlayCard(it) }
             Phase.COMPLETE -> emptyList()
@@ -154,14 +157,7 @@ class FiveHundredRules(
     override fun view(state: GameState, seat: Seat): PlayerView {
         val toAct = currentActor(state)
         val isMyTurn = toAct == seat
-        val legalBids = if (state.phase == Phase.BIDDING && isMyTurn) {
-            buildList {
-                add(Bid.Pass)
-                biddableLadder
-                    .filter { isBiddable(it, state.bidding.highBid) }
-                    .forEach { add(it) }
-            }
-        } else emptyList()
+        val legalBids = if (state.phase == Phase.BIDDING && isMyTurn) legalBidsFor(state) else emptyList()
         val legalPlays = if (state.phase == Phase.PLAY && isMyTurn) legalPlaysFor(state, seat) else emptyList()
         val mustDiscard = if (state.phase == Phase.KITTY && state.contract?.declarer == seat) KITTY_SIZE else 0
         val exposed = state.contract?.let { c ->
@@ -288,7 +284,6 @@ class FiveHundredRules(
             hands = hands,
             kitty = action.discards, // set aside (kept for the record)
             activeSeats = active,
-            exposedHands = if (contract.isOpen) setOf(contract.declarer) else emptySet(),
             leader = contract.declarer,
             currentTrick = emptyList(),
             ledSuit = null,

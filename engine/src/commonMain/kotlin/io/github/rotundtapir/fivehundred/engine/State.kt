@@ -67,11 +67,15 @@ data class GameState(
     val phase: Phase,
     val teamCount: Int = 2,
     val hands: Map<Seat, List<Card>>,
+    /**
+     * Changes meaning by phase — BIDDING: the 3 undealt cards; KITTY: empty (the declarer took them
+     * into hand); PLAY/COMPLETE: the declarer's discards, kept for the record. Hidden information
+     * throughout — never exposed via [PlayerView].
+     */
     val kitty: List<Card>,
     val bidding: BiddingState,
     val contract: Contract? = null,
     val activeSeats: List<Seat> = hands.keys.sortedBy { it.index },
-    val exposedHands: Set<Seat> = emptySet(),
     val leader: Seat? = null,
     val currentTrick: List<TrickPlay> = emptyList(),
     val ledSuit: Suit? = null,

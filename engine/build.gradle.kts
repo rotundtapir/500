@@ -16,7 +16,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(libs.cardkit.core)
-            api(libs.kotlinx.serialization.json)
+            api(libs.kotlinx.serialization.core)
         }
         jvmTest.dependencies {
             implementation(kotlin("test"))

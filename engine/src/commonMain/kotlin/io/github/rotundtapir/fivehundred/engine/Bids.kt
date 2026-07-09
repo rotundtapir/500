@@ -53,8 +53,8 @@ val Bid.label: String
  *
  * Defaults to the widely-used **Avondale schedule**: level 6 bids are 40/60/80/100/120 for
  * ♠/♣/♦/♥/NT, rising by 100 per extra trick; Misère is 250 (ranking between 8♠ and 8♣ by value);
- * Open Misère is 500 and ranks as the highest bid of all. It is a class so alternative schedules can
- * be substituted.
+ * Open Misère is 500 and ranks as the highest bid of all. It is a class (rather than an object) so
+ * an alternative schedule seam can be introduced later without changing consumers.
  */
 class ScoreSchedule {
     /** The point value of a contract if made. */
@@ -74,15 +74,15 @@ class ScoreSchedule {
             for (level in 6..10) for (trump in Trump.entries) add(Bid.Named(level, trump))
         }
         // Named bids plus Misère, ordered by point value (this places Misère between 8♠ and 8♣)...
-        addAll((named + Bid.Misere).sortedBy { valueForOrdering(it) })
+        addAll((named + Bid.Misere).sortedBy { value(it) })
         // ...then Open Misère as the strictly highest bid (its 500 value ties 10♥, so rank it explicitly).
         add(Bid.OpenMisere)
     }
 
-    private fun valueForOrdering(bid: Bid): Int = value(bid)
+    private val rankByBid: Map<Bid, Int> = ladder.withIndex().associate { (i, bid) -> bid to i }
 
     /** The rank (ladder index) of a bid; higher is stronger. [Bid.Pass] is `-1`. */
-    fun rank(bid: Bid): Int = if (bid is Bid.Pass) -1 else ladder.indexOf(bid)
+    fun rank(bid: Bid): Int = rankByBid[bid] ?: -1
 
     /** Whether [bid] outranks [than] (both must be non-pass bids). */
     fun outranks(bid: Bid, than: Bid): Boolean = rank(bid) > rank(than)

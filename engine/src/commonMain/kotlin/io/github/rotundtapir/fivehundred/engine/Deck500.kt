@@ -5,10 +5,8 @@ import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Suit
 import io.github.rotundtapir.cardkit.core.buildDeck
+import io.github.rotundtapir.cardkit.core.extendedRanks
 import io.github.rotundtapir.cardkit.core.rangeTo
-
-/** The 11/12/13 ranks exist only in the six-handed deck; every other deck excludes them. */
-private val sixHandedRanks = setOf(Rank.ELEVEN, Rank.TWELVE, Rank.THIRTEEN)
 
 /**
  * The 43-card deck for 2- and 4-player 500: 4→A of the red suits (11 each), 5→A of the black suits
@@ -17,8 +15,8 @@ private val sixHandedRanks = setOf(Rank.ELEVEN, Rank.TWELVE, Rank.THIRTEEN)
  * six-handed game, are excluded here.)
  */
 val fiveHundredDeck: List<Card> = buildDeck {
-    suits(Suit.HEARTS, Suit.DIAMONDS) { ranks((Rank.FOUR..Rank.ACE) - sixHandedRanks) }
-    suits(Suit.SPADES, Suit.CLUBS) { ranks((Rank.FIVE..Rank.ACE) - sixHandedRanks) }
+    suits(Suit.HEARTS, Suit.DIAMONDS) { ranks((Rank.FOUR..Rank.ACE) - extendedRanks) }
+    suits(Suit.SPADES, Suit.CLUBS) { ranks((Rank.FIVE..Rank.ACE) - extendedRanks) }
     joker()
 }
 
