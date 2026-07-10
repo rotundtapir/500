@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 
 /**
@@ -58,6 +59,10 @@ class OnlineGameSession(
     private var consumer: Job? = null
     private var countdown: Job? = null
 
+    // Bumped by reset(); a process() that was mid-beat when a reset happened checks this and drops its
+    // now-stale view instead of publishing a finished game's state into a fresh session.
+    private var generation = 0
+
     // Optimistic play: the human's move is shown immediately; the next server view (our echo) or an
     // error (reject) resolves it. [lastAuthoritative] is what we revert to on reject.
     private var optimisticPending = false
@@ -78,11 +83,13 @@ class OnlineGameSession(
 
     /** Clear state for a new game/rematch. */
     fun reset() {
+        generation++
         pacing.reset()
         previousActor = null
         optimisticPending = false
         lastAuthoritative = null
         countdown?.cancel()
+        while (inbound.tryReceive().isSuccess) {} // drop views still queued from the finished game
         _views.value = null
         _turnRemainingMillis.value = null
         _authoritativeStateVersion.value = null
@@ -110,8 +117,10 @@ class OnlineGameSession(
 
     private suspend fun process(queued: Queued) {
         val view = queued.update.view
-        lastAuthoritative = view
-        _authoritativeStateVersion.value = queued.update.stateVersion
+        val gen = generation
+        // Anchor the turn clock to when the view was *received*, before any bot-beat delay below, so
+        // the countdown reflects the server's real deadline rather than lagging by the beat(s).
+        val receivedAt = TimeSource.Monotonic.markNow()
         // Online, pacing must NOT gate rendering: the local game's gates hold a *bot's decision*
         // until an animation/tap signal, but here they would hold the *view* — and the signal only
         // fires once that view renders, so a hold-tricks/deal gate would deadlock with no backstop.
@@ -122,23 +131,28 @@ class OnlineGameSession(
         if (!instant && previousActor != null && previousActor != view.seat) {
             delay(pacing.botBeatMillis)
         }
+        if (gen != generation) return // reset() ran during the beat — this view belongs to a dead game
+        // Publish the view and its version together (version *after* the beat), so an action submitted
+        // while the previous view is still on screen is validated against that same on-screen state.
+        lastAuthoritative = view
+        _authoritativeStateVersion.value = queued.update.stateVersion
         optimisticPending = false
         _views.value = view
         previousActor = view.toAct
-        startCountdown(queued.update.turnRemainingMillis)
+        startCountdown(queued.update.turnRemainingMillis, receivedAt)
     }
 
-    private fun startCountdown(totalMillis: Long?) {
+    private fun startCountdown(totalMillis: Long?, receivedAt: TimeMark) {
         countdown?.cancel()
         if (totalMillis == null) {
             _turnRemainingMillis.value = null
             return
         }
         countdown = scope.launch {
-            // Anchor to a monotonic mark so a throttled (backgrounded) tab doesn't accumulate drift.
-            val mark = TimeSource.Monotonic.markNow()
+            // Anchor to the receive mark (a monotonic clock, so a throttled/backgrounded tab doesn't
+            // accumulate drift, and the elapsed beat time is already accounted for).
             while (true) {
-                val left = totalMillis - mark.elapsedNow().inWholeMilliseconds
+                val left = totalMillis - receivedAt.elapsedNow().inWholeMilliseconds
                 _turnRemainingMillis.value = left.coerceAtLeast(0)
                 if (left <= 0) break
                 delay(COUNTDOWN_TICK_MILLIS)

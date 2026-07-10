@@ -18,6 +18,7 @@ import io.github.rotundtapir.fivehundred.net.CreateLobby
 import io.github.rotundtapir.fivehundred.net.DisbandLobby
 import io.github.rotundtapir.fivehundred.net.Emote
 import io.github.rotundtapir.fivehundred.net.EmoteReceived
+import io.github.rotundtapir.fivehundred.net.ErrorCode
 import io.github.rotundtapir.fivehundred.net.ErrorMessage
 import io.github.rotundtapir.fivehundred.net.GameClient
 import io.github.rotundtapir.fivehundred.net.GameOver
@@ -132,12 +133,21 @@ class OnlineViewModel(
 
     /** Enter online mode: remember connection parameters and open the socket if not already open. */
     fun enter(serverUrl: String, appVersion: String, platform: Platform) {
-        this.serverUrl = serverUrl
+        this.serverUrl = serverUrl.trim()
         this.appVersion = appVersion
         this.platform = platform
         _screen.value = OnlineScreen.ENTRY
+        // Surface a bad address immediately instead of looping "Connecting…" forever on a URL that
+        // can never open (a missing scheme is the common paste/typo).
+        if (!isValidServerUrl(this.serverUrl)) {
+            _errorMessage.value = "Invalid server address — it must start with ws:// or wss://"
+            return
+        }
         ensureConnected()
     }
+
+    private fun isValidServerUrl(url: String): Boolean =
+        (url.startsWith("ws://") || url.startsWith("wss://")) && url.length > "wss://".length
 
     private fun ensureConnected() {
         if (connectJob?.isActive == true) return
@@ -220,6 +230,7 @@ class OnlineViewModel(
         _lobby.value = null
         _gameOver.value = null
         _pendingRejoin.value = null
+        occupancy = emptyMap() // else a stale BOT_SUBSTITUTE would mislabel a seat in the next room
         session.reset()
         _screen.value = OnlineScreen.ENTRY
     }
@@ -228,13 +239,24 @@ class OnlineViewModel(
 
     /** Fully exit online mode: leave any room, close the socket, and stop reconnecting. */
     fun exit() {
-        runCatching { send(LeaveLobby) }
         intentionalDisconnect = true
-        connectJob?.cancel()
-        viewModelScope.launch { runCatching { client.close() } }
+        // Send the leave and only THEN tear down, so the server records a clean leave (freeing the
+        // seat / clearing our binding) instead of a bare disconnect. Ordering the close after the
+        // send in one coroutine is what makes the leave actually reach the wire.
+        viewModelScope.launch {
+            runCatching {
+                withTimeout(LEAVE_GRACE_MILLIS) {
+                    sessionReady.first { it }
+                    client.send(LeaveLobby)
+                }
+            }
+            connectJob?.cancel()
+            runCatching { client.close() }
+        }
         _lobby.value = null
         _gameOver.value = null
         _pendingRejoin.value = null
+        occupancy = emptyMap()
         session.reset()
         _screen.value = OnlineScreen.ENTRY
     }
@@ -301,6 +323,17 @@ class OnlineViewModel(
         // A resumed session means the server put us back in a live room. Offer the rejoin choice
         // instead of jumping straight into it (see [pendingRejoin]).
         _pendingRejoin.value = welcome.resumed
+        // If we thought we were in a room but the server can't resume us (it disbanded/restarted
+        // while we were offline — state is in-memory), don't leave the client frozen on a stale board.
+        // Reset to entry with a banner. A brand-new connection (screen already ENTRY) is untouched.
+        if (welcome.resumed == null && _screen.value != OnlineScreen.ENTRY) {
+            _lobby.value = null
+            _gameOver.value = null
+            session.reset()
+            occupancy = emptyMap()
+            _errorMessage.value = "That game is no longer available."
+            _screen.value = OnlineScreen.ENTRY
+        }
         sessionReady.value = true
     }
 
@@ -367,9 +400,12 @@ class OnlineViewModel(
     }
 
     private fun onError(message: ErrorMessage) {
-        // A rejected move (stale/illegal) undoes the optimistic view; the message is surfaced as a
-        // brief, non-blocking banner (see OnlineFlow) rather than a modal that would stall the game.
-        session.revertOptimistic()
+        // Only undo the optimistic view when the error actually concerns the *submitted move* — a
+        // rejected/illegal/out-of-phase action. Errors that have nothing to do with our pending play
+        // (a rate-limited emote, a lobby-action reject) must NOT yank a card back out of the trick;
+        // the wire has no request id to correlate on, so we key off the error code instead. The next
+        // authoritative view reconciles anything left over.
+        if (message.code in ACTION_REJECTION_CODES) session.revertOptimistic()
         _errorMessage.value = message.message.ifBlank { message.code.name }
     }
 
@@ -385,5 +421,13 @@ class OnlineViewModel(
         const val BOT_SUFFIX = "(bot)"
         const val WS_PATH = "/ws"
         const val SEND_WAIT_MILLIS = 10_000L
+        const val LEAVE_GRACE_MILLIS = 1500L
+
+        /** Error codes that mean "your submitted move was rejected", so the optimistic view reverts. */
+        val ACTION_REJECTION_CODES = setOf(
+            ErrorCode.STALE_ACTION,
+            ErrorCode.ILLEGAL_ACTION,
+            ErrorCode.WRONG_PHASE,
+        )
     }
 }

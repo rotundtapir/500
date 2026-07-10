@@ -71,7 +71,12 @@ fun FiveHundredApp(
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
     val playSound = rememberGameSoundEffects(view = view, volume = soundVolume)
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
-    val serverUrl by settings.serverUrl.collectAsState(initial = SettingsDefaults.SERVER_URL)
+    val persistedServerUrl by settings.serverUrl.collectAsState(initial = SettingsDefaults.SERVER_URL)
+    // A ?serverUrl= override wins for this session only and is NEVER persisted: otherwise a shared
+    // link like ?serverUrl=wss://evil could permanently repoint a victim's online play (and control
+    // the trusted "update required" text) even after the tab is closed. Same treatment as the
+    // animation-speed / sound-volume test overrides above.
+    val serverUrl = serverUrlOverride ?: persistedServerUrl
     val playerName by settings.playerName.collectAsState(initial = SettingsDefaults.PLAYER_NAME)
     // Current values + write-through callbacks as one unit, for the screens' shared settings dialog.
     val settingsControls = SettingsControls(
@@ -106,10 +111,10 @@ fun FiveHundredApp(
     // The online game reuses the same pacing, so mirror the animation/hold settings into its VM.
     LaunchedEffect(animationSpeed) { onlineVm.animationSpeed.value = animationSpeed }
     LaunchedEffect(holdTricks) { onlineVm.holdTricks.value = holdTricks }
-    // Test overrides: seed the server URL / player name into settings so the whole online flow uses
-    // them (e2e points at a local server and prefills the name to skip canvas text entry).
-    LaunchedEffect(serverUrlOverride, playerNameOverride) {
-        serverUrlOverride?.let { settings.setServerUrl(it) }
+    // Player-name test override is seeded into settings (a display name is harmless to persist and
+    // e2e relies on it to skip canvas text entry). The server-URL override is deliberately NOT
+    // persisted — it is applied in memory via [serverUrl] above.
+    LaunchedEffect(playerNameOverride) {
         playerNameOverride?.let { settings.setPlayerName(it) }
     }
     val startTutorial: () -> Unit = {
