@@ -95,9 +95,11 @@ class GameFlowTest {
 
     private fun clickableCards() = rule.onAllNodes(clickableCard, useUnmergedTree = true)
 
-    private fun startGame() {
-        // Home -> bot-setup (default 4-player table) -> Play.
+    private fun startGame(modeTag: String? = null) {
+        // Home -> bot-setup (optionally picking a non-default table) -> Play. The mode chips live
+        // on the bot-setup screen since the menu restructure, not on home.
         rule.onNodeWithText("Play with bots").performClick()
+        modeTag?.let { rule.onNodeWithTag(it).performClick() }
         rule.onNodeWithTag("startBotGame").performClick()
     }
 
@@ -331,8 +333,7 @@ class GameFlowTest {
 
     @Test
     fun twoPlayerGame_reachesBidding() {
-        rule.onNodeWithTag("mode:2p").performClick()
-        startGame()
+        startGame("mode:2p")
         waitForBidPanel()
         assertEquals("2-player deal still gives the human 10 cards", 10, cardsOnScreen())
         // Head-to-head: no seat shares the human's team, so no partner marker anywhere.
@@ -341,8 +342,7 @@ class GameFlowTest {
 
     @Test
     fun sixPlayerGame_reachesBidding() {
-        rule.onNodeWithTag("mode:6p2t").performClick()
-        startGame()
+        startGame("mode:6p2t")
         waitForBidPanel()
         // Two teams of three: seats 2 and 4 share the human's team, so the opponents row must mark
         // exactly two partners.
@@ -353,8 +353,7 @@ class GameFlowTest {
 
     @Test
     fun threeTeamsGame_reachesBidding_withExactlyOnePartner() {
-        rule.onNodeWithTag("mode:6p3t").performClick()
-        startGame()
+        startGame("mode:6p3t")
         waitForBidPanel()
         // Three teams of two, partners opposite: only seat 3 shares the human's team.
         rule.waitUntil(STEP_TIMEOUT_MS) { textExists("(partner)") }
@@ -550,8 +549,7 @@ class GameFlowTest {
     /** Three-team flavour of the game-end flow: the score sheet must carry all three team columns. */
     @Test
     fun threeTeamsGameEnd_scoreSheetShowsAllTeams() {
-        rule.onNodeWithTag("mode:6p3t").performClick()
-        startGame()
+        startGame("mode:6p3t")
         val deadline = System.currentTimeMillis() + 300_000
         while (System.currentTimeMillis() < deadline) {
             playUntilHandResultOrGameEnd()

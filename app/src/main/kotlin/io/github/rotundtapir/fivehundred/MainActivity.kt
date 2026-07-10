@@ -32,6 +32,12 @@ class MainActivity : ComponentActivity() {
          * host-run server (the emulator reaches it at `ws://10.0.2.2:8080`).
          */
         const val EXTRA_SERVER_URL = "io.github.rotundtapir.fivehundred.SERVER_URL"
+
+        /**
+         * Intent extra seeding the online display name (the web `?playerName=` mirror) — set by
+         * instrumentation tests so the online screens prefill without canvas text entry.
+         */
+        const val EXTRA_PLAYER_NAME = "io.github.rotundtapir.fivehundred.PLAYER_NAME"
     }
 
     private lateinit var monetization: Monetization
@@ -82,6 +88,7 @@ class MainActivity : ComponentActivity() {
                     animationSpeedOverride = animationSpeedOverride(),
                     soundVolumeOverride = soundVolumeOverride(),
                     serverUrlOverride = intent?.getStringExtra(EXTRA_SERVER_URL),
+                    playerNameOverride = intent?.getStringExtra(EXTRA_PLAYER_NAME),
                 )
             }
         }
