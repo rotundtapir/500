@@ -123,7 +123,10 @@ internal fun LobbyRoomScreen(
                         info = info,
                         isYou = info.seat == state.yourSeat,
                         isHost = info.seat == state.creatorSeat,
-                        canClaim = !finished && !info.connected && state.yourSeat != null,
+                        // Only a genuinely open seat (no name) is claimable. A named seat whose
+                        // owner is disconnected is being HELD for them through the reconnect
+                        // grace — the server would refuse the claim with "Seat taken".
+                        canClaim = !finished && info.name.isBlank() && state.yourSeat != null,
                         onClaim = { onPickSeat(info.seat) },
                     )
                 }
@@ -192,6 +195,9 @@ private fun SeatRow(info: SeatInfo, isYou: Boolean, isHost: Boolean, canClaim: B
                 info.connected && isHost -> Text("Host", color = MaterialTheme.colorScheme.primary)
                 info.connected && info.ready -> Text("Ready", color = MaterialTheme.colorScheme.primary)
                 info.connected -> Text("Not ready", style = MaterialTheme.typography.labelMedium)
+                // A named seat with no live socket: its owner dropped and the seat is held for
+                // them (lobby disconnect grace, or a bot covering them mid-game).
+                info.name.isNotBlank() -> Text("Reconnecting…", style = MaterialTheme.typography.labelMedium)
                 else -> Text("")
             }
         }
