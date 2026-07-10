@@ -55,8 +55,8 @@ class SeatHost(
         // Drain anything buffered from a prior turn (stale submits, a spent interrupt) so this turn
         // starts clean. A legit action for THIS turn can't be here yet: the client only sends after
         // seeing this turn's view, which is delivered after the driver has already entered decide().
-        while (responses.tryReceive().isSuccess) {}
-        while (interrupts.tryReceive().isSuccess) {}
+        drain(responses)
+        drain(interrupts)
         val conn = occupant
         if (permanentBot || conn == null || !conn.connected) {
             return bot.decide(view, botRandom)
@@ -79,6 +79,12 @@ class SeatHost(
     /** Nudge a parked [decide] to fall back to the bot immediately (the occupant just disconnected). */
     fun interrupt() {
         interrupts.trySend(Unit)
+    }
+
+    /** Discard everything currently buffered in [channel]. */
+    private fun <T> drain(channel: Channel<T>) {
+        var next = channel.tryReceive()
+        while (next.isSuccess) next = channel.tryReceive()
     }
 
     /**

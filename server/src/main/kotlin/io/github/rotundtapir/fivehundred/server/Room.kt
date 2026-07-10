@@ -272,14 +272,13 @@ class Room(
         metrics.gameStarted()
         val initial = gameRules.newGame(seed)
         driverJob = scope.launch {
-            try {
+            runCatching {
                 val terminal = GameDriver(gameRules, players).play(initial) { state ->
                     submit(RoomCommand.StateProduced(state))
                 }
                 submit(RoomCommand.GameFinished(terminal))
-            } catch (e: CancellationException) {
-                throw e // room closing / rematch — normal teardown
-            } catch (e: Exception) {
+            }.onFailure { e ->
+                if (e is CancellationException) throw e // room closing / rematch — normal teardown
                 // A rules/driver failure must never leave the room stuck in PLAYING: that would freeze
                 // every client and, worse, keep activeGames() above zero so a deploy drain never ends.
                 // Tear the room down instead. (Should be unreachable — apply() is trial-validated.)

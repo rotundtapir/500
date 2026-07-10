@@ -89,7 +89,9 @@ class OnlineGameSession(
         optimisticPending = false
         lastAuthoritative = null
         countdown?.cancel()
-        while (inbound.tryReceive().isSuccess) {} // drop views still queued from the finished game
+        // drop views still queued from the finished game
+        var queued = inbound.tryReceive()
+        while (queued.isSuccess) queued = inbound.tryReceive()
         _views.value = null
         _turnRemainingMillis.value = null
         _authoritativeStateVersion.value = null
