@@ -21,10 +21,9 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <!-- Invite deep links: https://rotundtapir.github.io/500/?joinCode=… . autoVerify makes
-                 this an Android App Link (opens the app directly) once the Digital Asset Links file
-                 is served at https://rotundtapir.github.io/.well-known/assetlinks.json with this
-                 app's signing SHA-256 — see docs/deep-linking.md. Until then it still works as a
-                 normal link the user can opt into via the app's "Open by default" settings. -->
+                 this an Android App Link (opens the app directly); the Digital Asset Links file is
+                 served at https://rotundtapir.github.io/.well-known/assetlinks.json. See
+                 docs/deep-linking.md. -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

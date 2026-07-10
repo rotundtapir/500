@@ -15,41 +15,32 @@ Android's native share sheet, or copy-to-clipboard on web.
 
 - **In a browser** — the web app reads `?joinCode=` (`web/.../Main.kt`), enters online mode, and
   lands on the **Join** screen with the code prefilled. The player sets/confirms their name and taps
-  Join. Works with no install; nothing else to configure.
+  Join. Works with no install.
 - **In the installed Android app** — the same URL is registered as an
-  [Android App Link](https://developer.android.com/training/app-links) (see the `VIEW` intent-filter
-  in `app/src/main/AndroidManifest.xml`). `MainActivity` reads `intent.data`'s `joinCode` (on cold
+  [Android App Link](https://developer.android.com/training/app-links) (the `VIEW` intent-filter in
+  `app/src/main/AndroidManifest.xml`). `MainActivity` reads `intent.data`'s `joinCode` (on cold
   start and via `onNewIntent`, since the activity is `singleTask`) and routes to the same prefilled
   Join screen. The player always chooses their name — we never auto-join.
 
-## Making Android open the link "by default" (App Links verification)
+## App Links verification (set up)
 
-For Android to open the link in the app automatically (instead of the browser), the domain must
-publish a **Digital Asset Links** file that authorises this app. This is a one-time hosting step,
-**not** done by this repo's CI, because:
+Android opens the link in the app "by default" because the domain publishes a Digital Asset Links
+file authorising this app. It is **already hosted** at
+<https://rotundtapir.github.io/.well-known/assetlinks.json> (served by the `rotundtapir.github.io`
+user-site repo — the app's Pages site lives under `/500/`, so the domain root is a separate repo).
+It authorises `io.github.rotundtapir.fivehundred` for three signing certs, so every channel opens
+links: **Play App Signing**, the **FOSS release** key (sideloaded GitHub-release APKs), and the
+**debug** key (local dev builds).
 
-1. **It must be served from the domain root**, i.e.
-   `https://rotundtapir.github.io/.well-known/assetlinks.json` — the host root, path ignored.
-   This repo's Pages site is published under the `/500/` subpath, so the root
-   `rotundtapir.github.io/.well-known/…` is served by the **separate `rotundtapir.github.io`
-   user-site repo**. Copy `docs/assetlinks.json` there (creating `.well-known/assetlinks.json`).
-2. **It must list the app's signing SHA-256 fingerprint(s).** `docs/assetlinks.json` has
-   placeholders. Fill in:
-   - the **Play App Signing** key SHA-256 (Play Console → *Test and release → App integrity → App
-     signing key certificate*) — required because Play re-signs installs from the store;
-   - the **upload / local-release** key SHA-256 for sideloaded GitHub-release APKs. Get it with
-     `keytool -list -v -keystore <release.jks> -alias <alias>` or `./gradlew :app:signingReport`.
-   You can list several fingerprints; include every key that signs a shipped build.
-
-Verify once published:
+Maintenance — update `.well-known/assetlinks.json` in that repo if a signing key changes:
 
 ```bash
-curl https://rotundtapir.github.io/.well-known/assetlinks.json      # returns the JSON above
-# on a device with the app installed:
-adb shell pm verify-app-links --re-verify io.github.rotundtapir.fivehundred
-adb shell pm get-app-links io.github.rotundtapir.fivehundred        # domain shows "verified"
-```
+# a shipped APK's signing cert SHA-256 (works for any channel):
+apksigner verify --print-certs app-foss-release.apk        # from a GitHub release
+adb shell pm path io.github.rotundtapir.fivehundred        # then pull base.apk from a device
+# the Play App Signing SHA-256 is also in Play Console → Test and release → App integrity.
 
-Until this is in place the intent-filter still works, but Android won't auto-open the link — the
-user can enable it under *Settings → Apps → 500 → Open by default → Add link*, or the link simply
-opens in the browser (where the web app handles the join anyway).
+# check it end to end:
+curl https://rotundtapir.github.io/.well-known/assetlinks.json
+adb shell pm get-app-links io.github.rotundtapir.fivehundred   # domain shows "verified"
+```
