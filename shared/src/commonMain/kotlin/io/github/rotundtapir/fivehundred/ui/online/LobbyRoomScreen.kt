@@ -19,6 +19,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -26,10 +31,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.core.Seat
+import io.github.rotundtapir.fivehundred.LocalLinkSharer
 import io.github.rotundtapir.fivehundred.net.GameOver
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.RoomPhase
 import io.github.rotundtapir.fivehundred.net.SeatInfo
+import io.github.rotundtapir.fivehundred.online.JoinLink
+import kotlinx.coroutines.delay
 
 /**
  * The lobby room: the join code, the seats grouped by team, ready toggles, and (for the creator) the
@@ -74,6 +82,26 @@ internal fun LobbyRoomScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.testTag("lobbyCode"),
             )
+
+            // The host can share an invite link (…/?joinCode=CODE) that opens the game in the browser
+            // or, for players with the app installed, straight into it. Android → native share sheet;
+            // web → copy to clipboard (with a brief confirmation).
+            if (isCreator && !finished) {
+                val sharer = LocalLinkSharer.current
+                var copied by remember { mutableStateOf(false) }
+                if (copied) LaunchedEffect(copied) { delay(COPIED_CONFIRM_MILLIS); copied = false }
+                OutlinedButton(
+                    onClick = { copied = sharer.share("Join my game of 500", JoinLink.forCode(state.joinCode)) },
+                    modifier = Modifier.fillMaxWidth().testTag("shareInvite"),
+                ) { Text("Share invite link") }
+                if (copied) {
+                    Text(
+                        "Link copied to clipboard",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            }
 
             if (finished && gameOver != null) {
                 FinalScores(gameOver)
@@ -159,6 +187,8 @@ private fun SeatRow(info: SeatInfo, isYou: Boolean, isHost: Boolean, canClaim: B
         }
     }
 }
+
+private const val COPIED_CONFIRM_MILLIS = 2500L
 
 @Composable
 private fun FinalScores(gameOver: GameOver) {

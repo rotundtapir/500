@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
+import io.github.rotundtapir.fivehundred.online.JoinLink
 
 class MainActivity : ComponentActivity() {
     companion object {
@@ -31,6 +36,20 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var monetization: Monetization
 
+    // The join code from the invite link that (re)launched us, observed by the composition so a link
+    // tapped while the app is already open (onNewIntent) navigates into the join screen too.
+    private var deepLinkJoinCode by mutableStateOf<String?>(null)
+
+    /** The `?joinCode=` from an App Links VIEW intent (`https://…/500/?joinCode=12AB`), or null. */
+    private fun joinCodeFromIntent(intent: Intent?): String? =
+        intent?.data?.getQueryParameter(JoinLink.PARAM)
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        deepLinkJoinCode = joinCodeFromIntent(intent)
+    }
+
     private fun newGameSeed(): Long =
         if (intent?.hasExtra(EXTRA_SEED) == true) intent.getLongExtra(EXTRA_SEED, 0)
         else System.currentTimeMillis()
@@ -46,6 +65,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         monetization = MonetizationProvider.create(this)
+        deepLinkJoinCode = joinCodeFromIntent(intent)
         setContent {
             CardkitTheme {
                 FiveHundredApp(
@@ -57,6 +77,8 @@ class MainActivity : ComponentActivity() {
                         platform = io.github.rotundtapir.fivehundred.net.Platform.ANDROID,
                     ),
                     nextSeed = ::newGameSeed,
+                    linkSharer = remember { AndroidLinkSharer(this) },
+                    joinCodeOverride = deepLinkJoinCode,
                     animationSpeedOverride = animationSpeedOverride(),
                     soundVolumeOverride = soundVolumeOverride(),
                     serverUrlOverride = intent?.getStringExtra(EXTRA_SERVER_URL),

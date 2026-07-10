@@ -35,6 +35,23 @@ test('connects to the server and creates a lobby', async ({ page }) => {
   await expect(page.getByText('Open seat').first()).toBeVisible();
   // The creator sees the Start control (empty seats will become bots).
   await expect(page.getByRole('button', { name: /^Start/ })).toBeVisible();
+  // The host can share an invite link (web: copies to clipboard).
+  await expect(page.getByRole('button', { name: 'Share invite link' })).toBeVisible();
+
+  expect(errors, `console errors: ${errors.join('\n')}`).toEqual([]);
+});
+
+// An invite link (…/500/?joinCode=CODE) opens straight into online mode on the Join screen. Point
+// serverUrl at the local test server so entering online mode never touches the production server;
+// we only assert the routing (the code prefill itself is covered by the shared unit tests).
+test('an invite link opens the join screen', async ({ page }) => {
+  const errors = collectErrors(page);
+  await page.goto('/500/?serverUrl=ws://localhost:8080&joinCode=ABCD&playerName=Tester&animationSpeed=OFF&soundVolume=0');
+  // A joinCode link goes straight to online mode, so the home screen never shows — wait for the
+  // loading placeholder to clear, then assert we landed on the Join screen (not home).
+  await expect(page.locator('#loading')).toHaveCount(0, { timeout: 60_000 });
+  await expect(page.getByText('Join a game')).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /^Join$/ })).toBeVisible();
 
   expect(errors, `console errors: ${errors.join('\n')}`).toEqual([]);
 });

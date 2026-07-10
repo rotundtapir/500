@@ -112,6 +112,10 @@ class OnlineViewModel(
     private val _emotes = MutableSharedFlow<EmoteReceived>(extraBufferCapacity = EMOTE_BUFFER)
     val emotes: SharedFlow<EmoteReceived> = _emotes.asSharedFlow()
 
+    // A join code to prefill the join screen with (from a deep link); null on the manual join path.
+    private val _pendingJoinCode = MutableStateFlow<String?>(null)
+    val pendingJoinCode: StateFlow<String?> = _pendingJoinCode.asStateFlow()
+
     private var connectJob: Job? = null
     private var serverUrl: String = ""
     private var appVersion: String = ""
@@ -144,6 +148,17 @@ class OnlineViewModel(
             return
         }
         ensureConnected()
+    }
+
+    /**
+     * Enter online mode from a deep link and go straight to the join screen with [code] prefilled.
+     * The player still confirms/sets their name and taps Join there — we never auto-join.
+     */
+    fun enterWithJoinCode(serverUrl: String, appVersion: String, platform: Platform, code: String) {
+        enter(serverUrl, appVersion, platform)
+        if (_errorMessage.value != null) return // bad server URL — stay on entry showing the error
+        _pendingJoinCode.value = code
+        _screen.value = OnlineScreen.JOIN
     }
 
     private fun isValidServerUrl(url: String): Boolean =
@@ -182,10 +197,12 @@ class OnlineViewModel(
     }
     fun goToJoin() {
         _errorMessage.value = null
+        _pendingJoinCode.value = null // manual join: no prefill
         _screen.value = OnlineScreen.JOIN
     }
     fun backToEntry() {
         _errorMessage.value = null
+        _pendingJoinCode.value = null
         _screen.value = OnlineScreen.ENTRY
     }
 

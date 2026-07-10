@@ -72,10 +72,12 @@ style:
         reason: 'Proprietary consent SDK must stay quarantined in cardkit-monetization-play (FOSS purity).'
 
 # io.nlopez.compose.rules — the full ruleset (annotation-triggered, inert on non-Compose code).
-# Adopted wholesale: every finding is fixed in the code rather than suppressed. LocalAppConfig is a
-# deliberate, correct CompositionLocal, so it is allowlisted rather than the rule being disabled.
+# Adopted wholesale: every finding is fixed in the code rather than suppressed. These are deliberate,
+# correct CompositionLocals (build config; the platform link-share hook), so they are allowlisted
+# rather than the rule being disabled.
 Compose:
   CompositionLocalAllowlist:
     active: true
     allowedCompositionLocals:
       - LocalAppConfig
+      - LocalLinkSharer

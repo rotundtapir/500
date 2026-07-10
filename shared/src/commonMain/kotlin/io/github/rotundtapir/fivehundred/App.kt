@@ -13,6 +13,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.fivehundred.online.JoinLink
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.ui.BotSetupScreen
 import io.github.rotundtapir.fivehundred.ui.GameMode
@@ -39,6 +40,11 @@ fun FiveHundredApp(
     settings: SettingsRepository,
     appConfig: AppConfig,
     nextSeed: () -> Long,
+    // Shares an online invite link: native share sheet on Android, clipboard copy on web.
+    linkSharer: LinkSharer = LinkSharer { _, _ -> false },
+    // A join code from a deep link (Android App Links / web ?joinCode=): opens online mode straight
+    // to the join screen with the code prefilled. Changes across warm-start intents on Android.
+    joinCodeOverride: String? = null,
     animationSpeedOverride: AnimationSpeed? = null,
     soundVolumeOverride: Float? = null,
     // Test overrides (web URL params): seed the server URL / player name so e2e can point at a local
@@ -117,6 +123,14 @@ fun FiveHundredApp(
     LaunchedEffect(playerNameOverride) {
         playerNameOverride?.let { settings.setPlayerName(it) }
     }
+    // A deep-link join code (Android App Links / web ?joinCode=) opens online mode straight to the
+    // join screen with the code prefilled. Keyed on the code so a warm-start intent (a second link
+    // tapped while the app is open) with a new code re-triggers.
+    LaunchedEffect(joinCodeOverride) {
+        val code = JoinLink.normalizeCode(joinCodeOverride) ?: return@LaunchedEffect
+        onlineVm.enterWithJoinCode(serverUrl, appConfig.version, appConfig.platform, code)
+        appScreen = AppScreen.ONLINE.name
+    }
     val startTutorial: () -> Unit = {
         // The tutorial script depends on the exact table: 4 players, 2 teams, misère and no-trumps
         // enabled — pinned here regardless of the user's mode selection and house-rule settings.
@@ -126,7 +140,7 @@ fun FiveHundredApp(
         appScreen = AppScreen.GAME.name
     }
 
-    CompositionLocalProvider(LocalAppConfig provides appConfig) {
+    CompositionLocalProvider(LocalAppConfig provides appConfig, LocalLinkSharer provides linkSharer) {
         // A single HomeScreen call also covers the first frame after newGame() (screen set to GAME,
         // view still null), so its internal state survives the transition instead of being rebuilt.
         val current = view

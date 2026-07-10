@@ -47,6 +47,8 @@ fun main() {
     val soundVolumeOverride = params.get("soundVolume")?.toFloatOrNull()
     val serverUrlOverride = params.get("serverUrl")
     val playerNameOverride = params.get("playerName")
+    // Invite deep link: …github.io/500/?joinCode=12AB opens online mode at the prefilled join screen.
+    val joinCodeOverride = params.get("joinCode")
 
     ComposeViewport(document.body!!) {
         // The embedded default font lacks the symbols the UI draws (card suits, arrows, the
@@ -87,6 +89,8 @@ fun main() {
                         platform = io.github.rotundtapir.fivehundred.net.Platform.WEB,
                     ),
                     nextSeed = { seedOverride ?: Random.nextLong() },
+                    linkSharer = remember { BrowserLinkSharer() },
+                    joinCodeOverride = joinCodeOverride,
                     animationSpeedOverride = animationSpeedOverride,
                     soundVolumeOverride = soundVolumeOverride,
                     serverUrlOverride = serverUrlOverride,

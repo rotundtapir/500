@@ -124,10 +124,19 @@ fun OnlineFlow(
                 },
                 onBack = vm::backToEntry,
             )
-            OnlineScreen.JOIN -> JoinLobbyScreen(
-                onJoin = { code -> vm.joinLobby(code, settings.playerName) },
-                onBack = vm::backToEntry,
-            )
+            OnlineScreen.JOIN -> {
+                val prefillCode by vm.pendingJoinCode.collectAsState()
+                JoinLobbyScreen(
+                    playerName = settings.playerName,
+                    onSetPlayerName = settings.onSetPlayerName,
+                    initialCode = prefillCode ?: "",
+                    onJoin = { name, code ->
+                        settings.onSetPlayerName(name)
+                        vm.joinLobby(code, name)
+                    },
+                    onBack = vm::backToEntry,
+                )
+            }
             OnlineScreen.LOBBY -> LobbyScreenHost(vm)
             OnlineScreen.GAME -> OnlineGame(vm, settings, monetization, soundVolume)
         }

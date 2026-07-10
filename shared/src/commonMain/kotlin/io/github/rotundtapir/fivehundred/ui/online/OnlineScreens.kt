@@ -155,11 +155,32 @@ internal fun CreateLobbyScreen(
 /** Join an existing lobby by its 4-character code. */
 @Composable
 internal fun JoinLobbyScreen(
-    onJoin: (code: String) -> Unit,
+    playerName: String,
+    onSetPlayerName: (String) -> Unit,
+    initialCode: String,
+    onJoin: (name: String, code: String) -> Unit,
     onBack: () -> Unit,
 ) {
-    var code by remember { mutableStateOf("") }
+    // The name field is here too (not only on the entry screen) so a player who arrived via an
+    // invite link — which skips the entry screen — can still set their name before joining.
+    var name by remember { mutableStateOf(playerName) }
+    var code by remember { mutableStateOf(initialCode.uppercase().take(CODE_LENGTH)) }
+    val nameValid = Names.isValid(name)
     OnlineScaffold(title = "Join a game", onBack = onBack) {
+        OutlinedTextField(
+            value = name,
+            onValueChange = {
+                name = it
+                if (Names.isValid(it)) onSetPlayerName(Names.normalize(it))
+            },
+            label = { Text("Your name") },
+            singleLine = true,
+            isError = name.isNotEmpty() && !nameValid,
+            supportingText = {
+                if (name.isNotEmpty() && !nameValid) Text("2–20 letters/digits; can't end with \"(bot)\"")
+            },
+            modifier = Modifier.fillMaxWidth().testTag("playerName"),
+        )
         OutlinedTextField(
             value = code,
             onValueChange = { code = it.uppercase().take(CODE_LENGTH) },
@@ -169,8 +190,8 @@ internal fun JoinLobbyScreen(
             modifier = Modifier.fillMaxWidth().testTag("joinCode"),
         )
         Button(
-            onClick = { onJoin(code) },
-            enabled = code.length == CODE_LENGTH,
+            onClick = { onJoin(name, code) },
+            enabled = nameValid && code.length == CODE_LENGTH,
             modifier = Modifier.fillMaxWidth().testTag("confirmJoin"),
         ) { Text("Join") }
     }

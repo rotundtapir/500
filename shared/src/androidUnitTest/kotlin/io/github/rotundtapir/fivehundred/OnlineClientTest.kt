@@ -24,6 +24,7 @@ import io.github.rotundtapir.fivehundred.net.SeatStatus
 import io.github.rotundtapir.fivehundred.net.ServerMessage
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
 import io.github.rotundtapir.fivehundred.net.Welcome
+import io.github.rotundtapir.fivehundred.online.JoinLink
 import io.github.rotundtapir.fivehundred.online.OnlineGameSession
 import io.github.rotundtapir.fivehundred.online.OnlineScreen
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
@@ -221,6 +222,25 @@ class OptimisticViewTest {
     }
 }
 
+class JoinLinkTest {
+
+    @Test
+    fun `forCode builds the canonical web invite URL, uppercased`() {
+        assertEquals("https://rotundtapir.github.io/500/?joinCode=12AB", JoinLink.forCode("12AB"))
+        assertEquals("https://rotundtapir.github.io/500/?joinCode=12AB", JoinLink.forCode(" 12ab "))
+    }
+
+    @Test
+    fun `normalizeCode accepts 4 alphanumerics and rejects junk`() {
+        assertEquals("12AB", JoinLink.normalizeCode("12ab"))
+        assertEquals("12AB", JoinLink.normalizeCode("12-AB")) // strips separators
+        assertEquals(null, JoinLink.normalizeCode("ABC"))       // too short
+        assertEquals(null, JoinLink.normalizeCode("ABCDE"))     // too long
+        assertEquals(null, JoinLink.normalizeCode(""))
+        assertEquals(null, JoinLink.normalizeCode(null))
+    }
+}
+
 class OnlineViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
@@ -370,5 +390,30 @@ class OnlineViewModelTest {
         assertEquals(OnlineScreen.ENTRY, vm.screen.value)
         assertNotNull(vm.errorMessage.value)
         vm.exit()
+    }
+
+    @Test
+    fun `enterWithJoinCode opens the join screen with the code prefilled`() = runTest(dispatcher) {
+        val client = FakeGameClient()
+        val vm = OnlineViewModel(client)
+        vm.enterWithJoinCode("ws://localhost", "0.3.0", Platform.WEB, "12AB")
+        advanceUntilIdle()
+        assertEquals(OnlineScreen.JOIN, vm.screen.value)
+        assertEquals("12AB", vm.pendingJoinCode.value)
+        // A manual navigation to join clears the prefill (no stale code from an earlier link).
+        vm.goToJoin()
+        assertEquals(null, vm.pendingJoinCode.value)
+        vm.exit()
+    }
+
+    @Test
+    fun `enterWithJoinCode with a bad server URL stays on entry and does not prefill`() = runTest(dispatcher) {
+        val client = FakeGameClient()
+        val vm = OnlineViewModel(client)
+        vm.enterWithJoinCode("not-a-ws-url", "0.3.0", Platform.WEB, "12AB")
+        advanceUntilIdle()
+        assertEquals(OnlineScreen.ENTRY, vm.screen.value)
+        assertEquals(null, vm.pendingJoinCode.value)
+        assertNotNull(vm.errorMessage.value)
     }
 }
