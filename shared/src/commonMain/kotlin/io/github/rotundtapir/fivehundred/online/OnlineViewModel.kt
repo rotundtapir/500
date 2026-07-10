@@ -356,11 +356,17 @@ class OnlineViewModel(
         pendingSnapshot = welcome.resumed != null
         val resumed = welcome.resumed
         // A resumed session means the server put us back in a live room. Normally we offer the
-        // choice (see [pendingRejoin]) — except when the resumed room is the very one a just-opened
-        // invite link points at (a host/guest reopening their own link, which on web is a full
-        // reload): asking "rejoin?" on the way into that exact room is noise, so drop straight back
-        // in. Navigation happens when the room's LobbyState lands.
-        if (resumed != null && resumed.joinCode.equals(_pendingJoinCode.value, ignoreCase = true)) {
+        // choice (see [pendingRejoin]) — except when the resume is a formality: the room a
+        // just-opened invite link points at (a host/guest reopening their own link, which on web is
+        // a full reload), or the room this instance is already showing (a transient socket drop —
+        // an app switch or a network blip — where "rejoin?" would interrupt a lobby/game the player
+        // never left). In both cases drop straight back in; the room's LobbyState/ViewUpdate that
+        // follows refreshes or navigates as needed.
+        val expected = resumed != null && (
+            resumed.joinCode.equals(_pendingJoinCode.value, ignoreCase = true) ||
+                resumed.joinCode.equals(_lobby.value?.joinCode, ignoreCase = true)
+            )
+        if (expected) {
             _pendingJoinCode.value = null
             _pendingRejoin.value = null
         } else {

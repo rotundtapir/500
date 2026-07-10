@@ -503,6 +503,26 @@ class OnlineViewModelTest {
     }
 
     @Test
+    fun `a transient reconnect into the room already on screen does not prompt`() = runTest(dispatcher) {
+        val client = FakeGameClient()
+        val vm = OnlineViewModel(client)
+        vm.enter("ws://localhost", "0.3.0", Platform.WEB)
+        advanceUntilIdle()
+        client.push(Welcome("tok", "0.3.0"))
+        client.push(lobby(RoomPhase.LOBBY, listOf(seat(0, "Alice", ready = true))))
+        advanceUntilIdle()
+        assertEquals(OnlineScreen.LOBBY, vm.screen.value)
+
+        // The socket blips (an app switch, a network drop) and the reconnect resumes the very room
+        // we're still displaying — asking "rejoin?" would interrupt a lobby the player never left.
+        client.push(Welcome("tok", "0.3.0", resumed = io.github.rotundtapir.fivehundred.net.ResumedState("AB12", RoomPhase.LOBBY)))
+        advanceUntilIdle()
+        assertEquals(null, vm.pendingRejoin.value, "no prompt for the room already on screen")
+        assertEquals(OnlineScreen.LOBBY, vm.screen.value)
+        vm.exit()
+    }
+
+    @Test
     fun `a resume into a different room than the link still asks before rejoining`() = runTest(dispatcher) {
         val store = FakeTokenStore(token = "tok")
         val client = FakeGameClient()
