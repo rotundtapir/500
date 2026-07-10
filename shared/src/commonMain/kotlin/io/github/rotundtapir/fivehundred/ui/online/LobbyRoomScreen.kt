@@ -9,10 +9,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -90,10 +94,14 @@ internal fun LobbyRoomScreen(
                 val sharer = LocalLinkSharer.current
                 var copied by remember { mutableStateOf(false) }
                 if (copied) LaunchedEffect(copied) { delay(COPIED_CONFIRM_MILLIS); copied = false }
-                OutlinedButton(
+                OnBackgroundOutlinedButton(
                     onClick = { copied = sharer.share("Join my game of 500", JoinLink.forCode(state.joinCode)) },
                     modifier = Modifier.fillMaxWidth().testTag("shareInvite"),
-                ) { Text("Share invite link") }
+                ) {
+                    Icon(ShareIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+                    Text("Share invite link")
+                }
                 if (copied) {
                     Text(
                         "Link copied to clipboard",
@@ -144,14 +152,16 @@ internal fun LobbyRoomScreen(
                 Button(onClick = onRematch, modifier = Modifier.fillMaxWidth().testTag("rematch")) {
                     Text("Play again")
                 }
-                OutlinedButton(onClick = onDisband, modifier = Modifier.fillMaxWidth().testTag("disband")) {
+                OnBackgroundOutlinedButton(onClick = onDisband, modifier = Modifier.fillMaxWidth().testTag("disband")) {
                     Text("Disband lobby")
                 }
             } else {
                 Text("Waiting for the host…", style = MaterialTheme.typography.labelMedium)
             }
 
-            OutlinedButton(onClick = onLeave, modifier = Modifier.fillMaxWidth().testTag("leaveLobby")) {
+            OnBackgroundOutlinedButton(onClick = onLeave, modifier = Modifier.fillMaxWidth().testTag("leaveLobby")) {
+                Icon(LeaveIcon, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                Spacer(Modifier.size(ButtonDefaults.IconSpacing))
                 Text("Leave")
             }
         }

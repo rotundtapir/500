@@ -18,9 +18,11 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -28,6 +30,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
@@ -37,6 +40,54 @@ import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.fivehundred.net.Names
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameModeButton
+
+/**
+ * Text-field colors legible on the table-green background: the M3 defaults draw the label and
+ * outline in dark on-surface tones that all but vanish against it.
+ */
+@Composable
+internal fun onBackgroundFieldColors(): TextFieldColors {
+    val onBackground = MaterialTheme.colorScheme.onBackground
+    // The scheme's `error` is a dark red (the theme is a light scheme with a dark background), so
+    // error states get the M3 dark-scheme error red, which reads clearly on the green.
+    val errorRed = Color(0xFFFFB4AB)
+    return OutlinedTextFieldDefaults.colors(
+        focusedTextColor = onBackground,
+        unfocusedTextColor = onBackground,
+        focusedLabelColor = onBackground,
+        unfocusedLabelColor = onBackground.copy(alpha = 0.7f),
+        focusedBorderColor = onBackground,
+        unfocusedBorderColor = onBackground.copy(alpha = 0.5f),
+        cursorColor = onBackground,
+        focusedSupportingTextColor = onBackground.copy(alpha = 0.7f),
+        unfocusedSupportingTextColor = onBackground.copy(alpha = 0.7f),
+        errorTextColor = onBackground,
+        errorLabelColor = errorRed,
+        errorBorderColor = errorRed,
+        errorSupportingTextColor = errorRed,
+        errorCursorColor = errorRed,
+    )
+}
+
+/**
+ * An outlined button that stays legible on the table-green background: M3's default content color
+ * (`primary`, a green) all but vanishes against it, so pin the content to `onBackground` — the same
+ * treatment [ChipRow] already applies.
+ */
+@Composable
+internal fun OnBackgroundOutlinedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val onBackground = MaterialTheme.colorScheme.onBackground
+    OutlinedButton(
+        onClick = onClick,
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = onBackground),
+        border = BorderStroke(1.dp, onBackground.copy(alpha = 0.5f)),
+        modifier = modifier,
+    ) { content() }
+}
 
 /** Common frame for the online setup screens: a title, a scrollable body, and a back button. */
 @Composable
@@ -58,7 +109,11 @@ internal fun OnlineScaffold(
         ) {
             Text(title, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             content()
-            TextButton(onClick = onBack, modifier = Modifier.testTag("onlineBack")) { Text("Back") }
+            TextButton(
+                onClick = onBack,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+                modifier = Modifier.testTag("onlineBack"),
+            ) { Text("Back") }
         }
     }
 }
@@ -91,6 +146,7 @@ internal fun OnlineEntryScreen(
             supportingText = {
                 if (name.isNotEmpty() && !valid) Text("2–20 letters/digits; can't end with \"(bot)\"")
             },
+            colors = onBackgroundFieldColors(),
             modifier = Modifier.fillMaxWidth().testTag("playerName"),
         )
         Button(
@@ -101,6 +157,11 @@ internal fun OnlineEntryScreen(
         OutlinedButton(
             onClick = onJoin,
             enabled = valid,
+            colors = ButtonDefaults.outlinedButtonColors(
+                contentColor = MaterialTheme.colorScheme.onBackground,
+                disabledContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.38f),
+            ),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)),
             modifier = Modifier.fillMaxWidth().testTag("joinLobby"),
         ) { Text("Join with a code") }
         Text(
@@ -179,6 +240,7 @@ internal fun JoinLobbyScreen(
             supportingText = {
                 if (name.isNotEmpty() && !nameValid) Text("2–20 letters/digits; can't end with \"(bot)\"")
             },
+            colors = onBackgroundFieldColors(),
             modifier = Modifier.fillMaxWidth().testTag("playerName"),
         )
         OutlinedTextField(
@@ -187,6 +249,7 @@ internal fun JoinLobbyScreen(
             label = { Text("Game code") },
             singleLine = true,
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
+            colors = onBackgroundFieldColors(),
             modifier = Modifier.fillMaxWidth().testTag("joinCode"),
         )
         Button(
