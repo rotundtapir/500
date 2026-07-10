@@ -136,6 +136,9 @@ jobs:
         with:
           api-level: 35
           arch: x86_64
+          # Phone-sized screen: the runner's default AVD is small enough that below-the-fold
+          # content (settings-dialog rows, the lobby's Start button) fails assertIsDisplayed/click.
+          profile: pixel_5
           emulator-options: -no-window -gpu swiftshader_indirect -no-audio -no-boot-anim -no-snapshot
           disable-animations: true
           script: ./gradlew :app:connectedFossDebugAndroidTest

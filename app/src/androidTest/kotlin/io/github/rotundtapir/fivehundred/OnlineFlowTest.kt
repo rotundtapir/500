@@ -12,6 +12,7 @@ import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.espresso.intent.Intents
 import androidx.test.espresso.intent.Intents.intended
@@ -121,7 +122,8 @@ class OnlineFlowTest {
     fun test1_createLobby_startGame_reachesTheHumansBiddingTurn() {
         val code = createLobby()
         assertTrue("join code '$code' should be 4 characters", code.length == 4)
-        rule.onNodeWithTag("startGame").performClick()
+        // The lobby column scrolls on short screens; bring Start into the viewport before tapping.
+        rule.onNodeWithTag("startGame").performScrollTo().performClick()
         // Three bot seats filled, the deal ran, and the auction reached the human.
         rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Your bid:") }
     }
