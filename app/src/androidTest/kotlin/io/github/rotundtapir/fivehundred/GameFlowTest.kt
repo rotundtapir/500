@@ -238,11 +238,13 @@ class GameFlowTest {
     @Test
     fun settingsDialog_hasSupportAndAcknowledgments() {
         rule.onNodeWithTag("settingsButton").performClick()
+        // The dialog body scrolls; bring each row into the viewport (CI emulator screens are
+        // shorter than a typical dev AVD, pushing the tail rows below the fold).
         // FOSS flavor: a donation link, never an ads purchase.
-        rule.onNodeWithText("Support development").assertIsDisplayed()
+        rule.onNodeWithText("Support development").performScrollTo().assertIsDisplayed()
         // Feedback goes to the issue tracker (FOSS) / mailto (Play) — just assert it's offered.
-        rule.onNodeWithTag("feedbackButton").assertIsDisplayed()
-        rule.onNodeWithTag("acknowledgments").performClick()
+        rule.onNodeWithTag("feedbackButton").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("acknowledgments").performScrollTo().performClick()
         // The card artist must be credited.
         waitForText("Byron Knoll", substring = true)
         rule.onNodeWithTag("acknowledgmentsClose").performClick()
