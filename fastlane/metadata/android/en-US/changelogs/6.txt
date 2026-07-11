@@ -1,0 +1,1 @@
+Clearer table in both themes: legible buttons and bid options on the felt, a readable tutorial that scrolls its suggested bid into view, and the contract line on a white pill. Online lobbies now wait 15 minutes for a briefly-disconnected player, and returning from another app no longer asks you to rejoin a game you never left.

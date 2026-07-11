@@ -14,7 +14,7 @@ data class ServerConfig(
     val allowedOrigins: List<String> = listOf("https://rotundtapir.github.io"),
     /** Oldest app version the server still accepts; older clients are told to update. */
     val minAppVersion: String = "0.3.0",
-    val serverVersion: String = "0.3.2",
+    val serverVersion: String = "0.3.3",
     val maxConnectionsPerIp: Int = 8,
     val messageRatePerSecond: Int = 10,
     val messageBurst: Int = 20,
@@ -59,7 +59,7 @@ data class ServerConfig(
                     ?.split(",")?.map(String::trim)?.filter(String::isNotEmpty)
                     ?: listOf("https://rotundtapir.github.io"),
                 minAppVersion = getenv("MIN_APP_VERSION") ?: "0.3.0",
-                serverVersion = getenv("SERVER_VERSION") ?: "0.3.2",
+                serverVersion = getenv("SERVER_VERSION") ?: "0.3.3",
                 maxConnectionsPerIp = int("MAX_CONNECTIONS_PER_IP", 8),
                 messageRatePerSecond = int("MSG_RATE_PER_SEC", 10),
                 messageBurst = int("MSG_BURST", 20),
