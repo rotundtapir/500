@@ -25,7 +25,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -33,10 +32,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -143,7 +142,7 @@ internal fun TutorialPagesDialog(
     onFinish: () -> Unit,
     onDismiss: (() -> Unit)? = null,
     lastPageTag: String? = null,
-    bodyHeight: Dp? = null,
+    uniformBodyHeight: Boolean = false,
     narration: NarrationState? = null,
 ) {
     var page by rememberSaveable { mutableIntStateOf(0) }
@@ -154,19 +153,14 @@ internal fun TutorialPagesDialog(
         testTag = lastPageTag?.takeIf { onLastPage },
     ) {
         Column(Modifier.padding(horizontal = 24.dp).padding(top = 22.dp, bottom = 8.dp)) {
-            // Stable geometry across pages so Next/Back never move under a reader's thumb: a fixed
-            // body viewport (scrolling any overflow) when bodyHeight is set, else a minimum height.
-            val scroll = if (bodyHeight != null) rememberScrollState(0) else null
-            if (scroll != null) LaunchedEffect(page) { scroll.scrollTo(0) }
-            val bodyModifier = if (bodyHeight != null) {
-                Modifier.height(bodyHeight).verticalScroll(scroll!!)
+            // Stable geometry across pages so Next/Back never move under a reader's thumb: when
+            // uniformBodyHeight is set, every page is measured at the real width and the body takes
+            // the tallest — nothing clips on narrow phones or large font scales, and the chrome
+            // never jumps. Otherwise a simple minimum height.
+            if (uniformBodyHeight) {
+                TallestPageBody(pages, page)
             } else {
-                Modifier.heightIn(min = 180.dp)
-            }
-            Column(bodyModifier) {
-                ReaderTitle(pages[page].title)
-                Spacer(Modifier.height(10.dp))
-                SuitText(pages[page].body, fontSize = 16.sp, lineHeight = 24.sp)
+                Column(Modifier.heightIn(min = 180.dp)) { PageBody(pages[page]) }
             }
             Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -199,6 +193,38 @@ internal fun TutorialPagesDialog(
     }
 }
 
+/** One page's title + body, shared by the live page and the measurement pass. */
+@Composable
+private fun PageBody(page: TutorialPage, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        ReaderTitle(page.title)
+        Spacer(Modifier.height(10.dp))
+        SuitText(page.body, fontSize = 16.sp, lineHeight = 24.sp)
+    }
+}
+
+/**
+ * Shows [current]'s body inside a slot sized to the TALLEST of [pages] at the real width: the
+ * pager's chrome (dots, toggles, buttons) never moves between pages, and no page ever clips —
+ * regardless of screen width or the user's font scale. Height is still capped by the dialog's
+ * constraints; a (pathological) overflow falls back to clipping the bottom padding first.
+ */
+@Composable
+private fun TallestPageBody(pages: List<TutorialPage>, current: Int, modifier: Modifier = Modifier) {
+    SubcomposeLayout(modifier) { constraints ->
+        val loose = constraints.copy(minWidth = constraints.maxWidth, minHeight = 0)
+        val tallest = pages.mapIndexed { index, page ->
+            subcompose("measure-$index") { PageBody(page) }
+                .maxOf { it.measure(loose).height }
+        }.max().coerceAtMost(constraints.maxHeight)
+        val placeables = subcompose("current") { PageBody(pages[current]) }
+            .map { it.measure(loose) }
+        layout(constraints.maxWidth, tallest) {
+            placeables.forEach { it.place(0, 0) }
+        }
+    }
+}
+
 // ------------------------------------------------------------------------------------------------
 // Tutorial primer (home screen → "How to play" → these pages → the interactive scripted hand)
 // ------------------------------------------------------------------------------------------------
@@ -221,7 +247,7 @@ fun TutorialIntroDialog(
         finishTag = "tutorialStart",
         onFinish = onStart,
         onDismiss = onDismiss,
-        bodyHeight = 300.dp,
+        uniformBodyHeight = true,
         narration = narration,
     )
 }

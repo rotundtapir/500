@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
@@ -43,6 +44,11 @@ internal fun NarrateEffect(narration: NarrationState?, displayText: String) {
     }
     LaunchedEffect(narration.audible) {
         if (!narration.audible) narration.player.stop()
+    }
+    // Leaving the narrated surface — cancelling the primer, exiting the tutorial, the epilogue
+    // closing — must silence the voice with it, not let the clip finish over the next screen.
+    DisposableEffect(narration.player) {
+        onDispose { narration.player.stop() }
     }
 }
 
