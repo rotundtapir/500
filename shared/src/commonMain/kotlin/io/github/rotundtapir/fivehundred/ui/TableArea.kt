@@ -11,6 +11,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardAspectRatio
@@ -322,7 +324,7 @@ internal fun TrickArea(
         view.lastTrick != null &&
         !view.isMyTurn
     // The "felt" — a slightly darker rounded table centre where the current trick lands.
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
@@ -330,13 +332,22 @@ internal fun TrickArea(
             .tappableWhen(holdingTrick) { onTrickAcknowledge(view.handNumber, view.trickNumber) },
         contentAlignment = Alignment.Center,
     ) {
+        // Size the cards on the felt from the felt itself: a full trick (with its name labels and
+        // the won-trick caption) must fit, but beyond that use the space — the old fixed 56dp left
+        // most of the felt empty. 56dp stays the floor so cramped layouts never regress.
+        val seats = view.activeSeats.size
+        val rows = if (seats <= 4) 1 else 2
+        val perRow = if (rows == 1) seats else (seats + 1) / 2
+        val byWidth = (maxWidth - 16.dp - 8.dp * (perRow - 1)) / perRow
+        val byHeight = (maxHeight - 48.dp - 26.dp * rows - 6.dp * (rows - 1)) / rows / CardAspectRatio
+        val cardWidth = minOf(byWidth, byHeight).coerceIn(56.dp, 96.dp)
         if (dealState.dealing) {
             // Deck + growing kitty pile while cards fly out.
-            DealFelt(dealState)
+            DealFelt(dealState, cardWidth)
         } else if (view.phase == Phase.BIDDING) {
             // The kitty sits face down on the felt for the whole auction (all speeds, incl. OFF);
             // it leaves the table once the contract is decided.
-            KittyPile(count = KITTY_SIZE)
+            KittyPile(count = KITTY_SIZE, cardWidth = cardWidth)
         } else {
             AnimatedContent(
                 targetState = view,
@@ -346,9 +357,9 @@ internal fun TrickArea(
             ) { v ->
                 val lastTrick = v.lastTrick
                 when {
-                    v.currentTrick.isNotEmpty() -> TrickPlaysRow(v, botNames, v.currentTrick)
+                    v.currentTrick.isNotEmpty() -> TrickPlaysRow(v, botNames, v.currentTrick, cardWidth)
                     lastTrick != null -> Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        TrickPlaysRow(v, botNames, lastTrick.plays)
+                        TrickPlaysRow(v, botNames, lastTrick.plays, cardWidth)
                         Spacer(Modifier.height(4.dp))
                         Text("${seatLabel(v, botNames, lastTrick.winner)} won the trick")
                         // In the tutorial (forceHold) the guidance bubble already says "Tap the
@@ -376,7 +387,7 @@ internal fun TrickArea(
 }
 
 @Composable
-private fun TrickPlaysRow(view: PlayerView, botNames: Map<Seat, String>, plays: List<TrickPlay>) {
+private fun TrickPlaysRow(view: PlayerView, botNames: Map<Seat, String>, plays: List<TrickPlay>, cardWidth: Dp) {
     // Lay the trick out in its FINAL geometry from the first card: one slot per active seat, in
     // play order, with the still-to-play seats as faint placeholders. Cards land in place and
     // never shift as later plays arrive (before this, a six-player trick reflowed from one row
@@ -399,9 +410,9 @@ private fun TrickPlaysRow(view: PlayerView, botNames: Map<Seat, String>, plays: 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 rowSlots.forEach { (seat, play) ->
                     if (play != null) {
-                        TrickPlayCell(view, botNames, play)
+                        TrickPlayCell(view, botNames, play, cardWidth)
                     } else {
-                        EmptyTrickSlot(view, botNames, seat)
+                        EmptyTrickSlot(view, botNames, seat, cardWidth)
                     }
                 }
             }
@@ -411,17 +422,17 @@ private fun TrickPlaysRow(view: PlayerView, botNames: Map<Seat, String>, plays: 
 
 /** A yet-to-play seat's slot in the trick: a card-sized outline over a dimmed seat name. */
 @Composable
-private fun EmptyTrickSlot(view: PlayerView, botNames: Map<Seat, String>, seat: Seat) {
+private fun EmptyTrickSlot(view: PlayerView, botNames: Map<Seat, String>, seat: Seat, cardWidth: Dp) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             // Mirrors PlayingCard's geometry so the slot reserves exactly the space the card
             // will take, staying in step if the card shape ever changes.
             modifier = Modifier
-                .size(56.dp, 56.dp * CardAspectRatio)
+                .size(cardWidth, cardWidth * CardAspectRatio)
                 .border(
                     1.dp,
                     MaterialTheme.colorScheme.onBackground.copy(alpha = 0.18f),
-                    cardFaceShape(56.dp),
+                    cardFaceShape(cardWidth),
                 ),
         )
         Spacer(Modifier.height(4.dp))
@@ -432,7 +443,7 @@ private fun EmptyTrickSlot(view: PlayerView, botNames: Map<Seat, String>, seat: 
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = TRICK_NAME_MAX_WIDTH),
+            modifier = Modifier.widthIn(max = cardWidth + NAME_OVERHANG),
             color = if (base == Color.Unspecified) {
                 MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
             } else {
@@ -443,9 +454,9 @@ private fun EmptyTrickSlot(view: PlayerView, botNames: Map<Seat, String>, seat: 
 }
 
 @Composable
-private fun TrickPlayCell(view: PlayerView, botNames: Map<Seat, String>, play: TrickPlay) {
+private fun TrickPlayCell(view: PlayerView, botNames: Map<Seat, String>, play: TrickPlay, cardWidth: Dp) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        PlayingCard(play.card, width = 56.dp)
+        PlayingCard(play.card, width = cardWidth)
         Spacer(Modifier.height(4.dp))
         // Colour the name by team so you can read whose card this is at a glance — your own team
         // (you and your partner) in amber and bold, each opposing team its own hue.
@@ -455,12 +466,12 @@ private fun TrickPlayCell(view: PlayerView, botNames: Map<Seat, String>, play: T
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
-            modifier = Modifier.widthIn(max = TRICK_NAME_MAX_WIDTH),
+            modifier = Modifier.widthIn(max = cardWidth + NAME_OVERHANG),
             color = teamColor(view, play.seat),
             fontWeight = if (isMyTeam) FontWeight.Bold else FontWeight.Normal,
         )
     }
 }
 
-/** Cap on a played-card's name label so a long name can't stretch the trick cell past its card. */
-private val TRICK_NAME_MAX_WIDTH = 72.dp
+/** How far a played-card's name label may overhang its card before it ellipsizes. */
+private val NAME_OVERHANG = 16.dp

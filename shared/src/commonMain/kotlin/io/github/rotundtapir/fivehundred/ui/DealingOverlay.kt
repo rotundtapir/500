@@ -256,19 +256,19 @@ internal fun FlyingDealCard(state: DealAnimationState) {
     }
 }
 
-// Kitty cards match the trick cards' width (TrickPlayCell / EmptyTrickSlot use 56.dp) and sit side
-// by side like a trick — overlapped backs just read as one wide card with slivers.
+// Kitty cards match the trick cards' width (TrickArea computes it from the felt; 56dp is the
+// floor) and sit side by side like a trick — overlapped backs just read as one wide card.
 private val KittyCardWidth = 56.dp
 private val KittyCardGap = 6.dp
 
 /** The [count] face-down kitty cards, trick-sized and side by side, growing centred as they land. */
 @Composable
-internal fun KittyPile(count: Int, modifier: Modifier = Modifier) {
+internal fun KittyPile(count: Int, modifier: Modifier = Modifier, cardWidth: Dp = KittyCardWidth) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Box(contentAlignment = Alignment.Center) {
-            Spacer(Modifier.size(KittyCardWidth * 3 + KittyCardGap * 2, KittyCardWidth * 1.4f))
+            Spacer(Modifier.size(cardWidth * 3 + KittyCardGap * 2, cardWidth * 1.4f))
             Row(horizontalArrangement = Arrangement.spacedBy(KittyCardGap)) {
-                repeat(count) { CardBack(width = KittyCardWidth) }
+                repeat(count) { CardBack(width = cardWidth) }
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -282,7 +282,7 @@ internal fun KittyPile(count: Int, modifier: Modifier = Modifier) {
  * where the plain bidding-phase kitty renders.
  */
 @Composable
-internal fun DealFelt(state: DealAnimationState) {
+internal fun DealFelt(state: DealAnimationState, kittyCardWidth: Dp = KittyCardWidth) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         AnimatedVisibility(
             visible = state.stage == DealStage.SHUFFLING || state.stage == DealStage.DEALING,
@@ -331,7 +331,11 @@ internal fun DealFelt(state: DealAnimationState) {
                 Spacer(Modifier.height(20.dp))
             }
         }
-        KittyPile(count = state.kittyCount, modifier = Modifier.dealAnchor(state, DealTarget.Kitty))
+        KittyPile(
+            count = state.kittyCount,
+            modifier = Modifier.dealAnchor(state, DealTarget.Kitty),
+            cardWidth = kittyCardWidth,
+        )
     }
 }
 
