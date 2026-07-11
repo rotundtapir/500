@@ -40,54 +40,8 @@ import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.fivehundred.net.Names
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameModeButton
-
-/**
- * Text-field colors legible on the table-green background: the M3 defaults draw the label and
- * outline in dark on-surface tones that all but vanish against it.
- */
-@Composable
-internal fun onBackgroundFieldColors(): TextFieldColors {
-    val onBackground = MaterialTheme.colorScheme.onBackground
-    // The scheme's `error` is a dark red (the theme is a light scheme with a dark background), so
-    // error states get the M3 dark-scheme error red, which reads clearly on the green.
-    val errorRed = Color(0xFFFFB4AB)
-    return OutlinedTextFieldDefaults.colors(
-        focusedTextColor = onBackground,
-        unfocusedTextColor = onBackground,
-        focusedLabelColor = onBackground,
-        unfocusedLabelColor = onBackground.copy(alpha = 0.7f),
-        focusedBorderColor = onBackground,
-        unfocusedBorderColor = onBackground.copy(alpha = 0.5f),
-        cursorColor = onBackground,
-        focusedSupportingTextColor = onBackground.copy(alpha = 0.7f),
-        unfocusedSupportingTextColor = onBackground.copy(alpha = 0.7f),
-        errorTextColor = onBackground,
-        errorLabelColor = errorRed,
-        errorBorderColor = errorRed,
-        errorSupportingTextColor = errorRed,
-        errorCursorColor = errorRed,
-    )
-}
-
-/**
- * An outlined button that stays legible on the table-green background: M3's default content color
- * (`primary`, a green) all but vanishes against it, so pin the content to `onBackground` — the same
- * treatment [ChipRow] already applies.
- */
-@Composable
-internal fun OnBackgroundOutlinedButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit,
-) {
-    val onBackground = MaterialTheme.colorScheme.onBackground
-    OutlinedButton(
-        onClick = onClick,
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = onBackground),
-        border = BorderStroke(1.dp, onBackground.copy(alpha = 0.5f)),
-        modifier = modifier,
-    ) { content() }
-}
+import io.github.rotundtapir.fivehundred.ui.OnBackgroundOutlinedButton
+import io.github.rotundtapir.fivehundred.ui.onBackgroundFieldColors
 
 /** Common frame for the online setup screens: a title, a scrollable body, and a back button. */
 @Composable

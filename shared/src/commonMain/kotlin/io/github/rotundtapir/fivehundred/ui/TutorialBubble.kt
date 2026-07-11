@@ -102,8 +102,8 @@ internal fun TutorialBubble(
     ) {
         Surface(
             shape = RoundedCornerShape(14.dp),
-            color = Color(0xFFFAFAFA),
-            contentColor = MaterialTheme.colorScheme.primary,
+            color = CardSurfaceWhite,
+            contentColor = InkOnCardSurface,
             shadowElevation = 8.dp,
             modifier = Modifier.testTag("tutorialAdvice"),
         ) {

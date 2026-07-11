@@ -172,7 +172,16 @@ private fun BiddingPanel(
                         onBid(bid)
                     },
                     enabled = !acted && bidEnabled(bid),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+                    // Enabled bids are solid card-white pills, so the suit symbols keep their true
+                    // card colors (black ♠♣ / red ♥♦) and read exactly like the cards in hand.
+                    // Disabled bids stay ghost outlines with dimmed-light text — on the felt the
+                    // M3 default (dark onSurface at 38%) was near-invisible, and the solid-vs-ghost
+                    // split makes the one enabled button unmistakable in the tutorial.
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = CardSurfaceWhite,
+                        contentColor = Color(0xFF1B1B1B),
+                        disabledContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.38f),
+                    ),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
                     modifier = Modifier
                         .testTag("bid:${bid.label}")
@@ -222,8 +231,8 @@ private fun DiscardPanel(
             enabled = selected.size == KITTY_SIZE && !acted &&
                 (requiredDiscards == null || selected == requiredDiscards),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFFFAFAFA),
-                contentColor = MaterialTheme.colorScheme.primary,
+                containerColor = CardSurfaceWhite,
+                contentColor = InkOnCardSurface,
             ),
             modifier = Modifier.testTag("discardButton"),
         ) { Text("Discard") }

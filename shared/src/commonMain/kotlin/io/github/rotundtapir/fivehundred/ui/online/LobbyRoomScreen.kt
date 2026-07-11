@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.fivehundred.LocalLinkSharer
 import io.github.rotundtapir.fivehundred.net.GameOver
+import io.github.rotundtapir.fivehundred.ui.OnBackgroundOutlinedButton
+import io.github.rotundtapir.fivehundred.ui.feltSwitchColors
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.RoomPhase
 import io.github.rotundtapir.fivehundred.net.SeatInfo
@@ -106,7 +108,7 @@ internal fun LobbyRoomScreen(
                     Text(
                         "Link copied to clipboard",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onBackground,
                     )
                 }
             }
@@ -147,7 +149,12 @@ internal fun LobbyRoomScreen(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text("Ready")
-                        Switch(checked = myReady, onCheckedChange = onSetReady, modifier = Modifier.testTag("readyToggle"))
+                        Switch(
+                            checked = myReady,
+                            onCheckedChange = onSetReady,
+                            colors = feltSwitchColors(),
+                            modifier = Modifier.testTag("readyToggle"),
+                        )
                     }
                     Text("Waiting for the host to start…", style = MaterialTheme.typography.labelMedium)
                 }

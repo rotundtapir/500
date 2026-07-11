@@ -103,8 +103,8 @@ internal fun EmoteBubble(
     ) {
         Surface(
             shape = RoundedCornerShape(14.dp),
-            color = Color(0xFFFAFAFA),
-            contentColor = MaterialTheme.colorScheme.primary,
+            color = CardSurfaceWhite,
+            contentColor = InkOnCardSurface,
             shadowElevation = 6.dp,
             modifier = Modifier.testTag("emoteBubble"),
         ) {

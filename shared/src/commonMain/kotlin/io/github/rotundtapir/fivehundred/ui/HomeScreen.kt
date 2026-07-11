@@ -103,8 +103,8 @@ fun HomeScreen(
                 Button(
                     onClick = onPlayWithBots,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFFAFAFA),
-                        contentColor = MaterialTheme.colorScheme.primary,
+                        containerColor = CardSurfaceWhite,
+                        contentColor = InkOnCardSurface,
                     ),
                     modifier = Modifier.testTag("playWithBotsButton"),
                 ) { Text("Play with bots", fontWeight = FontWeight.Bold) }
@@ -196,14 +196,18 @@ fun BotSetupScreen(
             Button(
                 onClick = onStart,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFAFAFA),
-                    contentColor = MaterialTheme.colorScheme.primary,
+                    containerColor = CardSurfaceWhite,
+                    contentColor = InkOnCardSurface,
                 ),
                 modifier = Modifier.testTag("startBotGame"),
             ) { Text("Play", fontWeight = FontWeight.Bold) }
             Spacer(Modifier.height(16.dp))
 
-            TextButton(onClick = onBack, modifier = Modifier.testTag("botSetupBack")) { Text("Back") }
+            TextButton(
+                onClick = onBack,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+                modifier = Modifier.testTag("botSetupBack"),
+            ) { Text("Back") }
         }
     }
 }

@@ -28,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -145,7 +146,20 @@ internal fun ContractLine(view: PlayerView, botNames: Map<Seat, String>) {
     val last = view.lastHandResult?.let {
         "  (last: ${it.contract.bid.label} ${if (it.made) "made" else "failed"})"
     } ?: ""
-    SuitText(text + last)
+    val full = text + last
+    if (full.isBlank()) {
+        Text("") // keep the row's height stable between phases
+    } else {
+        // A card-white pill: the line carries bid labels whose black suit symbols sink into the
+        // felt (2026-07-11 contrast audit) — the same treatment as the enabled bid buttons.
+        Surface(
+            shape = RoundedCornerShape(50),
+            color = CardSurfaceWhite,
+            contentColor = Color(0xFF1B1B1B),
+        ) {
+            SuitText(full, modifier = Modifier.padding(horizontal = 12.dp, vertical = 3.dp))
+        }
+    }
 }
 
 @Composable
