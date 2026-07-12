@@ -208,8 +208,9 @@ val tutorialSteps: List<TutorialStep> = listOf(
     ),
     TutorialStep.PlayStep(
         card = Rank.QUEEN of Suit.CLUBS,
-        advice = "Only clubs left. Lead the Q♣: your partner Mabel's K♣ will top it, but a " +
-            "partner's tricks count towards your contract too, so nothing is lost.",
+        advice = "Only clubs left, and yours aren't the best: the K♣ and A♣ are still out. " +
+            "Lead the Q♣ anyway — your contract is already made, and if it's your partner who " +
+            "holds them, her tricks count towards your contract too, so nothing is lost.",
     ),
     TutorialStep.PlayStep(
         card = Rank.EIGHT of Suit.CLUBS,
