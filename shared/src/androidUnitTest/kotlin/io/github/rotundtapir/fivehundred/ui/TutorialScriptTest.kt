@@ -114,20 +114,21 @@ class TutorialScriptTest {
     }
 
     @Test
-    fun `the human wins the auction with 7 spades and makes it with 8 tricks`() {
+    fun `the human wins the auction with 7 spades and makes it with 9 tricks`() {
         val result = replayScriptedHand().result
         assertEquals(human, result.contract.declarer)
         assertEquals(Bid.Named(7, Trump.SPADES), result.contract.bid)
         assertTrue(result.made, "the scripted contract must be made")
-        assertEquals(8, result.declarerTricks)
-        // The documented score line: +140 for your side, +20 for theirs (2 defender tricks × 10).
-        assertEquals(mapOf(0 to 140, 1 to 20), result.teamDeltas)
+        assertEquals(9, result.declarerTricks)
+        // The documented score line: +140 for your side, +10 for theirs (1 defender trick × 10).
+        assertEquals(mapOf(0 to 140, 1 to 10), result.teamDeltas)
     }
 
     @Test
     fun `trick winners match the story told by tutorialTrickNotes`() {
-        // Notes 1-10 narrate: you win 1,2,7,8,9,10; Olive (seat 1) wins 3,4; Mabel (seat 2) 5,6.
-        val expected = listOf(0, 0, 1, 1, 2, 2, 0, 0, 0, 0).map(::Seat)
+        // Notes 1-10 narrate: you win 1,2 and 4-8 (4 is the ruff); Olive (seat 1) wins 3;
+        // your partner Mabel (seat 2) wins 9,10.
+        val expected = listOf(0, 0, 1, 0, 0, 0, 0, 0, 2, 2).map(::Seat)
         assertEquals(expected, replayScriptedHand().trickWinners)
         assertEquals((1..10).toSet(), tutorialTrickNotes.keys, "one note per trick")
     }

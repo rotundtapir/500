@@ -21,9 +21,10 @@ import io.github.rotundtapir.fivehundred.engine.Trump
  *   Bots: seat 1 = Olive, seat 2 = Mabel (your partner), seat 3 = Edna
  *   Your deal: 10♠ J♠ J♦ 9♠ 5♣ K♠ 7♦ Q♥ Joker A♥ · kitty: Q♣ 8♣ K♥
  *   Auction: Olive Pass · Mabel Pass · Edna Pass · You 7♠
- *   Discards: 5♣ 7♦ 8♣
- *   Tricks (your card first marked): Joker✓ · J♠✓ · K♠ (Olive's J♣ wins) · J♦ (Olive wins) ·
- *     Q♣ (Mabel wins) · Q♥ (Mabel wins) · K♥✓ · 10♠✓ · 9♠✓ · A♥✓  — 8 tricks, 7♠ made, +140/+20.
+ *   Discards: 5♣ 7♦ J♦ (voiding diamonds)
+ *   Tricks (your card, ✓ = you won): Joker✓ · J♠✓ · K♠ (Olive's J♣ wins) ·
+ *     9♠ ruffs Olive's Q♦ lead✓ · 10♠✓ · A♥✓ · K♥✓ · Q♥✓ · Q♣ (Mabel's K♣ wins) ·
+ *     8♣ (Mabel's A♣ wins)  — 9 tricks, 7♠ made, +140/+10.
  *
  * If the game ever deviates from this script, the seed or the ViewModel wiring changed — regenerate.
  */
@@ -127,10 +128,10 @@ val tutorialEpilogue: List<TutorialPage> = listOf(
 
 /** Shown after the scripted hand has been scored. */
 const val TUTORIAL_COMPLETION =
-    "You bid 7♠, drew trumps with the Joker and the bowers, and took eight tricks with your " +
-        "partner: contract made, +140 points. You've now seen bidding, the kitty exchange, " +
-        "the bowers, following suit, and playing with a partner. " +
-        "Start a real game from the home screen when you're ready!"
+    "You bid 7♠, drew trumps with the Joker and the bowers, ruffed a Queen with your smallest " +
+        "trump, and took nine tricks with your partner: contract made, +140 points. You've now " +
+        "seen bidding, the kitty exchange, the bowers, following suit, ruffing a void, and " +
+        "playing with a partner. Start a real game from the home screen when you're ready!"
 
 /**
  * Every human decision of the tutorial hand, in order: 1 bid, 1 discard, 10 plays.
@@ -149,11 +150,13 @@ val tutorialSteps: List<TutorialStep> = listOf(
         cards = listOf(
             Rank.FIVE of Suit.CLUBS,
             Rank.SEVEN of Suit.DIAMONDS,
-            Rank.EIGHT of Suit.CLUBS,
+            Rank.JACK of Suit.DIAMONDS,
         ),
         advice = "Winning the auction gave you the kitty: Q♣, 8♣ and K♥. Keep every trump and " +
-            "your high cards, and throw the three weakest odd cards: the 5♣, 7♦ and 8♣. " +
-            "Keeping side suits short lets you trump them sooner. " +
+            "your high cards, but don't just pitch the three lowest: the J♦ looks worth keeping, " +
+            "yet the Q♦, K♦ and A♦ are all still out there, so it was never winning a trick. " +
+            "Throw both diamonds and the 5♣ instead, and you hold NO diamonds at all — a void. " +
+            "When diamonds are led you can't follow suit, so you're free to play a trump. " +
             "Swipe the hand sideways if a card is out of view.",
     ),
     TutorialStep.PlayStep(
@@ -177,41 +180,41 @@ val tutorialSteps: List<TutorialStep> = listOf(
         showTrumpOrder = true,
     ),
     TutorialStep.PlayStep(
-        card = Rank.JACK of Suit.DIAMONDS,
-        advice = "You must follow suit when you can: Olive led diamonds and the J♦ is your only " +
-            "one. Here it's just an ordinary Jack; only the same-colour J♣ becomes a trump.",
-    ),
-    TutorialStep.PlayStep(
-        card = Rank.QUEEN of Suit.CLUBS,
-        advice = "Forced again: the Q♣ is your only club. Your partner Mabel's K♣ is winning " +
-            "the trick, and her tricks count towards your contract too.",
-    ),
-    TutorialStep.PlayStep(
-        card = Rank.QUEEN of Suit.HEARTS,
-        advice = "You're out of clubs, so you could trump, but Mabel's A♣ already has the trick " +
-            "and she's your partner. Never trump your partner's winner: throw your lowest card, " +
-            "the Q♥.",
-    ),
-    TutorialStep.PlayStep(
-        card = Rank.KING of Suit.HEARTS,
-        advice = "Mabel's J♥ is heading for the trick, so play your cheaper heart, the K♥. " +
-            "Either way this trick stays on your side, and the A♥ is saved as a certain " +
-            "winner for later.",
+        card = Rank.NINE of Suit.SPADES,
+        advice = "Olive leads the Q♦ — and you have no diamonds, thanks to your discards. " +
+            "When you can't follow suit you may play ANY card, so trump the trick with the 9♠. " +
+            "Winning a side-suit trick with a trump is called a RUFF, and Olive's J♣ was the " +
+            "last trump against you: your little 9♠ wins outright.",
     ),
     TutorialStep.PlayStep(
         card = Rank.TEN of Suit.SPADES,
-        advice = "Count the trumps: every one outside your hand has now been played. Your 10♠ " +
-            "and 9♠ are unbeatable, so lead the 10♠.",
-    ),
-    TutorialStep.PlayStep(
-        card = Rank.NINE of Suit.SPADES,
-        advice = "Cash the 9♠ too. That's the seventh trick for your side: your 7♠ contract " +
-            "is home.",
+        advice = "Count the trumps: every single one has now been played except your 10♠. " +
+            "Lead it — nothing in any hand can touch it.",
     ),
     TutorialStep.PlayStep(
         card = Rank.ACE of Suit.HEARTS,
-        advice = "Finish with the A♥, the highest heart left. Eight tricks in all: contract " +
-            "made with one to spare.",
+        advice = "With the trumps gone, high cards rule again. Cash the A♥, the highest heart " +
+            "in the game — nobody can trump it now.",
+    ),
+    TutorialStep.PlayStep(
+        card = Rank.KING of Suit.HEARTS,
+        advice = "The ace cleared the way: your K♥ is now the highest heart left. Cash it too.",
+    ),
+    TutorialStep.PlayStep(
+        card = Rank.QUEEN of Suit.HEARTS,
+        advice = "And now the Q♥ is the top heart. Even a player with no hearts left can't " +
+            "hurt you — there are no trumps to ruff with. That's the seventh trick: your 7♠ " +
+            "contract is home.",
+    ),
+    TutorialStep.PlayStep(
+        card = Rank.QUEEN of Suit.CLUBS,
+        advice = "Only clubs left. Lead the Q♣: your partner Mabel's K♣ will top it, but a " +
+            "partner's tricks count towards your contract too, so nothing is lost.",
+    ),
+    TutorialStep.PlayStep(
+        card = Rank.EIGHT of Suit.CLUBS,
+        advice = "Mabel's A♣ has the last trick locked up. Follow suit with the 8♣: nine " +
+            "tricks in all, 7♠ made with two to spare.",
     ),
 )
 
@@ -219,25 +222,25 @@ val tutorialSteps: List<TutorialStep> = listOf(
  * Shown while a completed trick is held on the felt during the tutorial (the hold is forced on for
  * the whole tutorial hand, so nothing rushes past), keyed by trick number 1–10. Each note explains
  * the outcome of that trick, grounded in the trace documented at the top of this file — do not edit
- * one without the other. In practice only the bot-won tricks (3–6) are ever held: when the human
- * wins a trick it is immediately the human's lead, so no hold applies — the rest are safety notes.
+ * one without the other. In practice only the mid-hand bot-won tricks (3 and 9) are ever held:
+ * when the human wins a trick it is immediately the human's lead, so no hold applies, and after
+ * trick 10 the hand result takes over — the rest are safety notes.
  */
 val tutorialTrickNotes: Map<Int, String> = mapOf(
     1 to "Your Joker couldn't lose, and it pulled a trump out of every other hand.",
     2 to "The right bower wins: even Olive's A♠ fell to your J♠.",
     3 to "There it is: Olive's J♣ is the LEFT BOWER, a spade in disguise, and it beat your K♠. " +
         "That was the last trump out against you. Tap the trick to continue.",
-    4 to "Olive led the Q♦ and it held: everyone had to follow suit, and your forced J♦ ranks " +
-        "below her Queen. In diamonds a Jack is just a Jack: only the black ones are bowers " +
-        "this hand. Tap the trick to continue.",
-    5 to "Your partner Mabel's K♣ took the trick, and a partner's tricks count towards your " +
+    4 to "Your first ruff: with no diamonds to follow, the 9♠ trumped Olive's Q♦ and won. The " +
+        "J♦ you threw away could never have done that.",
+    5 to "Every trump but your 10♠ was gone, so nothing could stand in its way.",
+    6 to "With no trumps left in play, the A♥ was untouchable.",
+    7 to "Once the ace was spent, your K♥ was the best heart standing. Olive had none, but she " +
+        "had no trump to ruff with either.",
+    8 to "The Q♥ completed the run of hearts, and that's the seventh trick: contract secured.",
+    9 to "Your partner Mabel's K♣ topped your Q♣, and a partner's tricks count towards your " +
         "contract too, so nothing is lost. Tap the trick to continue.",
-    6 to "Mabel's A♣ won the trick. You had no clubs, but you threw the Q♥ rather than waste a " +
-        "trump on your partner's certain winner. Tap the trick to continue.",
-    7 to "Your K♥ topped Mabel's J♥, though the trick was staying on your side either way.",
-    8 to "No trumps are left outside your hand, so the 10♠ walked it.",
-    9 to "The 9♠ was just as unbeatable, and that's the seventh trick: contract secured.",
-    10 to "The A♥ took the last trick: eight in all, 7♠ made with a trick to spare.",
+    10 to "Mabel's A♣ took the last trick: nine tricks in all, 7♠ made with two to spare.",
 )
 
 /** Bubble text once the scripted hand is over, behind the hand-result dialog; also narrated. */

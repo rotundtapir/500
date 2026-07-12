@@ -3,6 +3,7 @@ package io.github.rotundtapir.fivehundred.ai
 
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Joker
+import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.SuitedCard
 import io.github.rotundtapir.fivehundred.engine.Action
@@ -22,11 +23,12 @@ import kotlin.test.Test
  * THROWAWAY GENERATOR — documents how the tutorial script in
  * `shared/src/commonMain/kotlin/io/github/rotundtapir/fivehundred/ui/Tutorial.kt` was produced.
  *
- * It replays candidate seeds through the exact wiring `GameViewModel.newGame` uses
+ * It replays seeds through the exact wiring `GameViewModel.newGame` uses
  * (FiveHundredRules(playerCount = 4) with default house rules, bots at seats 1..3 as
  * `StrategyPlayer(FiveHundredBot(), Random(seed + i))`, bot names from BOT_NAMES.shuffled(Random(seed)))
- * and searches for a seed where a scripted human at seat 0 wins a teachable 7/8-level suit contract
- * and makes it. The winning seed's full trace is printed and written to `build/tutorial-trace.txt`.
+ * with a scripted human at seat 0 who bids a teachable 7/8-level suit contract. [generate] renders
+ * the shipped seed's full trace to `build/tutorial-trace.txt`; [search] scans seeds 1..5000 for a
+ * new candidate seed.
  *
  * Re-enable (remove @Disabled) and run with:
  *   ./gradlew :ai:jvmTest --tests "*TutorialTraceGenerator*"
@@ -54,17 +56,30 @@ class TutorialTraceGenerator {
         val score: Int,
     )
 
+    /**
+     * Renders the trace of the shipped tutorial seed. The seed itself was picked by [search] under
+     * the original "3 weakest off-suit" discard policy; issue #12 later upgraded the discard policy
+     * in place (void the short diamond suit) while keeping the seed, so re-running [search] today
+     * would prefer a different seed — the pin is deliberate.
+     */
     @Test
     fun generate() {
+        val trace = trySeed(9L) ?: error("seed 9 no longer satisfies the tutorial constraints")
+        val text = render(trace)
+        println(text)
+        File("build/tutorial-trace.txt").apply { parentFile.mkdirs() }.writeText(text)
+    }
+
+    @Test
+    @org.junit.jupiter.api.Disabled("seed search — only for picking a NEW tutorial seed")
+    fun search() {
         val candidates = mutableListOf<Trace>()
         for (seed in 1L..5000L) {
             trySeed(seed)?.let { candidates += it }
         }
         check(candidates.isNotEmpty()) { "no seed in 1..5000 satisfied the tutorial constraints" }
         val best = candidates.maxByOrNull { it.score }!! // earliest seed wins ties
-        val text = render(best)
-        println(text)
-        File("build/tutorial-trace.txt").apply { parentFile.mkdirs() }.writeText(text)
+        println(render(best))
     }
 
     private fun trySeed(seed: Long): Trace? {
@@ -189,13 +204,24 @@ class TutorialTraceGenerator {
         return null
     }
 
-    /** Discard the 3 weakest off-suit (non-trump) cards; null if that isn't possible. */
+    /**
+     * Discard the 3 weakest off-suit (non-trump) cards, but manufacture a void when a side suit
+     * is short enough: if an off-suit suit of 3 or fewer cards contains no ace, discard the whole
+     * suit (the shortest such suit) and fill up with the lowest remaining off-suit cards. A void
+     * turns small trumps into winners — ruff the suit when it's led. Null if the hand can't spare
+     * 3 off-suit cards.
+     */
     private fun chooseHumanDiscards(view: PlayerView): List<Card>? {
         val trump = view.contract?.trump ?: return null
         val eval = TrickEvaluator(trump)
         val offSuit = view.hand.filter { !eval.isTrump(it) }.filterIsInstance<SuitedCard>()
         if (offSuit.size < 3) return null
-        return offSuit.sortedBy { it.rank.ordinal }.take(3)
+        val voidable = offSuit.groupBy { it.suit }.values
+            .filter { suit -> suit.size <= 3 && suit.none { it.rank == Rank.ACE } }
+            .minByOrNull { it.size }
+            .orEmpty()
+        val rest = (offSuit - voidable.toSet()).sortedBy { it.rank.ordinal }
+        return voidable + rest.take(3 - voidable.size)
     }
 
     private fun render(t: Trace): String = buildString {
