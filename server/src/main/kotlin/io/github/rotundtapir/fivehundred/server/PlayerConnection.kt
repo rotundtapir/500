@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred.server
 
 import io.github.rotundtapir.cardkit.core.Seat
+import io.github.rotundtapir.fivehundred.net.Distribution
 import io.github.rotundtapir.fivehundred.net.Platform
 import io.github.rotundtapir.fivehundred.net.ServerMessage
 import kotlinx.coroutines.channels.Channel
@@ -20,6 +21,8 @@ class PlayerConnection(
     val remoteIp: String,
     val platform: Platform,
     val appVersion: String,
+    val buildFlavor: Distribution = Distribution.UNKNOWN,
+    val commit: String = "",
     /** Called when the room wants this socket torn down (e.g. a zombie kicked on reconnect). */
     val requestClose: () -> Unit,
 ) {

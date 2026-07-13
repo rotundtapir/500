@@ -15,6 +15,13 @@ fun secret(name: String): String? =
 
 val releaseKeystore: String? = secret("KEYSTORE_FILE")
 
+// The short git commit this build was made from, reported to the online server on connect for
+// diagnostics. Falls back to "unknown" when git isn't available (e.g. an F-Droid tarball build).
+val gitCommit: String = runCatching {
+    providers.exec { commandLine("git", "rev-parse", "--short", "HEAD") }
+        .standardOutput.asText.get().trim()
+}.getOrNull()?.ifBlank { null } ?: "unknown"
+
 android {
     namespace = "io.github.rotundtapir.fivehundred"
     compileSdk = 36
@@ -26,6 +33,7 @@ android {
         versionCode = providers.gradleProperty("appVersionCode").get().toInt()
         versionName = providers.gradleProperty("appVersionName").get()
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField("String", "GIT_COMMIT", "\"$gitCommit\"")
     }
 
     // Two distributions: `foss` (no ads, donation link — this is what F-Droid builds) and `play`

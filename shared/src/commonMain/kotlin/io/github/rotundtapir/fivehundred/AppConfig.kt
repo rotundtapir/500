@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred
 
 import androidx.compose.runtime.staticCompositionLocalOf
+import io.github.rotundtapir.fivehundred.net.Distribution
 import io.github.rotundtapir.fivehundred.net.Platform
 
 /**
@@ -15,6 +16,10 @@ data class AppConfig(
     val version: String,
     /** Which client build this is, reported to the online server for cross-play diagnostics. */
     val platform: Platform,
+    /** Which distribution this build is (web/play/foss), reported to the online server. */
+    val flavor: Distribution = Distribution.UNKNOWN,
+    /** The short git commit this build was made from, reported to the online server. */
+    val commit: String = "",
 )
 
 /** Provided by [FiveHundredApp]; read where the UI needs a build-specific value. */

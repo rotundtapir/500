@@ -21,8 +21,15 @@ tasks.withType<Kotlin2JsCompile>().configureEach {
 val generateAppVersion by tasks.registering {
     val outputDir = layout.buildDirectory.dir("generated/appVersion")
     val versionValue = providers.gradleProperty("appVersionName").get()
+    // The short git commit this build was made from, reported to the online server for diagnostics.
+    // Falls back to "unknown" when git isn't available (e.g. a source-tarball build).
+    val commitValue = runCatching {
+        providers.exec { commandLine("git", "rev-parse", "--short", "HEAD") }
+            .standardOutput.asText.get().trim()
+    }.getOrNull()?.ifBlank { null } ?: "unknown"
     outputs.dir(outputDir)
     inputs.property("version", versionValue)
+    inputs.property("commit", commitValue)
     doLast {
         val file = outputDir.get().file("AppBuildInfo.kt").asFile
         file.parentFile.mkdirs()
@@ -33,6 +40,7 @@ val generateAppVersion by tasks.registering {
             |
             |internal object AppBuildInfo {
             |    const val VERSION: String = "$versionValue"
+            |    const val COMMIT: String = "$commitValue"
             |}
             |
             """.trimMargin(),

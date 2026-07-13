@@ -87,6 +87,8 @@ fun main() {
                         feedbackUri = ProjectLinks.ISSUE_TRACKER,
                         version = AppBuildInfo.VERSION,
                         platform = io.github.rotundtapir.fivehundred.net.Platform.WEB,
+                        flavor = io.github.rotundtapir.fivehundred.net.Distribution.WEB,
+                        commit = AppBuildInfo.COMMIT,
                     ),
                     nextSeed = { seedOverride ?: Random.nextLong() },
                     linkSharer = remember { BrowserLinkSharer() },

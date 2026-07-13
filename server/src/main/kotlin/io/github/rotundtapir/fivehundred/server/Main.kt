@@ -141,8 +141,11 @@ private suspend fun io.ktor.server.websocket.DefaultWebSocketServerSession.runSe
         remoteIp = ip,
         platform = hello.platform,
         appVersion = hello.appVersion,
+        buildFlavor = hello.buildFlavor,
+        commit = hello.commit,
         requestClose = { launch { runCatching { close(CloseReason(CloseReason.Codes.NORMAL, "evicted")) } } },
     )
+    server.onConnected(connection, accepted.resumeRoom)
     sendMessage(accepted.welcome)
     val resumeRoom = accepted.resumeRoom
     val resumeSeat = accepted.resumeSeat

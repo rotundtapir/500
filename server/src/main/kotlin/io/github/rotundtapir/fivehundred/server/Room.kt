@@ -177,6 +177,14 @@ class Room(
             return
         }
         seat(cmd.connection, free, validated)
+        logger.info(
+            "join code={} seat={} name={} creator={} conn={}",
+            joinCode,
+            free.seat.index,
+            validated,
+            isCreator(cmd.connection),
+            cmd.connection.id,
+        )
         broadcastLobby()
         // recompute (not markActivity): if the joining socket died before this ran, no one is
         // connected, so emptySince starts ticking and the idle sweep reclaims the stillborn room.

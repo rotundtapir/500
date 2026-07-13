@@ -31,6 +31,7 @@ import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.OccupancyStatus
 import io.github.rotundtapir.fivehundred.net.PROTOCOL_VERSION
 import io.github.rotundtapir.fivehundred.net.PickSeat
+import io.github.rotundtapir.fivehundred.net.Distribution
 import io.github.rotundtapir.fivehundred.net.Platform
 import io.github.rotundtapir.fivehundred.net.RequestRematch
 import io.github.rotundtapir.fivehundred.net.ResumedState
@@ -123,6 +124,8 @@ class OnlineViewModel(
     private var serverUrl: String = ""
     private var appVersion: String = ""
     private var platform: Platform = Platform.UNKNOWN
+    private var buildFlavor: Distribution = Distribution.UNKNOWN
+    private var commit: String = ""
     private var sessionToken: String? = null
     private var pendingSnapshot = false
     private var intentionalDisconnect = false
@@ -139,10 +142,18 @@ class OnlineViewModel(
     fun acknowledgeTrick(handNumber: Int, trickNumber: Int) = pacing.acknowledgeTrick(handNumber, trickNumber)
 
     /** Enter online mode: remember connection parameters and open the socket if not already open. */
-    fun enter(serverUrl: String, appVersion: String, platform: Platform) {
+    fun enter(
+        serverUrl: String,
+        appVersion: String,
+        platform: Platform,
+        buildFlavor: Distribution = Distribution.UNKNOWN,
+        commit: String = "",
+    ) {
         this.serverUrl = serverUrl.trim()
         this.appVersion = appVersion
         this.platform = platform
+        this.buildFlavor = buildFlavor
+        this.commit = commit
         _screen.value = OnlineScreen.ENTRY
         // Surface a bad address immediately instead of looping "Connecting…" forever on a URL that
         // can never open (a missing scheme is the common paste/typo).
@@ -157,7 +168,14 @@ class OnlineViewModel(
      * Enter online mode from a deep link and go straight to the join screen with [code] prefilled.
      * The player still confirms/sets their name and taps Join there — we never auto-join.
      */
-    fun enterWithJoinCode(serverUrl: String, appVersion: String, platform: Platform, code: String) {
+    fun enterWithJoinCode(
+        serverUrl: String,
+        appVersion: String,
+        platform: Platform,
+        code: String,
+        buildFlavor: Distribution = Distribution.UNKNOWN,
+        commit: String = "",
+    ) {
         // Already in this very lobby/game (host or guest)? A link to it just returns you there,
         // rather than a Join screen where re-joining would be refused (you already hold a seat) —
         // which would otherwise strand the host on a dead-end screen.
@@ -168,7 +186,7 @@ class OnlineViewModel(
             applyLobbyPhase(current)
             return
         }
-        enter(serverUrl, appVersion, platform)
+        enter(serverUrl, appVersion, platform, buildFlavor, commit)
         if (_errorMessage.value != null) return // bad server URL — stay on entry showing the error
         _pendingJoinCode.value = code
         _screen.value = OnlineScreen.JOIN
@@ -189,7 +207,7 @@ class OnlineViewModel(
             if (sessionToken == null) sessionToken = tokenStore.load()
             var backoff = INITIAL_BACKOFF_MILLIS
             while (isActive && !intentionalDisconnect) {
-                val hello = Hello(PROTOCOL_VERSION, appVersion, platform, sessionToken)
+                val hello = Hello(PROTOCOL_VERSION, appVersion, platform, sessionToken, buildFlavor, commit)
                 val collector = launch { client.incoming.collect(::handleServerMessage) }
                 val greeter = launch {
                     client.state.first { it == ConnectionState.CONNECTED }

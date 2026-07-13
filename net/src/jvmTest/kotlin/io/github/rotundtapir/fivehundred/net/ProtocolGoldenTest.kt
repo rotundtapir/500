@@ -39,6 +39,14 @@ class ProtocolGoldenTest {
                 Hello(PROTOCOL_VERSION, "0.3.0", Platform.ANDROID),
             ),
         )
+        // The build-telemetry fields are omitted at their defaults (above) and named as below when set.
+        assertEquals(
+            """{"type":"hello","protocolVersion":1,"appVersion":"0.3.0","platform":"android",""" +
+                """"buildFlavor":"foss","commit":"6f7e099"}""",
+            WireJson.encodeToString<ClientMessage>(
+                Hello(PROTOCOL_VERSION, "0.3.0", Platform.ANDROID, buildFlavor = Distribution.FOSS, commit = "6f7e099"),
+            ),
+        )
         assertEquals(
             """{"type":"lobby.join","code":"AB12","displayName":"Alice"}""",
             WireJson.encodeToString<ClientMessage>(JoinLobby("AB12", "Alice")),
@@ -83,6 +91,9 @@ class ProtocolGoldenTest {
     @Test
     fun `all message types round-trip`() {
         roundTripClient(Hello(PROTOCOL_VERSION, "0.3.0", Platform.WEB, sessionToken = "tok"))
+        roundTripClient(
+            Hello(PROTOCOL_VERSION, "0.3.0", Platform.WEB, buildFlavor = Distribution.WEB, commit = "abc1234"),
+        )
         roundTripClient(CreateLobby("Bob", playerCount = 4, teamCount = 2, seed = 42L))
         roundTripClient(JoinLobby("cd34", "Carol"))
         roundTripClient(SetName("Dave"))

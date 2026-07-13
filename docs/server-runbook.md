@@ -50,6 +50,22 @@ fail2ban-client status 500-server           # current bans (game server jail)
 fail2ban-client status sshd                  # ssh jail
 ```
 
+The app log also carries INFO telemetry, one line each:
+- `connect id=.. ip=.. platform=.. flavor=.. version=.. commit=.. resume=..` — every accepted client,
+  with its build (platform android/web, distribution web/play/foss, app version, git commit).
+- `lobby created code=.. game=.. players=.. teams=..` — every new lobby.
+- `join code=.. seat=.. name=.. creator=.. conn=..` — every player seated (correlate `conn=` with a
+  `connect` line's `id=` for that player's build).
+
+Useful filters: `journalctl CONTAINER_NAME=500-server -g '^.*(connect|lobby created|join) ' --no-pager`,
+or count clients by flavour: `journalctl CONTAINER_NAME=500-server -g 'connect ' -o cat | grep -oP 'flavor=\K\S+' | sort | uniq -c`.
+
+**Log volume / disk:** both containers use the journald log driver, so all of this lands in the
+systemd journal. It is capped in `/etc/systemd/journald.conf.d/size.conf` (installed by
+`bootstrap.sh`): `SystemMaxUse=200M`, `SystemKeepFree=1G`, `SystemMaxFileSize=50M`,
+`MaxRetentionSec=1month`. journald auto-vacuums to honour these — there is no logrotate for it (it
+manages text files, not the binary journal). Check with `journalctl --disk-usage`.
+
 ## Triage
 
 ```bash

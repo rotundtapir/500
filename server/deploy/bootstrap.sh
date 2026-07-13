@@ -87,9 +87,15 @@ if [[ ! -f $DOCKER_CFG ]] || [[ "$(cat "$DOCKER_CFG")" != "$NEW_DOCKER_CFG" ]]; 
 	docker_changed=1
 fi
 mkdir -p /etc/systemd/journald.conf.d
+# Both containers log via the journald driver, so bounding the journal is what stops logs — including
+# the per-connection/lobby/join telemetry — from filling the disk. journald auto-vacuums to these
+# limits; logrotate is not involved (it manages text files, not the binary journal).
 cat > /etc/systemd/journald.conf.d/size.conf <<'EOF'
 [Journal]
 SystemMaxUse=200M
+SystemKeepFree=1G
+SystemMaxFileSize=50M
+MaxRetentionSec=1month
 EOF
 systemctl restart systemd-journald
 systemctl enable --now docker

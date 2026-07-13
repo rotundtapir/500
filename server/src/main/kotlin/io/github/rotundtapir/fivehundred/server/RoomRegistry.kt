@@ -3,6 +3,7 @@ package io.github.rotundtapir.fivehundred.server
 
 import io.github.rotundtapir.fivehundred.net.LobbyConfig
 import kotlinx.coroutines.CoroutineScope
+import org.slf4j.LoggerFactory
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.random.Random
@@ -21,6 +22,7 @@ class RoomRegistry(
     private val abuseLog: AbuseLog,
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
+    private val logger = LoggerFactory.getLogger("room")
     private val byCode = ConcurrentHashMap<String, Room>()
     private val byGameId = ConcurrentHashMap<String, Room>()
     // Codes are short lookup keys, not secrets — scan resistance comes from the alphabet size and the
@@ -76,6 +78,13 @@ class RoomRegistry(
         if (!claimCode(room)) return CreateResult.ServerFull
         byGameId[gameId] = room
         room.start()
+        logger.info(
+            "lobby created code={} game={} players={} teams={}",
+            room.joinCode,
+            gameId,
+            lobbyConfig.playerCount,
+            lobbyConfig.teamCount,
+        )
         return CreateResult.Created(room)
     }
 

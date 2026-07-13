@@ -32,6 +32,18 @@ enum class Platform {
     @SerialName("unknown") UNKNOWN,
 }
 
+/**
+ * Which distribution the connecting client was built as — reported in [Hello] for server-side
+ * diagnostics only (never affects gameplay). [Platform] captures android-vs-web; this splits the
+ * Android platform into its two flavours (F-Droid vs Play) and names the web build explicitly.
+ */
+enum class Distribution {
+    @SerialName("web") WEB,
+    @SerialName("play") PLAY,
+    @SerialName("foss") FOSS,
+    @SerialName("unknown") UNKNOWN,
+}
+
 /** The fixed set of canned in-game messages. No free text ever crosses the wire (moderation-free). */
 enum class Emote {
     @SerialName("wellPlayed") WELL_PLAYED,
@@ -144,6 +156,10 @@ data class Hello(
     val appVersion: String,
     val platform: Platform = Platform.UNKNOWN,
     val sessionToken: String? = null,
+    /** Which distribution this build is (web/play/foss) — diagnostics only. */
+    val buildFlavor: Distribution = Distribution.UNKNOWN,
+    /** The short git commit the client was built from (empty when unavailable) — diagnostics only. */
+    val commit: String = "",
 ) : ClientMessage
 
 /** Create a new lobby and become its creator, taking a seat. [seed] is honoured only in dev mode. */

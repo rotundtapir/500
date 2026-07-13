@@ -27,6 +27,7 @@ import io.github.rotundtapir.fivehundred.net.Welcome
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import org.slf4j.LoggerFactory
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
@@ -43,6 +44,8 @@ class GameServer(
     private val abuseLog: AbuseLog = AbuseLog(),
     private val nowMillis: () -> Long = System::currentTimeMillis,
 ) {
+    private val logger = LoggerFactory.getLogger("connect")
+
     val sessionRegistry = SessionRegistry(nowMillis = nowMillis)
     val rooms = RoomRegistry(config, scope, sessionRegistry, metrics, abuseLog, nowMillis)
 
@@ -141,6 +144,24 @@ class GameServer(
             }
             is SendEmote -> forward(connection) { RoomCommand.SendEmote(connection, message.emote) }
         }
+    }
+
+    /**
+     * Log a newly-established connection (after a successful [Hello]). One line per client carries the
+     * build telemetry — platform, distribution flavour, version and git commit — plus the resumed
+     * lobby code when a session token was honoured. The commit is empty for pre-telemetry clients.
+     */
+    fun onConnected(connection: PlayerConnection, resumeRoom: Room?) {
+        logger.info(
+            "connect id={} ip={} platform={} flavor={} version={} commit={} resume={}",
+            connection.id,
+            connection.remoteIp,
+            connection.platform.name.lowercase(),
+            connection.buildFlavor.name.lowercase(),
+            connection.appVersion,
+            connection.commit.ifBlank { "-" },
+            resumeRoom?.joinCode ?: "-",
+        )
     }
 
     /** Notify the current room that a socket dropped, so it can bot-substitute or free the seat. */

@@ -81,6 +81,12 @@ class MainActivity : ComponentActivity() {
                         feedbackUri = BuildConfig.FEEDBACK_URI,
                         version = BuildConfig.VERSION_NAME,
                         platform = io.github.rotundtapir.fivehundred.net.Platform.ANDROID,
+                        flavor = when (BuildConfig.FLAVOR) {
+                            "play" -> io.github.rotundtapir.fivehundred.net.Distribution.PLAY
+                            "foss" -> io.github.rotundtapir.fivehundred.net.Distribution.FOSS
+                            else -> io.github.rotundtapir.fivehundred.net.Distribution.UNKNOWN
+                        },
+                        commit = BuildConfig.GIT_COMMIT,
                     ),
                     nextSeed = ::newGameSeed,
                     linkSharer = remember { AndroidLinkSharer(this) },
