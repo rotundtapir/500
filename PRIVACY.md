@@ -17,16 +17,20 @@ connects to a game server — the official one (`wss://500.29022617.xyz`) or any
 server you configure yourself under **Settings → Online**.
 
 - **What is sent:** the display name you choose for the game, your in-game moves,
-  and canned emotes. There is **no free-text chat** — only a fixed set of preset
-  messages. No account, email, or password is required or collected.
+  and canned emotes, plus build metadata for diagnostics — the app's version, its
+  platform (Android or web), its distribution flavour (web/Play/F-Droid), and the
+  short git commit it was built from. Build metadata never affects gameplay and is
+  not tied to any identity. There is **no free-text chat** — only a fixed set of
+  preset messages. No account, email, or password is required or collected.
 - **Connection metadata:** the server sees your IP address (as any web server
   does). The official server uses it transiently to enforce anti-abuse limits
   (per-IP connection/rate caps) and, on repeated abuse, temporary IP bans via
   fail2ban. It is not used for tracking or advertising and is not shared.
 - **Retention:** the official server keeps **all game state in memory only** —
   there is no database and nothing is persisted; a server restart discards
-  everything. Operational logs (including abuse events) are short-lived and
-  rotated.
+  everything. Operational logs (including connection records and abuse events)
+  are short-lived: the official server's journal is capped in size (200 MB) and
+  age (one month), after which entries are deleted automatically.
 - **Self-hosting:** the server is open source and you can run your own and point
   the app at it, in which case the above applies to that operator instead. See
   [`docs/self-hosting.md`](docs/self-hosting.md).
