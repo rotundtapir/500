@@ -41,6 +41,17 @@ Direction, not commitment — items land when they're ready. Feedback and votes:
   interstitial invariants in `cardkit-monetization-play` — needs careful
   emulator verification of first-launch, purchase, and reinstall flows.
 
+- **F-Droid submission**
+  ([#18](https://github.com/rotundtapir/500/issues/18)). Get the `foss`
+  flavor listed: fdroiddata recipe, clean-checkout build verification, and
+  the inclusion review.
+
+- **Google Play production release**
+  ([#19](https://github.com/rotundtapir/500/issues/19)). From internal
+  testing to production: updated data-safety declarations for multiplayer,
+  store listing, and a closed beta with enough opted-in testers to meet
+  Google's production-access requirement.
+
 ## Unscheduled ideas
 
 - A public lobby browser for online play (invite codes only today).
