@@ -30,6 +30,27 @@ self-hostable (see `docs/self-hosting.md`).
 - `gradle` is not on PATH; use the committed wrapper `./gradlew` (or `source ~/.sdkman/bin/sdkman-init.sh`).
 - The Android SDK here has `platforms;android-36` + `build-tools;36.0.0` (compileSdk 36).
 
+### Cloud containers (Claude Code on the web / sandboxed remote sessions)
+
+Egress-restricted containers often can't run Gradle at all — diagnose fast and fall back to CI
+instead of burning time:
+
+- The wrapper's distribution download (github.com) may be blocked. A system Gradle usually exists
+  (`/opt/gradle/bin/gradle` or under `~/.sdkman`); the daemon-JVM pin still applies, so it works
+  the same as the wrapper.
+- If **dl.google.com** (Google's Maven repo) is blocked, the Android Gradle Plugin can't be
+  resolved and **no task in this build configures — not even pure-JVM ones** like
+  `:engine:jvmTest` (settings.gradle.kts configures every module). Check with
+  `curl -sI https://dl.google.com/dl/android/maven2/`; a 403 from the proxy means give up on
+  local Gradle entirely.
+- **Fallback: run Gradle via GitHub Actions.** Commit, push the branch, and open a (draft) PR —
+  `ci.yml` runs on every `pull_request` and covers the full gate: `qualityCheck`, all unit
+  tests + lint, kover, both flavors, web dist, web e2e, the FOSS-purity grep, and the emulator
+  suite (`android-e2e`). There is no `workflow_dispatch` or feature-branch push trigger, so a PR
+  is the only way to get CI onto a branch. Say explicitly in the PR that local verification
+  wasn't possible and CI is the check.
+- Cloud sessions have no `gh` CLI; watch runs and read job logs through the GitHub MCP tools.
+
 ## Common commands
 
 ```bash
