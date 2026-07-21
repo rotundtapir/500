@@ -34,12 +34,22 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import io.github.rotundtapir.cardkit.core.Seat
+import io.github.rotundtapir.fivehundred.engine.HandResult
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.ScoreSchedule
 import io.github.rotundtapir.fivehundred.engine.label
 import io.github.rotundtapir.fivehundred.engine.teamOf
 
 private fun signed(delta: Int): String = if (delta < 0) "−${-delta}" else "+$delta"
+
+/**
+ * Whether the hand's contract outcome favoured [myTeam]: true when my side made its contract or an
+ * opposing side failed theirs. This — not the sign of my team's point delta — drives the
+ * hand-result header tint: defenders usually pick up some trick points even when the opponents
+ * make their bid, and a green banner over "Frank made 6♦!" read as good news.
+ */
+internal fun handWentMyWay(result: HandResult, myTeam: Int, teamCount: Int): Boolean =
+    result.made == (teamOf(result.contract.declarer, teamCount) == myTeam)
 
 @Composable
 internal fun HandResultDialog(
@@ -61,7 +71,6 @@ internal fun HandResultDialog(
     val contract = result.contract
     val declarerTeam = teamOf(contract.declarer, view.teamCount)
     val myTeam = view.myTeam
-    val myDelta = result.teamDeltas[myTeam] ?: 0
     // Our team first, then every other team in index order (just "Them" with two teams).
     val teamsInOrder = listOf(myTeam) + (0 until view.teamCount).filter { it != myTeam }
 
@@ -96,12 +105,10 @@ internal fun HandResultDialog(
         }
     }
 
-    // Header tint follows the human's fortunes, not the declarer's: green-ish when our side gained
-    // points this hand, red-ish otherwise. The title names the declarer ("Alice made 8♦!") so the
-    // wording can't contradict the tint the way a bare "Contract made!" did.
-    val gained = myDelta > 0
-    val headerColor = if (gained) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-    val onHeaderColor = if (gained) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError
+    // The title names the declarer ("Alice made 8♦!") so the wording can't contradict the tint.
+    val wentOurWay = handWentMyWay(result, myTeam, view.teamCount)
+    val headerColor = if (wentOurWay) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
+    val onHeaderColor = if (wentOurWay) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError
     val declarerName = seatLabel(view, botNames, contract.declarer)
     val title = if (result.made) {
         "$declarerName made ${contract.bid.label}!"
