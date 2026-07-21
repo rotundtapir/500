@@ -137,6 +137,12 @@ class GameFlowTest {
     private fun nodesWithTag(tag: String) =
         rule.onAllNodes(hasTestTag(tag), useUnmergedTree = true).fetchSemanticsNodes()
 
+    /**
+     * Whether the hand-result dialog is up. Detected by its Continue button's tag, not the banner
+     * text — the title names the declarer and bid ("Alice made 8♦!"), so it isn't a fixed string.
+     */
+    private fun handResultShowing(): Boolean = nodesWithTag("handResultContinue").isNotEmpty()
+
     @Test
     fun tutorial_showsBidAdvice_andEnablesOnlyTheScriptedBid() {
         startTutorial()
@@ -193,7 +199,7 @@ class GameFlowTest {
                     textExists("Your bid:") ||
                     textExists("Discard 3 cards", substring = true) ||
                     textExists("Your turn — tap a card to play") ||
-                    textExists("Contract made!")
+                    handResultShowing()
             }
             when {
                 nodesWithTag("tutorialComplete").isNotEmpty() -> break
@@ -202,7 +208,7 @@ class GameFlowTest {
                     rule.onNodeWithTag("tutorialEpilogueNext").performClick()
                     rule.waitForIdle()
                 }
-                textExists("Contract made!") -> {
+                handResultShowing() -> {
                     rule.onNodeWithTag("handResultContinue").performClick()
                     rule.waitForIdle()
                 }
@@ -318,14 +324,14 @@ class GameFlowTest {
         // whole game. Both prove deal → bid → play → score ran end to end.
         assertTrue(
             "expected a completed hand (result dialog, last-hand line, or game-over dialog)",
-            textExists("Contract made!") || textExists("Contract failed") ||
+            handResultShowing() ||
                 textExists("(last:", substring = true) ||
                 textExists("You win!") || textExists("You lose"),
         )
 
         // If the hand-result dialog is up, it must dismiss and reveal the next hand's bidding
         // with the previous result summarised on the contract line.
-        if (textExists("Contract made!") || textExists("Contract failed")) {
+        if (handResultShowing()) {
             rule.onNodeWithTag("handResultContinue").performClick()
             rule.waitUntil(STEP_TIMEOUT_MS) {
                 textExists("(last:", substring = true) ||
@@ -542,7 +548,7 @@ class GameFlowTest {
         val deadline = System.currentTimeMillis() + 300_000
         while (System.currentTimeMillis() < deadline) {
             playUntilHandResultOrGameEnd()
-            if (textExists("Contract made!") || textExists("Contract failed")) {
+            if (handResultShowing()) {
                 // Every hand — including the last — shows its breakdown before anything else.
                 assertTrue(
                     "the game-over dialog must wait for the hand result to be dismissed",
@@ -569,7 +575,7 @@ class GameFlowTest {
         val deadline = System.currentTimeMillis() + 300_000
         while (System.currentTimeMillis() < deadline) {
             playUntilHandResultOrGameEnd()
-            if (textExists("Contract made!") || textExists("Contract failed")) {
+            if (handResultShowing()) {
                 rule.onNodeWithTag("handResultContinue").performClick()
                 rule.waitForIdle()
             }
@@ -609,14 +615,14 @@ class GameFlowTest {
                 textExists("Your bid:") ||
                     textExists("Discard 3 cards", substring = true) ||
                     textExists("Your turn — tap a card to play") ||
-                    textExists("Contract made!") || textExists("Contract failed") ||
+                    handResultShowing() ||
                     textExists("(last:", substring = true) ||
                     textExists("You win!") || textExists("You lose")
             }
 
             when {
                 // A hand just finished — the result dialog blocks input until dismissed.
-                textExists("Contract made!") || textExists("Contract failed") -> return
+                handResultShowing() -> return
                 textExists("Your bid:") -> {
                     if (textExists("(last:", substring = true)) return // previous hand scored
                     rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()
@@ -654,12 +660,12 @@ class GameFlowTest {
                 textExists("Your bid:") ||
                     textExists("Discard 3 cards", substring = true) ||
                     textExists("Your turn — tap a card to play") ||
-                    textExists("Contract made!") || textExists("Contract failed") ||
+                    handResultShowing() ||
                     textExists("You win!") || textExists("You lose")
             }
             when {
                 // Check dialogs first: "Your bid:" can already exist behind the result dialog.
-                textExists("Contract made!") || textExists("Contract failed") -> return
+                handResultShowing() -> return
                 textExists("You win!") || textExists("You lose") -> return
                 textExists("Your bid:") -> {
                     rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()

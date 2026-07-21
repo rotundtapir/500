@@ -97,10 +97,17 @@ internal fun HandResultDialog(
     }
 
     // Header tint follows the human's fortunes, not the declarer's: green-ish when our side gained
-    // points this hand, red-ish otherwise.
+    // points this hand, red-ish otherwise. The title names the declarer ("Alice made 8♦!") so the
+    // wording can't contradict the tint the way a bare "Contract made!" did.
     val gained = myDelta > 0
     val headerColor = if (gained) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
     val onHeaderColor = if (gained) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onError
+    val declarerName = seatLabel(view, botNames, contract.declarer)
+    val title = if (result.made) {
+        "$declarerName made ${contract.bid.label}!"
+    } else {
+        "$declarerName failed ${contract.bid.label}"
+    }
 
     Dialog(onDismissRequest = dismiss) {
         Surface(
@@ -118,9 +125,10 @@ internal fun HandResultDialog(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        if (result.made) "Contract made!" else "Contract failed",
+                        title,
                         style = MaterialTheme.typography.titleLarge,
                         color = onHeaderColor,
+                        textAlign = TextAlign.Center,
                     )
                 }
                 Column(
