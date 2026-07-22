@@ -17,8 +17,10 @@ val releaseKeystore: String? = secret("KEYSTORE_FILE")
 
 // The short git commit this build was made from, reported to the online server on connect for
 // diagnostics. Falls back to "unknown" when git isn't available (e.g. an F-Droid tarball build).
+// Length pinned to 8: bare --short scales with repo size, so differently-shaped clones could
+// one day abbreviate differently and break reproducible builds (#22).
 val gitCommit: String = runCatching {
-    providers.exec { commandLine("git", "rev-parse", "--short", "HEAD") }
+    providers.exec { commandLine("git", "rev-parse", "--short=8", "HEAD") }
         .standardOutput.asText.get().trim()
 }.getOrNull()?.ifBlank { null } ?: "unknown"
 
