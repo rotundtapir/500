@@ -8,11 +8,11 @@ import { awaitAppBoot, clickByRole, collectErrors } from './helpers';
 // handshake, CreateLobby, and rendering the server's LobbyState. Player name and server URL are
 // injected as URL params so we avoid typing into the Compose canvas.
 //
-// Deliberately stops at lobby creation. Readying and starting need a click on the ready Switch,
-// which Compose exposes on the canvas as a nameless button that Playwright can't reliably target
-// (the known canvas-interaction limitation). The start→bot-fill→gameplay path is instead covered by
-// the server's JVM integration tests (full bot-backed games over real WebSockets) and by manual
-// browser verification.
+// Deliberately stops at lobby creation. A *guest* can't be driven further: readying needs the
+// ready Switch, which Compose exposes on the canvas as a nameless button that Playwright can't
+// reliably target (the known canvas-interaction limitation). The host-side start→bot-fill→gameplay
+// path IS drivable (Start is a plain button) and is exercised by restart.spec.ts against its own
+// server; guest gameplay is covered by the server's JVM integration tests instead.
 const ONLINE_FIXTURE =
   '/500/?serverUrl=ws://localhost:8080&playerName=Tester&animationSpeed=OFF&soundVolume=0';
 
