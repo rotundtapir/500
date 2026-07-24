@@ -20,7 +20,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +37,6 @@ import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.fivehundred.LocalLinkSharer
 import io.github.rotundtapir.fivehundred.net.GameOver
 import io.github.rotundtapir.fivehundred.ui.OnBackgroundOutlinedButton
-import io.github.rotundtapir.fivehundred.ui.feltSwitchColors
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.RoomPhase
 import io.github.rotundtapir.fivehundred.net.SeatInfo
@@ -142,21 +140,26 @@ internal fun LobbyRoomScreen(
                         modifier = Modifier.fillMaxWidth().testTag("startGame"),
                     ) { Text("Start (empty seats become bots)") }
                 } else {
-                    // Guests mark themselves ready; the host just clicks Start.
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Ready")
-                        Switch(
-                            checked = myReady,
-                            onCheckedChange = onSetReady,
-                            colors = feltSwitchColors(),
-                            modifier = Modifier.testTag("readyToggle"),
+                    // Guests must ready up before the host can start — make that THE primary action.
+                    // A big labelled button reads as required in a way the old small Switch didn't
+                    // (#24); as a bonus, a named button is reachable through the wasm canvas's a11y
+                    // tree, unlike an unnamed Switch, so web E2E can drive a guest through it.
+                    if (myReady) {
+                        OnBackgroundOutlinedButton(
+                            onClick = { onSetReady(false) },
+                            modifier = Modifier.fillMaxWidth().testTag("readyToggle"),
+                        ) { Text("Ready ✓ — tap to unready") }
+                        Text("Waiting for the host to start…", style = MaterialTheme.typography.labelMedium)
+                    } else {
+                        Button(
+                            onClick = { onSetReady(true) },
+                            modifier = Modifier.fillMaxWidth().testTag("readyToggle"),
+                        ) { Text("Ready up") }
+                        Text(
+                            "Ready up so the host can start",
+                            style = MaterialTheme.typography.labelMedium,
                         )
                     }
-                    Text("Waiting for the host to start…", style = MaterialTheme.typography.labelMedium)
                 }
             } else if (isCreator) {
                 Button(onClick = onRematch, modifier = Modifier.fillMaxWidth().testTag("rematch")) {

@@ -132,13 +132,17 @@ data class SeatInfo(
 @Serializable
 data class ResumedState(val joinCode: String, val phase: RoomPhase)
 
-/** Sane defaults, shared by client (lobby-creation UI) and server (validation floor/ceiling). */
-const val DEFAULT_TURN_TIMEOUT_SECONDS: Int = 45
-const val DEFAULT_IDLE_DISBAND_MINUTES: Int = 30
+/**
+ * Sane defaults, shared by client (lobby-creation UI) and server (validation floor/ceiling).
+ * Deliberately generous (#24): games are friendly, not competitive, and a bot snatching your
+ * turn is more discouraging than a slow opponent. Tighten only if competitive matchmaking lands.
+ */
+const val DEFAULT_TURN_TIMEOUT_SECONDS: Int = 300
+const val DEFAULT_IDLE_DISBAND_MINUTES: Int = 120
 const val MIN_TURN_TIMEOUT_SECONDS: Int = 10
-const val MAX_TURN_TIMEOUT_SECONDS: Int = 300
+const val MAX_TURN_TIMEOUT_SECONDS: Int = 900
 const val MIN_IDLE_DISBAND_MINUTES: Int = 1
-const val MAX_IDLE_DISBAND_MINUTES: Int = 120
+const val MAX_IDLE_DISBAND_MINUTES: Int = 240
 
 // ---------------------------------------------------------------------------------------------
 // Client -> Server

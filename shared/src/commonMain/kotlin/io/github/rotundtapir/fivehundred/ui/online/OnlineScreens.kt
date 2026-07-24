@@ -37,6 +37,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.rotundtapir.fivehundred.net.DEFAULT_IDLE_DISBAND_MINUTES
+import io.github.rotundtapir.fivehundred.net.DEFAULT_TURN_TIMEOUT_SECONDS
 import io.github.rotundtapir.fivehundred.net.Names
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameModeButton
@@ -126,15 +128,20 @@ internal fun OnlineEntryScreen(
     }
 }
 
-/** Configure and create a lobby: pick the table shape and the timeouts, then create. */
+/**
+ * Configure and create a lobby: pick the table shape, then create. The timeout controls live in a
+ * collapsed "Advanced" section (#24) — the generous defaults suit a friendly game, and surfacing
+ * them up front made lobbies feel more competitive than they are.
+ */
 @Composable
 internal fun CreateLobbyScreen(
     onCreate: (mode: GameMode, turnTimeoutSeconds: Int, idleDisbandMinutes: Int) -> Unit,
     onBack: () -> Unit,
 ) {
     var mode by remember { mutableStateOf(GameMode.FOUR_PLAYER) }
-    var turnTimeout by remember { mutableStateOf(TURN_TIMEOUT_OPTIONS[1]) }
-    var idleMinutes by remember { mutableStateOf(IDLE_OPTIONS[2]) }
+    var turnTimeout by remember { mutableStateOf(DEFAULT_TURN_TIMEOUT_SECONDS) }
+    var idleMinutes by remember { mutableStateOf(DEFAULT_IDLE_DISBAND_MINUTES) }
+    var showAdvanced by remember { mutableStateOf(false) }
     OnlineScaffold(title = "Create a game", onBack = onBack) {
         Text("Table", style = MaterialTheme.typography.labelLarge)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -146,20 +153,27 @@ internal fun CreateLobbyScreen(
                 }
             }
         }
-        Text("Turn time-out", style = MaterialTheme.typography.labelLarge)
-        ChipRow(
-            options = TURN_TIMEOUT_OPTIONS,
-            selected = turnTimeout,
-            label = { "${it}s" },
-            onSelect = { turnTimeout = it },
-        )
-        Text("Disband if idle for", style = MaterialTheme.typography.labelLarge)
-        ChipRow(
-            options = IDLE_OPTIONS,
-            selected = idleMinutes,
-            label = { "${it}m" },
-            onSelect = { idleMinutes = it },
-        )
+        TextButton(
+            onClick = { showAdvanced = !showAdvanced },
+            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
+            modifier = Modifier.testTag("advancedOptions"),
+        ) { Text(if (showAdvanced) "Advanced ▾" else "Advanced ▸") }
+        if (showAdvanced) {
+            Text("Turn time-out", style = MaterialTheme.typography.labelLarge)
+            ChipRow(
+                options = TURN_TIMEOUT_OPTIONS,
+                selected = turnTimeout,
+                label = { "${it / SECONDS_PER_MINUTE}m" },
+                onSelect = { turnTimeout = it },
+            )
+            Text("Disband if idle for", style = MaterialTheme.typography.labelLarge)
+            ChipRow(
+                options = IDLE_OPTIONS,
+                selected = idleMinutes,
+                label = { if (it >= MINUTES_PER_HOUR) "${it / MINUTES_PER_HOUR}h" else "${it}m" },
+                onSelect = { idleMinutes = it },
+            )
+        }
         Button(
             onClick = { onCreate(mode, turnTimeout, idleMinutes) },
             modifier = Modifier.fillMaxWidth().testTag("confirmCreate"),
@@ -250,5 +264,9 @@ private fun <T> ChipRow(
 }
 
 private const val CODE_LENGTH = 4
-private val TURN_TIMEOUT_OPTIONS = listOf(30, 45, 60, 120)
-private val IDLE_OPTIONS = listOf(5, 15, 30, 60)
+private const val SECONDS_PER_MINUTE = 60
+private const val MINUTES_PER_HOUR = 60
+
+// Generous by design (#24); the defaults sit mid-list so Advanced users can go either way.
+private val TURN_TIMEOUT_OPTIONS = listOf(60, 120, DEFAULT_TURN_TIMEOUT_SECONDS, 600)
+private val IDLE_OPTIONS = listOf(30, 60, DEFAULT_IDLE_DISBAND_MINUTES, 240)
