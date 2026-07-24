@@ -137,10 +137,10 @@ data class ResumedState(val joinCode: String, val phase: RoomPhase)
  * Deliberately generous (#24): games are friendly, not competitive, and a bot snatching your
  * turn is more discouraging than a slow opponent. Tighten only if competitive matchmaking lands.
  */
-const val DEFAULT_TURN_TIMEOUT_SECONDS: Int = 300
+const val DEFAULT_TURN_TIMEOUT_SECONDS: Int = 1800
 const val DEFAULT_IDLE_DISBAND_MINUTES: Int = 120
 const val MIN_TURN_TIMEOUT_SECONDS: Int = 10
-const val MAX_TURN_TIMEOUT_SECONDS: Int = 900
+const val MAX_TURN_TIMEOUT_SECONDS: Int = 3600
 const val MIN_IDLE_DISBAND_MINUTES: Int = 1
 const val MAX_IDLE_DISBAND_MINUTES: Int = 240
 

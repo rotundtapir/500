@@ -268,5 +268,5 @@ private const val SECONDS_PER_MINUTE = 60
 private const val MINUTES_PER_HOUR = 60
 
 // Generous by design (#24); the defaults sit mid-list so Advanced users can go either way.
-private val TURN_TIMEOUT_OPTIONS = listOf(60, 120, DEFAULT_TURN_TIMEOUT_SECONDS, 600)
+private val TURN_TIMEOUT_OPTIONS = listOf(300, 900, DEFAULT_TURN_TIMEOUT_SECONDS, 3600)
 private val IDLE_OPTIONS = listOf(30, 60, DEFAULT_IDLE_DISBAND_MINUTES, 240)
