@@ -13,8 +13,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.cardkit.ui.AppConfig
+import io.github.rotundtapir.cardkit.ui.AppDistribution
+import io.github.rotundtapir.cardkit.ui.AppPlatform
+import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
+import io.github.rotundtapir.fivehundred.net.Distribution
+import io.github.rotundtapir.fivehundred.net.Platform
 import io.github.rotundtapir.fivehundred.online.JoinLink
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.online.SessionTokenStore
@@ -155,7 +161,8 @@ fun FiveHundredApp(
     LaunchedEffect(joinCodeOverride) {
         val code = JoinLink.normalizeCode(joinCodeOverride) ?: return@LaunchedEffect
         onlineVm.enterWithJoinCode(
-            serverUrl, appConfig.version, appConfig.platform, code, appConfig.flavor, appConfig.commit,
+            serverUrl, appConfig.version, appConfig.platform.toNet(), code,
+            appConfig.flavor.toNet(), appConfig.commit,
         )
         appScreen = AppScreen.ONLINE.name
     }
@@ -238,7 +245,8 @@ fun FiveHundredApp(
                 narration = narration,
                 onPlayWithFriends = {
                     onlineVm.enter(
-                        serverUrl, appConfig.version, appConfig.platform, appConfig.flavor, appConfig.commit,
+                        serverUrl, appConfig.version, appConfig.platform.toNet(),
+                        appConfig.flavor.toNet(), appConfig.commit,
                     )
                     appScreen = AppScreen.ONLINE.name
                 },
@@ -250,3 +258,18 @@ fun FiveHundredApp(
 
 /** Top-level screens the app switches between. */
 private enum class AppScreen { HOME, BOT_SETUP, GAME, ONLINE }
+
+// The UI carries cardkit's build-facing AppPlatform/AppDistribution; the online protocol speaks
+// 500's net enums. Mapped here, at the OnlineViewModel.enter boundary, so the wire is unchanged.
+
+private fun AppPlatform.toNet(): Platform = when (this) {
+    AppPlatform.ANDROID -> Platform.ANDROID
+    AppPlatform.WEB -> Platform.WEB
+}
+
+private fun AppDistribution.toNet(): Distribution = when (this) {
+    AppDistribution.FOSS -> Distribution.FOSS
+    AppDistribution.PLAY -> Distribution.PLAY
+    AppDistribution.WEB -> Distribution.WEB
+    AppDistribution.UNKNOWN -> Distribution.UNKNOWN
+}

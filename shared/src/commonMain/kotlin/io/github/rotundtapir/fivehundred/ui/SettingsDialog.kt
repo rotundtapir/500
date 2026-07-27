@@ -29,8 +29,8 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
-import io.github.rotundtapir.fivehundred.LocalAppConfig
 import io.github.rotundtapir.fivehundred.SettingsDefaults
 
 private const val CARD_ART_URL = "https://code.google.com/archive/p/vector-playing-cards/"

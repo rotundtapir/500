@@ -34,9 +34,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.monetization.Monetization
-import io.github.rotundtapir.fivehundred.LocalAppConfig
+import io.github.rotundtapir.cardkit.ui.AppPlatform
+import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.fivehundred.net.ConnectionState
-import io.github.rotundtapir.fivehundred.net.Platform
 import io.github.rotundtapir.fivehundred.rememberGameSoundEffects
 import io.github.rotundtapir.fivehundred.online.OnlineScreen
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
@@ -106,7 +106,7 @@ fun OnlineFlow(
         // the screen can appear to do nothing after a tap until the next user interaction forces a
         // repaint. Keeping the frame clock ticking makes server pushes render promptly. Web-only and
         // off in-game, where deal/trick animations already drive frames.
-        if (LocalAppConfig.current.platform == Platform.WEB && screen != OnlineScreen.GAME) {
+        if (LocalAppConfig.current.platform == AppPlatform.WEB && screen != OnlineScreen.GAME) {
             NetworkFrameKeepAlive()
         }
         when (screen) {
