@@ -7,7 +7,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.vector.path
 import androidx.compose.ui.unit.dp
 
-// Inlined like [io.github.rotundtapir.fivehundred.ui.SettingsIcon] so no module depends on the
+// Inlined like [io.github.rotundtapir.cardkit.ui.SettingsIcon] so no module depends on the
 // frozen `material-icons-core` artifact. Path data is Google's Material Icons (Apache-2.0).
 
 /** The Material "share" icon, for the lobby's invite-link button. */

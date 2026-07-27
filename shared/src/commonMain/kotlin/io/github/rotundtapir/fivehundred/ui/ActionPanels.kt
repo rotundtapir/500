@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardHand
+import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase

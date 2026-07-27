@@ -43,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardAspectRatio
 import io.github.rotundtapir.cardkit.ui.PlayingCard
+import io.github.rotundtapir.cardkit.ui.SettingsIcon
+import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.cardFaceShape
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
