@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.fivehundred.LocalLinkSharer
 import io.github.rotundtapir.fivehundred.net.GameOver
-import io.github.rotundtapir.fivehundred.ui.OnBackgroundOutlinedButton
+import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.RoomPhase
 import io.github.rotundtapir.fivehundred.net.SeatInfo
