@@ -15,6 +15,9 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":engine"))
+            // Game-agnostic Monte-Carlo search scaffolding (search loop, trick memory,
+            // constrained hand sampling) shared with other cardkit games' bots.
+            implementation(libs.cardkit.ai)
             // Already shipped transitively via cardkit-core; declared for AdvancedBot's own
             // suspend/yield search loop (zero download-size delta).
             implementation(libs.kotlinx.coroutines.core)
