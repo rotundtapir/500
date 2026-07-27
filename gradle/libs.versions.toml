@@ -87,6 +87,7 @@ compose-material3 = { module = "androidx.compose.material3:material3" }
 
 # cardkit modules (substituted by the composite build)
 cardkit-core = { module = "io.github.rotundtapir.cardkit:cardkit-core", version.ref = "cardkit" }
+cardkit-ai = { module = "io.github.rotundtapir.cardkit:cardkit-ai", version.ref = "cardkit" }
 cardkit-ui = { module = "io.github.rotundtapir.cardkit:cardkit-ui", version.ref = "cardkit" }
 cardkit-monetization = { module = "io.github.rotundtapir.cardkit:cardkit-monetization", version.ref = "cardkit" }
 cardkit-monetization-play = { module = "io.github.rotundtapir.cardkit:cardkit-monetization-play", version.ref = "cardkit" }
