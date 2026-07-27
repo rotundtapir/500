@@ -8,116 +8,51 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
-import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
-import io.github.rotundtapir.cardkit.ui.settings.BotSkill
+import io.github.rotundtapir.cardkit.ui.settings.DataStoreKeyValueStore
+import io.github.rotundtapir.cardkit.ui.settings.KeyValueStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-private val Context.settingsDataStore by preferencesDataStore(name = "settings")
+/**
+ * [SettingsRepository] backed by Jetpack Preferences DataStore — the Android implementation, as
+ * [KeyValueSettingsRepository] over cardkit-ui's [DataStoreKeyValueStore]. That store writes the
+ * same "settings" preferences file under the same typed keys as the previous direct DataStore
+ * repository, so existing installs' saved settings survive the migration byte-for-byte.
+ *
+ * The internal constructor takes a [DataStore] directly so unit tests can supply one backed by a
+ * temp file; production code uses the [Context] constructor.
+ */
+class DataStoreSettingsRepository private constructor(store: KeyValueStore) :
+    SettingsRepository by KeyValueSettingsRepository(store) {
+
+    constructor(context: Context) : this(DataStoreKeyValueStore(context, "settings"))
+
+    internal constructor(dataStore: DataStore<Preferences>) : this(PreferencesKeyValueStore(dataStore))
+}
 
 /**
- * [SettingsRepository] backed by Jetpack DataStore — the Android implementation.
- *
- * The primary constructor takes the [DataStore] directly so unit tests can supply one backed by a
- * temp file; production code uses the [Context] constructor, which binds the app's store.
+ * [KeyValueStore] over an externally supplied [DataStore] — the test seam behind
+ * [DataStoreSettingsRepository]'s internal constructor (cardkit's own DataStore-injecting
+ * constructor is internal to cardkit-ui). Encodings match [DataStoreKeyValueStore]: typed
+ * string/boolean/float preference keys.
  */
-class DataStoreSettingsRepository internal constructor(
-    private val dataStore: DataStore<Preferences>,
-) : SettingsRepository {
+private class PreferencesKeyValueStore(private val dataStore: DataStore<Preferences>) : KeyValueStore {
 
-    constructor(context: Context) : this(context.applicationContext.settingsDataStore)
+    private fun <T> read(key: Preferences.Key<T>): Flow<T?> = dataStore.data.map { it[key] }
 
-    override val animationSpeed: Flow<AnimationSpeed> = dataStore.data.map { preferences ->
-        AnimationSpeed.fromName(preferences[ANIMATION_SPEED_KEY]) ?: SettingsDefaults.ANIMATION_SPEED
+    private suspend fun <T> write(key: Preferences.Key<T>, value: T) {
+        dataStore.edit { it[key] = value }
     }
 
-    override suspend fun setAnimationSpeed(speed: AnimationSpeed) {
-        dataStore.edit { preferences -> preferences[ANIMATION_SPEED_KEY] = speed.name }
-    }
+    override fun string(key: String): Flow<String?> = read(stringPreferencesKey(key))
 
-    override val sortHandByDefault: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[SORT_HAND_BY_DEFAULT_KEY] ?: SettingsDefaults.SORT_HAND_BY_DEFAULT
-    }
+    override suspend fun putString(key: String, value: String) = write(stringPreferencesKey(key), value)
 
-    override suspend fun setSortHandByDefault(value: Boolean) {
-        dataStore.edit { preferences -> preferences[SORT_HAND_BY_DEFAULT_KEY] = value }
-    }
+    override fun boolean(key: String): Flow<Boolean?> = read(booleanPreferencesKey(key))
 
-    override val misereEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[MISERE_ENABLED_KEY] ?: SettingsDefaults.MISERE_ENABLED
-    }
+    override suspend fun putBoolean(key: String, value: Boolean) = write(booleanPreferencesKey(key), value)
 
-    override suspend fun setMisereEnabled(value: Boolean) {
-        dataStore.edit { preferences -> preferences[MISERE_ENABLED_KEY] = value }
-    }
+    override fun float(key: String): Flow<Float?> = read(floatPreferencesKey(key))
 
-    override val noTrumpsEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[NO_TRUMPS_ENABLED_KEY] ?: SettingsDefaults.NO_TRUMPS_ENABLED
-    }
-
-    override suspend fun setNoTrumpsEnabled(value: Boolean) {
-        dataStore.edit { preferences -> preferences[NO_TRUMPS_ENABLED_KEY] = value }
-    }
-
-    override val holdTricks: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[HOLD_TRICKS_KEY] ?: SettingsDefaults.HOLD_TRICKS
-    }
-
-    override suspend fun setHoldTricks(value: Boolean) {
-        dataStore.edit { preferences -> preferences[HOLD_TRICKS_KEY] = value }
-    }
-
-    override val botSkill: Flow<BotSkill> = dataStore.data.map { preferences ->
-        BotSkill.fromName(preferences[BOT_SKILL_KEY]) ?: SettingsDefaults.BOT_SKILL
-    }
-
-    override suspend fun setBotSkill(value: BotSkill) {
-        dataStore.edit { preferences -> preferences[BOT_SKILL_KEY] = value.name }
-    }
-
-    override val soundVolume: Flow<Float> = dataStore.data.map { preferences ->
-        (preferences[SOUND_VOLUME_KEY] ?: SettingsDefaults.SOUND_VOLUME).coerceIn(0f, 1f)
-    }
-
-    override suspend fun setSoundVolume(value: Float) {
-        dataStore.edit { preferences -> preferences[SOUND_VOLUME_KEY] = value.coerceIn(0f, 1f) }
-    }
-
-    override val narrationEnabled: Flow<Boolean> = dataStore.data.map { preferences ->
-        preferences[NARRATION_ENABLED_KEY] ?: SettingsDefaults.NARRATION_ENABLED
-    }
-
-    override suspend fun setNarrationEnabled(value: Boolean) {
-        dataStore.edit { preferences -> preferences[NARRATION_ENABLED_KEY] = value }
-    }
-
-    override val serverUrl: Flow<String> = dataStore.data.map { preferences ->
-        preferences[SERVER_URL_KEY]?.takeIf { it.isNotBlank() } ?: SettingsDefaults.SERVER_URL
-    }
-
-    override suspend fun setServerUrl(value: String) {
-        dataStore.edit { preferences -> preferences[SERVER_URL_KEY] = value.trim() }
-    }
-
-    override val playerName: Flow<String> = dataStore.data.map { preferences ->
-        preferences[PLAYER_NAME_KEY] ?: SettingsDefaults.PLAYER_NAME
-    }
-
-    override suspend fun setPlayerName(value: String) {
-        dataStore.edit { preferences -> preferences[PLAYER_NAME_KEY] = value }
-    }
-
-    private companion object {
-        val ANIMATION_SPEED_KEY = stringPreferencesKey(SettingsKeys.ANIMATION_SPEED)
-        val SORT_HAND_BY_DEFAULT_KEY = booleanPreferencesKey(SettingsKeys.SORT_HAND_BY_DEFAULT)
-        val MISERE_ENABLED_KEY = booleanPreferencesKey(SettingsKeys.MISERE_ENABLED)
-        val NO_TRUMPS_ENABLED_KEY = booleanPreferencesKey(SettingsKeys.NO_TRUMPS_ENABLED)
-        val HOLD_TRICKS_KEY = booleanPreferencesKey(SettingsKeys.HOLD_TRICKS)
-        val BOT_SKILL_KEY = stringPreferencesKey(SettingsKeys.BOT_SKILL)
-        val SOUND_VOLUME_KEY = floatPreferencesKey(SettingsKeys.SOUND_VOLUME)
-        val NARRATION_ENABLED_KEY = booleanPreferencesKey(SettingsKeys.NARRATION_ENABLED)
-        val SERVER_URL_KEY = stringPreferencesKey(SettingsKeys.SERVER_URL)
-        val PLAYER_NAME_KEY = stringPreferencesKey(SettingsKeys.PLAYER_NAME)
-    }
+    override suspend fun putFloat(key: String, value: Float) = write(floatPreferencesKey(key), value)
 }
