@@ -12,10 +12,12 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.foundation.layout.Box
 import androidx.compose.ui.window.ComposeViewport
 import io.github.rotundtapir.cardkit.monetization.browser.BrowserMonetization
+import io.github.rotundtapir.cardkit.ui.AppConfig
+import io.github.rotundtapir.cardkit.ui.AppDistribution
+import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.CardArtWarmup
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
-import io.github.rotundtapir.fivehundred.AppConfig
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.FiveHundredApp
 import io.github.rotundtapir.fivehundred.ProjectLinks
@@ -89,8 +91,8 @@ fun main() {
                     appConfig = AppConfig(
                         feedbackUri = ProjectLinks.ISSUE_TRACKER,
                         version = AppBuildInfo.VERSION,
-                        platform = io.github.rotundtapir.fivehundred.net.Platform.WEB,
-                        flavor = io.github.rotundtapir.fivehundred.net.Distribution.WEB,
+                        platform = AppPlatform.WEB,
+                        flavor = AppDistribution.WEB,
                         commit = AppBuildInfo.COMMIT,
                     ),
                     nextSeed = { seedOverride ?: Random.nextLong() },

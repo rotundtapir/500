@@ -10,6 +10,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.cardkit.ui.AppConfig
+import io.github.rotundtapir.cardkit.ui.AppDistribution
+import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
@@ -102,11 +105,11 @@ class MainActivity : ComponentActivity() {
                     appConfig = AppConfig(
                         feedbackUri = BuildConfig.FEEDBACK_URI,
                         version = BuildConfig.VERSION_NAME,
-                        platform = io.github.rotundtapir.fivehundred.net.Platform.ANDROID,
+                        platform = AppPlatform.ANDROID,
                         flavor = when (BuildConfig.FLAVOR) {
-                            "play" -> io.github.rotundtapir.fivehundred.net.Distribution.PLAY
-                            "foss" -> io.github.rotundtapir.fivehundred.net.Distribution.FOSS
-                            else -> io.github.rotundtapir.fivehundred.net.Distribution.UNKNOWN
+                            "play" -> AppDistribution.PLAY
+                            "foss" -> AppDistribution.FOSS
+                            else -> AppDistribution.UNKNOWN
                         },
                         commit = BuildConfig.GIT_COMMIT,
                     ),
