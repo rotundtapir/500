@@ -46,6 +46,9 @@ import io.github.rotundtapir.cardkit.ui.PlayingCard
 import io.github.rotundtapir.cardkit.ui.SettingsIcon
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.cardFaceShape
+import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.OpponentTeamColors
+import io.github.rotundtapir.cardkit.ui.felt.PartnerHighlight
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
@@ -55,21 +58,6 @@ import io.github.rotundtapir.fivehundred.engine.TrickPlay
 import io.github.rotundtapir.fivehundred.engine.label
 import io.github.rotundtapir.fivehundred.engine.nextSeat
 import io.github.rotundtapir.fivehundred.engine.teamOf
-
-/** Amber used to make your own team's names pop against the felt (readable on the dark green). */
-private val PartnerHighlight = Color(0xFFFFD54F)
-
-/**
- * Distinct, felt-readable colours for the OPPOSING teams, assigned in team-index order (your own
- * team is always the amber [PartnerHighlight]). Drawn from the Okabe–Ito palette so the amber /
- * blue / purple triad stays distinguishable under all common colour-vision deficiencies (the
- * red↔green axis is avoided). Telling teams apart by colour matters most in the 6-player,
- * three-teams-of-two game, where five other names crowd the table.
- */
-private val OpponentTeamColors = listOf(
-    Color(0xFF56B4E9), // sky blue      (Okabe–Ito)
-    Color(0xFFCC79A7), // reddish purple (Okabe–Ito)
-)
 
 /**
  * The colour a [seat]'s name is drawn in: your own team in amber, each opposing team a distinct

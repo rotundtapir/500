@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.SettingsIcon
+import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
 
 /**
  * A game mode the bot-setup screen offers: a table size plus its team structure. [players] and

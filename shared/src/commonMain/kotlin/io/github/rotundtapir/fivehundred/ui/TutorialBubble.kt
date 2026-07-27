@@ -41,6 +41,8 @@ import io.github.rotundtapir.cardkit.core.Suit
 import io.github.rotundtapir.cardkit.core.SuitedCard
 import io.github.rotundtapir.cardkit.ui.PlayingCard
 import io.github.rotundtapir.cardkit.ui.SuitText
+import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import kotlin.math.roundToInt

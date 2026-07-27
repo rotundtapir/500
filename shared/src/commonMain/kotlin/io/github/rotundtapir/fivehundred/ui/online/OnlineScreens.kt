@@ -42,8 +42,8 @@ import io.github.rotundtapir.fivehundred.net.DEFAULT_TURN_TIMEOUT_SECONDS
 import io.github.rotundtapir.fivehundred.net.Names
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameModeButton
-import io.github.rotundtapir.fivehundred.ui.OnBackgroundOutlinedButton
-import io.github.rotundtapir.fivehundred.ui.onBackgroundFieldColors
+import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton
+import io.github.rotundtapir.cardkit.ui.felt.onBackgroundFieldColors
 
 /** Common frame for the online setup screens: a title, a scrollable body, and a back button. */
 @Composable
