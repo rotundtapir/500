@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import io.github.rotundtapir.cardkit.core.Seat
+import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.fivehundred.engine.HandResult
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.ScoreSchedule
