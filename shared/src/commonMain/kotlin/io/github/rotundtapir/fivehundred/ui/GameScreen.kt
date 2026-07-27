@@ -38,7 +38,7 @@ import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.SoundEffect
-import io.github.rotundtapir.fivehundred.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView

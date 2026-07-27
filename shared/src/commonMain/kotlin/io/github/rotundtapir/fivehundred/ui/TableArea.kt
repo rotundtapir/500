@@ -44,7 +44,7 @@ import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardAspectRatio
 import io.github.rotundtapir.cardkit.ui.PlayingCard
 import io.github.rotundtapir.cardkit.ui.cardFaceShape
-import io.github.rotundtapir.fivehundred.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase

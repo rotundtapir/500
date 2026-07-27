@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Suit
-import io.github.rotundtapir.fivehundred.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.PacingGates
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid

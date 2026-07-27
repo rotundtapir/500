@@ -13,6 +13,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.online.JoinLink
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.online.SessionTokenStore

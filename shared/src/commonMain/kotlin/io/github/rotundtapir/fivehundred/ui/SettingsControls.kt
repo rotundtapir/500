@@ -2,8 +2,8 @@
 package io.github.rotundtapir.fivehundred.ui
 
 import androidx.compose.runtime.Immutable
-import io.github.rotundtapir.fivehundred.AnimationSpeed
-import io.github.rotundtapir.fivehundred.BotSkill
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 
 /**
  * The settings dialog's plumbing, bundled: each setting's current value plus its write-through
