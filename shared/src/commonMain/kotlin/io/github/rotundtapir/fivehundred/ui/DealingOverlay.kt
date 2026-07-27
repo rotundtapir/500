@@ -46,7 +46,7 @@ import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardBack
 import io.github.rotundtapir.cardkit.ui.PlayingCard
-import io.github.rotundtapir.fivehundred.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.HAND_SIZE
 import io.github.rotundtapir.cardkit.ui.SoundEffect
 import kotlin.math.roundToInt

@@ -10,6 +10,8 @@ import io.github.rotundtapir.cardkit.core.Player
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.StrategyPlayer
 import io.github.rotundtapir.cardkit.core.Suit
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.ai.AdvancedBot
 import io.github.rotundtapir.fivehundred.ai.AdvancedBotPlayer
 import io.github.rotundtapir.fivehundred.ai.FiveHundredBot

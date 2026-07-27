@@ -14,9 +14,9 @@ import androidx.compose.ui.window.ComposeViewport
 import io.github.rotundtapir.cardkit.monetization.browser.BrowserMonetization
 import io.github.rotundtapir.cardkit.ui.CardArtWarmup
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
-import io.github.rotundtapir.fivehundred.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.AppConfig
-import io.github.rotundtapir.fivehundred.BotSkill
+import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.FiveHundredApp
 import io.github.rotundtapir.fivehundred.ProjectLinks
 import io.github.rotundtapir.fivehundred.web.generated.resources.Res

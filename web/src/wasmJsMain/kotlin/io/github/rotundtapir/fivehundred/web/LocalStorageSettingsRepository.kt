@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.web
 
-import io.github.rotundtapir.fivehundred.AnimationSpeed
-import io.github.rotundtapir.fivehundred.BotSkill
+import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.SettingsDefaults
 import io.github.rotundtapir.fivehundred.SettingsKeys
 import io.github.rotundtapir.fivehundred.SettingsRepository

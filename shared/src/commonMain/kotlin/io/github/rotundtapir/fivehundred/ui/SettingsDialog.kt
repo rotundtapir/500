@@ -29,7 +29,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.monetization.Monetization
-import io.github.rotundtapir.fivehundred.BotSkill
+import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.LocalAppConfig
 import io.github.rotundtapir.fivehundred.SettingsDefaults
 
