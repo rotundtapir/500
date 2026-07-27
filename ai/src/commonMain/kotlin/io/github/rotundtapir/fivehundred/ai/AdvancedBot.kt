@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.ai
 
+import io.github.rotundtapir.cardkit.ai.MonteCarloSearch
+import io.github.rotundtapir.cardkit.ai.SearchLimits
+import io.github.rotundtapir.cardkit.ai.reduceEquivalent
+import io.github.rotundtapir.cardkit.ai.rollout
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Joker
 import io.github.rotundtapir.cardkit.core.Seat
@@ -17,13 +21,9 @@ import io.github.rotundtapir.fivehundred.engine.TrickEvaluator
 import io.github.rotundtapir.fivehundred.engine.Trump
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.floor
-import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
-import kotlin.time.TimeMark
-import kotlin.time.TimeSource
-import kotlinx.coroutines.yield
 
 /**
  * Tuning knobs for [AdvancedBot]'s search. The defaults are the production budgets; tests use
@@ -55,10 +55,10 @@ data class SearchConfig(
 
 /**
  * A search-based AI for 500: determinized flat Monte Carlo with paired sampling and racing
- * early-stops. Much stronger than [FiveHundredBot] (it card-counts, values ruffs and evaluates
- * bids against actual score outcomes) while staying battery-friendly — obvious decisions collapse
- * after a couple of batches, forced moves return without sampling at all, and the budgets in
- * [SearchConfig] are hard caps, not typical costs.
+ * early-stops, on cardkit-ai's [MonteCarloSearch] core. Much stronger than [FiveHundredBot] (it
+ * card-counts, values ruffs and evaluates bids against actual score outcomes) while staying
+ * battery-friendly — obvious decisions collapse after a couple of batches, forced moves return
+ * without sampling at all, and the budgets in [SearchConfig] are hard caps, not typical costs.
  *
  * Each decision evaluates every candidate action against the *same* sampled worlds (hidden hands
  * consistent with what this seat has observed, via [SeenTracker]/[Determinizer]), rolling each
@@ -78,6 +78,14 @@ class AdvancedBot(
 ) {
     private val tracker = SeenTracker()
     private val determinizer = Determinizer(rules.playerCount)
+    private val monteCarlo = MonteCarloSearch(
+        SearchLimits(
+            maxDeterminizations = config.maxDeterminizations,
+            minDeterminizations = config.minDeterminizations,
+            batchSize = config.batchSize,
+            timeBudgetEnabled = config.timeBudgetEnabled,
+        ),
+    )
 
     /** The action to take for [view]. Always legal; falls back to [fallback] on any search failure. */
     suspend fun decide(view: PlayerView, random: Random): Action {
@@ -113,40 +121,28 @@ class AdvancedBot(
         budget: Duration,
         random: Random,
         minWorlds: Int = 1,
-    ): Action? {
-        if (arms.size <= 1) return arms.firstOrNull() // forced move: no sampling, no budget spent
-        val start = TimeSource.Monotonic.markNow()
-        val stats = List(arms.size) { RunningStat() }
-        val live = arms.indices.toMutableList()
-        var worlds = 0
-        while (worlds < config.maxDeterminizations && live.size > 1 && withinBudget(start, budget, worlds, minWorlds)) {
-            val world = determinizer.sample(view, tracker, random)
-            // Paired sampling: every live arm scores against the same world, cancelling deal variance.
-            live.forEach { stats[it].add(evaluate(world, view.seat, view.myTeam, arms[it], random)) }
-            worlds++
-            if (worlds >= config.minDeterminizations && worlds % config.batchSize == 0) {
-                raceEliminate(live, stats)
-            }
-            yield() // keep the single-threaded wasm event loop responsive during long thinks
-        }
-        return arms[live.maxBy { stats[it].mean }]
-    }
-
-    private fun withinBudget(start: TimeMark, budget: Duration, worlds: Int, minWorlds: Int): Boolean =
-        worlds < minWorlds || !config.timeBudgetEnabled || start.elapsedNow() < budget
+    ): Action? = monteCarlo.best(
+        arms = arms,
+        budget = budget,
+        minWorlds = minWorlds,
+        sampleWorld = { determinizer.sample(view, tracker, random) },
+        evaluate = { world, arm -> evaluate(world, view.seat, view.myTeam, arm, random) },
+    )
 
     /** Applies [arm] to [world] and plays the hand out with [fallback] as everyone's policy. */
     private fun evaluate(world: GameState, seat: Seat, myTeam: Int, arm: Action, random: Random): Double {
         val startScores = world.scores
         val startHand = world.handNumber
-        var s = rules.apply(world, seat, arm)
         // The hand boundary covers every exit: hand scored (handNumber bumps), pass-out redeal
         // (handNumber bumps, no score change), or match complete.
-        while (s.phase != Phase.COMPLETE && s.handNumber == startHand) {
-            val actor = rules.currentActor(s) ?: break
-            s = rules.apply(s, actor, fallback.decide(rules.view(s, actor), random))
-        }
-        return reward(s, startScores, myTeam)
+        val end = rollout(
+            rules = rules,
+            start = rules.apply(world, seat, arm),
+            policy = fallback::decide,
+            random = random,
+            stop = { it.phase == Phase.COMPLETE || it.handNumber != startHand },
+        )
+        return reward(end, startScores, myTeam)
     }
 
     /** Hand-level team score differential, plus a decisive bonus when the rollout ends the match. */
@@ -159,13 +155,6 @@ class AdvancedBot(
             else -> -WIN_BONUS
         }
         return (delta(myTeam) - bestOther).toDouble() + winBonus
-    }
-
-    /** Drops every arm whose confidence interval sits wholly below the best arm's. */
-    private fun raceEliminate(live: MutableList<Int>, stats: List<RunningStat>) {
-        val best = live.maxBy { stats[it].mean }
-        val bestLow = stats[best].mean - RACE_Z * stats[best].standardError
-        live.removeAll { it != best && stats[it].mean + RACE_Z * stats[it].standardError < bestLow }
     }
 
     // --- Candidate actions per phase ---------------------------------------------------------
@@ -233,7 +222,8 @@ class AdvancedBot(
         }
 
     /**
-     * Every legal play, collapsed to one representative per equivalence class, with the Joker led
+     * Every legal play, collapsed to one representative per equivalence class (cardkit-ai's
+     * [reduceEquivalent] — typically halves the arm count late in a hand), with the Joker led
      * at no-trump expanded into its four nomination arms (nominating is never worse than not).
      */
     private fun playArms(view: PlayerView): List<Action> {
@@ -241,7 +231,7 @@ class AdvancedBot(
         if (legal.size <= 1) return legal.map { Action.PlayCard(it) }
         val trump = view.trump ?: Trump.NO_TRUMP
         val eval = TrickEvaluator(trump)
-        return reduceEquivalent(legal, view, eval).flatMap { card ->
+        return reduceEquivalent(legal, unseenCards(view), eval).flatMap { card ->
             if (card is Joker && trump == Trump.NO_TRUMP && view.currentTrick.isEmpty()) {
                 Suit.entries.map { Action.PlayCard(card, nominate = it) }
             } else {
@@ -250,33 +240,14 @@ class AdvancedBot(
         }
     }
 
-    /**
-     * Collapses cards that are interchangeable this trick — same effective suit with no card
-     * another player could still hold ranking strictly between them — keeping the lowest of each
-     * class. Typically halves the arm count late in a hand.
-     */
-    private fun reduceEquivalent(legal: List<Card>, view: PlayerView, eval: TrickEvaluator): List<Card> {
+    /** The cards another player could still hold, for equivalence-class collapsing. */
+    private fun unseenCards(view: PlayerView): List<Card> {
         val known = buildSet {
             addAll(view.hand)
             addAll(tracker.seenPlays)
             addAll(tracker.myDiscards)
         }
-        val unseen = determinizer.deck.filterNot { it in known }
-        return legal.groupBy { eval.effectiveSuit(it) }.flatMap { (suit, cards) ->
-            if (suit == null) cards else collapse(cards, unseen, suit, eval)
-        }
-    }
-
-    private fun collapse(cards: List<Card>, unseen: List<Card>, suit: Suit, eval: TrickEvaluator): List<Card> {
-        val rivals = unseen.filter { eval.effectiveSuit(it) == suit }.map { eval.strength(it, suit) }
-        val sorted = cards.sortedBy { eval.strength(it, suit) }
-        val kept = mutableListOf(sorted.first())
-        for (i in 1 until sorted.size) {
-            val lo = eval.strength(sorted[i - 1], suit)
-            val hi = eval.strength(sorted[i], suit)
-            if (rivals.any { it in (lo + 1) until hi }) kept += sorted[i]
-        }
-        return kept
+        return determinizer.deck.filterNot { it in known }
     }
 
     // --- Safety ------------------------------------------------------------------------------
@@ -292,9 +263,6 @@ class AdvancedBot(
     }
 
     private companion object {
-        /** z-score for racing elimination: ~95% confidence before an arm is dropped. */
-        const val RACE_Z = 2.0
-
         /** Reward bonus when a rollout ends the whole match — winning at 500 dwarfs hand points. */
         const val WIN_BONUS = 500.0
 
@@ -302,24 +270,4 @@ class AdvancedBot(
         const val KITTY_CANDIDATE_POOL = 7
         const val MAX_KITTY_ARMS = 36
     }
-}
-
-/** Welford running mean/variance for one arm's rewards. */
-internal class RunningStat {
-    var n = 0
-        private set
-    var mean = 0.0
-        private set
-    private var m2 = 0.0
-
-    fun add(x: Double) {
-        n++
-        val d = x - mean
-        mean += d / n
-        m2 += d * (x - mean)
-    }
-
-    /** Standard error of the mean; infinite below two samples so nothing is eliminated early. */
-    val standardError: Double
-        get() = if (n < 2) Double.POSITIVE_INFINITY else sqrt(m2 / (n - 1) / n)
 }
