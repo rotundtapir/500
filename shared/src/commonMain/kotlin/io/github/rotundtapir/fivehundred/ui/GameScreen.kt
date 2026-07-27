@@ -38,8 +38,14 @@ import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.SoundEffect
+import io.github.rotundtapir.cardkit.ui.deal.DealAnimationState
+import io.github.rotundtapir.cardkit.ui.deal.DealingHandRow
+import io.github.rotundtapir.cardkit.ui.deal.FlyingDealCard
+import io.github.rotundtapir.cardkit.ui.deal.dealTimings
+import io.github.rotundtapir.cardkit.ui.deal.runDealAnimation
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
+import io.github.rotundtapir.fivehundred.engine.HAND_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.net.Emote
@@ -137,7 +143,12 @@ fun GameScreen(
         if (view.lastHandResult != null && view.winner == null) {
             snapshotFlow { resultAckedHand }.first { it >= view.handNumber }
         }
-        runDealAnimation(dealState, view.playerCount, view.dealer, animationSpeed)
+        runDealAnimation(
+            dealState,
+            fiveHundredDealSchedule(view.playerCount, view.dealer),
+            dealTimings(animationSpeed),
+            HAND_SIZE,
+        )
         dealtHand = maxOf(dealtHand, view.handNumber)
         // Release the first bidder: the ViewModel waits on this signal, not a timer, so slow
         // devices can't start the auction mid-deal.

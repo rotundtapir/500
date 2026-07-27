@@ -4,7 +4,8 @@ package io.github.rotundtapir.fivehundred
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
-import io.github.rotundtapir.fivehundred.ui.dealTimings
+import io.github.rotundtapir.cardkit.ui.deal.dealTimings
+import io.github.rotundtapir.fivehundred.engine.HAND_SIZE
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -138,7 +139,7 @@ class PacingGates(
         if (speed == AnimationSpeed.OFF) {
             0L
         } else {
-            dealTimings(speed).run { shuffleMillis + flyBudgetMillis + flipTotalMillis + PAUSE_SLACK_MILLIS }
+            dealTimings(speed).run { shuffleMillis + flyBudgetMillis + flipTotalMillis(HAND_SIZE) + PAUSE_SLACK_MILLIS }
         }
 
     private fun trickKey(handNumber: Int, trickNumber: Int) = handNumber * TRICK_KEY_STRIDE + trickNumber

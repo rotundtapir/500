@@ -46,6 +46,8 @@ import io.github.rotundtapir.cardkit.ui.PlayingCard
 import io.github.rotundtapir.cardkit.ui.SettingsIcon
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.cardFaceShape
+import io.github.rotundtapir.cardkit.ui.deal.DealAnimationState
+import io.github.rotundtapir.cardkit.ui.deal.OpponentPile
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
 import io.github.rotundtapir.cardkit.ui.felt.OpponentTeamColors
 import io.github.rotundtapir.cardkit.ui.felt.PartnerHighlight
