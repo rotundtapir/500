@@ -14,19 +14,20 @@ enum class Phase { BIDDING, KITTY, PLAY, COMPLETE }
  * Team index: seat modulo [teamCount]. With 2 teams this yields the standard partnerships at every
  * supported count — 2 players: each seat is its own team; 4: seats 0&2 vs 1&3; 6: two teams of
  * three, 0&2&4 vs 1&3&5. With 3 teams (6 players only) it yields three teams of two with partners
- * seated opposite: 0&3, 1&4, 2&5.
+ * seated opposite: 0&3, 1&4, 2&5. (Delegates to cardkit-core.)
  */
-fun teamOf(seat: Seat, teamCount: Int): Int = seat.index % teamCount
+fun teamOf(seat: Seat, teamCount: Int): Int = io.github.rotundtapir.cardkit.core.teamOf(seat, teamCount)
 
-/** The next seat clockwise at a table of [playerCount]. */
-fun nextSeat(seat: Seat, playerCount: Int): Seat = Seat((seat.index + 1) % playerCount)
+/** The next seat clockwise at a table of [playerCount]. (Delegates to cardkit-core.) */
+fun nextSeat(seat: Seat, playerCount: Int): Seat = io.github.rotundtapir.cardkit.core.nextSeat(seat, playerCount)
 
 /**
  * The other seats on [seat]'s team, in seat order: empty at 2 players, the opposite seat at 4, the
  * two same-parity seats at 6 with two teams, or the opposite seat at 6 with three teams.
+ * (Delegates to cardkit-core.)
  */
 fun teammatesOf(seat: Seat, playerCount: Int, teamCount: Int): List<Seat> =
-    (0 until playerCount).map(::Seat).filter { it != seat && teamOf(it, teamCount) == teamOf(seat, teamCount) }
+    io.github.rotundtapir.cardkit.core.teammatesOf(seat, playerCount, teamCount)
 
 /** The winning bid and who made it. */
 @Serializable
