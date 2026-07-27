@@ -106,18 +106,18 @@ class PacingGatesTest {
 
     @Test
     fun `off is inert - no gate suspends`() = runTest {
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
         var done = false
-        val job = launch { gates.awaitGates(testView()); done = true }
+        val job = launch { gates.awaitGates(testView().transitions); done = true }
         runCurrent()
         assertTrue(job.isCompleted && done, "OFF must not suspend on a fresh-hand view")
     }
 
     @Test
     fun `deal gate waits for the deal-animation signal at NORMAL`() = runTest {
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
         var done = false
-        val job = launch { gates.awaitGates(testView(handNumber = 1)); done = true }
+        val job = launch { gates.awaitGates(testView(handNumber = 1).transitions); done = true }
         advanceTimeBy(50)
         runCurrent()
         assertFalse(done, "should still be waiting for the deal signal")
@@ -129,11 +129,11 @@ class PacingGatesTest {
 
     @Test
     fun `preAcknowledge lets a snapshot pass the deal gate without a signal`() = runTest {
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
         val view = testView(handNumber = 2)
-        gates.preAcknowledge(view)
+        gates.preAcknowledge(view.transitions)
         var done = false
-        val job = launch { gates.awaitGates(view); done = true }
+        val job = launch { gates.awaitGates(view.transitions); done = true }
         advanceUntilIdle()
         assertTrue(done, "a pre-acknowledged view must not block on the deal signal")
         job.cancel()
@@ -145,7 +145,7 @@ class OnlineGameSessionTest {
     @Test
     fun `publishes views in order and tracks stateVersion`() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
         val session = OnlineGameSession(gates, scope)
         session.start()
         session.offer(ViewUpdate(1, testView(handNumber = 1), turnRemainingMillis = null), snapshot = true)
@@ -159,7 +159,7 @@ class OnlineGameSessionTest {
     @Test
     fun `snapshot bypasses the deal gate at NORMAL`() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
         val session = OnlineGameSession(gates, scope)
         session.start()
         // A hand-start view would normally wait for the deal signal; as a snapshot it publishes now.
@@ -172,7 +172,7 @@ class OnlineGameSessionTest {
     @Test
     fun `applyOptimistic shows the move at once, keeps the authoritative version, and revert restores it`() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
         val session = OnlineGameSession(gates, scope)
         session.start()
         session.offer(ViewUpdate(7, testView(phase = Phase.PLAY, toAct = Seat(0)), turnRemainingMillis = null), snapshot = true)
@@ -193,7 +193,7 @@ class OnlineGameSessionTest {
     @Test
     fun `revertOptimistic is a no-op when nothing is pending`() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
         val session = OnlineGameSession(gates, scope)
         session.start()
         session.offer(ViewUpdate(2, testView(toAct = Seat(3)), turnRemainingMillis = null), snapshot = true)
@@ -244,12 +244,12 @@ class OnlineGameSessionTest {
     @Test
     fun `views past a hand's start hold until the result is acked and the deal has run`() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
         val session = OnlineGameSession(gates, scope)
         session.start()
         // Mid-hand snapshot of hand 1 (pre-acknowledged like OnlineViewModel does for snapshots).
         val snapshot = testView(handNumber = 1, phase = Phase.PLAY, trickNumber = 5, toAct = Seat(0))
-        gates.preAcknowledge(snapshot)
+        gates.preAcknowledge(snapshot.transitions)
         session.offer(ViewUpdate(9, snapshot, turnRemainingMillis = null), snapshot = true)
         advanceUntilIdle()
 
@@ -280,11 +280,11 @@ class OnlineGameSessionTest {
     @Test
     fun `reset releases a consumer parked on the reveal gate`() = runTest {
         val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
-        val gates = PacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.NORMAL), MutableStateFlow(false))
         val session = OnlineGameSession(gates, scope)
         session.start()
         val snapshot = testView(handNumber = 1, phase = Phase.PLAY, trickNumber = 5, toAct = Seat(0))
-        gates.preAcknowledge(snapshot)
+        gates.preAcknowledge(snapshot.transitions)
         session.offer(ViewUpdate(9, snapshot, turnRemainingMillis = null), snapshot = true)
         advanceUntilIdle()
         val (handStart, firstBid, _) = nextHandViews()

@@ -7,7 +7,7 @@ import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Suit
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
-import io.github.rotundtapir.fivehundred.PacingGates
+import io.github.rotundtapir.fivehundred.fiveHundredPacingGates
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.PlayerView
@@ -82,7 +82,7 @@ class OnlineViewModel(
     val animationSpeed = MutableStateFlow(AnimationSpeed.NORMAL)
     val holdTricks = MutableStateFlow(false)
 
-    private val pacing = PacingGates(animationSpeed, holdTricks)
+    private val pacing = fiveHundredPacingGates(animationSpeed, holdTricks)
     val session = OnlineGameSession(pacing, viewModelScope)
 
     private val _screen = MutableStateFlow(OnlineScreen.ENTRY)

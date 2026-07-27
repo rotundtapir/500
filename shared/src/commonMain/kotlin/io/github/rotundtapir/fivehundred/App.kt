@@ -17,6 +17,7 @@ import io.github.rotundtapir.cardkit.ui.AppConfig
 import io.github.rotundtapir.cardkit.ui.AppDistribution
 import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
+import io.github.rotundtapir.cardkit.ui.pacing.rememberTableSoundEffects
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.net.Distribution
@@ -95,7 +96,7 @@ fun FiveHundredApp(
     val soundVolume = soundVolumeOverride ?: persistedVolume
     // One sound engine for the whole app: reacts to game-state transitions, and hands back a play
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
-    val playSound = rememberGameSoundEffects(view = view, volume = soundVolume)
+    val playSound = rememberTableSoundEffects(view = view?.transitions, volume = soundVolume)
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
     // Tutorial voice narration: the toggle is persisted; playback additionally requires a nonzero
     // master volume (at 0 no audio object is ever created — the -no-audio emulator rule).
