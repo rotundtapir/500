@@ -299,11 +299,8 @@ class FiveHundredRules(
         return order[state.currentTrick.size]
     }
 
-    private fun playOrder(leader: Seat, active: List<Seat>): List<Seat> {
-        val ordered = active.sortedBy { it.index }
-        val start = ordered.indexOf(leader)
-        return List(ordered.size) { ordered[(start + it) % ordered.size] }
-    }
+    private fun playOrder(leader: Seat, active: List<Seat>): List<Seat> =
+        io.github.rotundtapir.cardkit.core.playOrder(leader, active)
 
     private fun legalPlaysFor(state: GameState, seat: Seat): List<Card> {
         val hand = state.hands[seat].orEmpty()
