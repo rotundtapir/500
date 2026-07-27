@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardHand
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialAnchors
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
+import io.github.rotundtapir.cardkit.ui.tutorial.tutorialTarget
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
@@ -56,7 +59,7 @@ internal fun ActionArea(
     onBid: (Bid) -> Unit,
     onDiscard: (List<Card>) -> Unit,
     onPlay: (Card) -> Unit,
-    tutorial: TutorialScriptState? = null,
+    tutorial: TutorialScriptState<TutorialStep>? = null,
     targets: TutorialAnchors? = null,
     // Tutorial: peek-scroll the hand on the kitty-exchange step so the off-screen cards are seen.
     peekDiscardHand: Boolean = false,

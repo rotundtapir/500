@@ -18,6 +18,9 @@ import io.github.rotundtapir.cardkit.ui.AppDistribution
 import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.cardkit.ui.pacing.rememberTableSoundEffects
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrationState
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
+import io.github.rotundtapir.cardkit.ui.tutorial.rememberNarrationPlayer
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
 import io.github.rotundtapir.fivehundred.net.Distribution
@@ -29,12 +32,10 @@ import io.github.rotundtapir.fivehundred.ui.BotSetupScreen
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameScreen
 import io.github.rotundtapir.fivehundred.ui.HomeScreen
-import io.github.rotundtapir.fivehundred.ui.NarrationState
 import io.github.rotundtapir.fivehundred.ui.SettingsControls
 import io.github.rotundtapir.fivehundred.ui.TUTORIAL_SEED
-import io.github.rotundtapir.fivehundred.ui.TutorialScriptState
+import io.github.rotundtapir.fivehundred.ui.tutorialSteps
 import io.github.rotundtapir.fivehundred.ui.online.OnlineFlow
-import io.github.rotundtapir.fivehundred.ui.rememberNarrationPlayer
 import kotlinx.coroutines.launch
 
 /**
@@ -213,7 +214,7 @@ fun FiveHundredApp(
                     tutorialActive = false
                 },
                 tutorial = if (tutorialActive) {
-                    TutorialScriptState(tutorialStepIndex) { tutorialStepIndex++ }
+                    TutorialScriptState(tutorialSteps, tutorialStepIndex) { tutorialStepIndex++ }
                 } else null,
                 narration = if (tutorialActive) narration else null,
                 onResultDismiss = vm::acknowledgeHandResult,

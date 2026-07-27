@@ -3,230 +3,44 @@ package io.github.rotundtapir.fivehundred.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.SubcomposeLayout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
 import io.github.rotundtapir.cardkit.ui.SuitText
-import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
+import io.github.rotundtapir.cardkit.ui.tutorial.CardFaceDialog
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrationState
+import io.github.rotundtapir.cardkit.ui.tutorial.ReaderTextButton
+import io.github.rotundtapir.cardkit.ui.tutorial.ReaderTitle
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialPagesDialog
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.ScoreSchedule
 import io.github.rotundtapir.fivehundred.engine.Trump
 
-// ------------------------------------------------------------------------------------------------
-// The "card face" reading surface, shared by the tutorial primer/epilogue pages and the rules.
-//
-// These dialogs are prose to READ, so they sit on a fixed card-white face in BOTH theme modes —
-// like the playing cards and the tutorial bubble — with fixed inks (the felt conventions rule:
-// fixed surface ⇒ fixed ink). This also keeps SuitText's black ♠♣ glyphs legible, which vanish on
-// the dark theme's dialog surface on web.
-// ------------------------------------------------------------------------------------------------
+// The "card face" reading surface (CardFaceDialog, ReaderTitle, ReaderTextButton, the paged
+// TutorialPagesDialog) lives in cardkit-ui (io.github.rotundtapir.cardkit.ui.tutorial); what
+// follows is 500's content on it: the tutorial primer and the rules reference.
 
-/** Near-black body ink on the card face, softer than pure black against the bright ground. */
-private val ReaderInk = Color(0xFF1F2A20)
-
-/** Faint green for dividers, inactive page dots, and the bid table's ground. */
+/** Faint green for dividers and the bid table's ground. */
 private val ReaderTint = Color(0xFFE7F0E7)
-
-/** A dialog styled as a large card face: fixed white, rounded, floating above the felt. */
-@Composable
-private fun CardFaceDialog(
-    onDismissRequest: () -> Unit,
-    modifier: Modifier = Modifier,
-    testTag: String? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Dialog(onDismissRequest = onDismissRequest) {
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = CardSurfaceWhite,
-            contentColor = ReaderInk,
-            shadowElevation = 12.dp,
-            modifier = modifier
-                .widthIn(max = 520.dp)
-                .let { if (testTag != null) it.testTag(testTag) else it },
-        ) {
-            Column(content = content)
-        }
-    }
-}
-
-/** A heading in the fixed green ink — the card face's accent color in both theme modes. */
-@Composable
-private fun ReaderTitle(text: String, modifier: Modifier = Modifier) {
-    Text(
-        text,
-        color = InkOnCardSurface,
-        style = MaterialTheme.typography.titleLarge,
-        fontWeight = FontWeight.SemiBold,
-        modifier = modifier,
-    )
-}
-
-/** A text button whose ink is pinned to the card face (theme `primary` washes out in dark mode). */
-@Composable
-private fun ReaderTextButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    emphasized: Boolean = false,
-) {
-    TextButton(
-        onClick = onClick,
-        colors = ButtonDefaults.textButtonColors(contentColor = InkOnCardSurface),
-        modifier = modifier,
-    ) {
-        Text(label, fontWeight = if (emphasized) FontWeight.Bold else FontWeight.Medium)
-    }
-}
-
-/** One dot per page, the current one filled solid. */
-@Composable
-private fun PageDots(count: Int, current: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-        repeat(count) { index ->
-            Box(
-                Modifier
-                    .size(8.dp)
-                    .background(
-                        color = if (index == current) InkOnCardSurface else InkOnCardSurface.copy(alpha = 0.25f),
-                        shape = CircleShape,
-                    ),
-            )
-        }
-    }
-}
-
-/**
- * A paged card-face dialog over [pages] with dot progress and Back/Next navigation. Used for the
- * tutorial primer (dismissable, finishing deals the hand) and the epilogue (not dismissable,
- * finishing exits to home). [lastPageTag] tags the dialog surface only on the final page, which is
- * how the instrumented tests recognise the completion page.
- */
-@Composable
-internal fun TutorialPagesDialog(
-    pages: List<TutorialPage>,
-    nextTag: String,
-    finishLabel: String,
-    finishTag: String,
-    onFinish: () -> Unit,
-    onDismiss: (() -> Unit)? = null,
-    lastPageTag: String? = null,
-    uniformBodyHeight: Boolean = false,
-    narration: NarrationState? = null,
-) {
-    var page by rememberSaveable { mutableIntStateOf(0) }
-    val onLastPage = page == pages.lastIndex
-    NarrateEffect(narration, pages[page].body)
-    CardFaceDialog(
-        onDismissRequest = { onDismiss?.invoke() },
-        testTag = lastPageTag?.takeIf { onLastPage },
-    ) {
-        Column(Modifier.padding(horizontal = 24.dp).padding(top = 22.dp, bottom = 8.dp)) {
-            // Stable geometry across pages so Next/Back never move under a reader's thumb: when
-            // uniformBodyHeight is set, every page is measured at the real width and the body takes
-            // the tallest — nothing clips on narrow phones or large font scales, and the chrome
-            // never jumps. Otherwise a simple minimum height.
-            if (uniformBodyHeight) {
-                TallestPageBody(pages, page)
-            } else {
-                Column(Modifier.heightIn(min = 180.dp)) { PageBody(pages[page]) }
-            }
-            Spacer(Modifier.height(12.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                PageDots(pages.size, page)
-                if (narration != null) {
-                    NarrationToggle(narration, compact = true, tint = InkOnCardSurface)
-                }
-                Spacer(Modifier.weight(1f))
-                when {
-                    page > 0 -> ReaderTextButton("Back", onClick = { page-- })
-                    onDismiss != null -> ReaderTextButton("Cancel", onClick = onDismiss)
-                }
-                if (onLastPage) {
-                    ReaderTextButton(
-                        finishLabel,
-                        onClick = onFinish,
-                        emphasized = true,
-                        modifier = Modifier.testTag(finishTag),
-                    )
-                } else {
-                    ReaderTextButton(
-                        "Next",
-                        onClick = { page++ },
-                        emphasized = true,
-                        modifier = Modifier.testTag(nextTag),
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** One page's title + body, shared by the live page and the measurement pass. */
-@Composable
-private fun PageBody(page: TutorialPage, modifier: Modifier = Modifier) {
-    Column(modifier) {
-        ReaderTitle(page.title)
-        Spacer(Modifier.height(10.dp))
-        SuitText(page.body, fontSize = 16.sp, lineHeight = 24.sp)
-    }
-}
-
-/**
- * Shows [current]'s body inside a slot sized to the TALLEST of [pages] at the real width: the
- * pager's chrome (dots, toggles, buttons) never moves between pages, and no page ever clips —
- * regardless of screen width or the user's font scale. Height is still capped by the dialog's
- * constraints; a (pathological) overflow falls back to clipping the bottom padding first.
- */
-@Composable
-private fun TallestPageBody(pages: List<TutorialPage>, current: Int, modifier: Modifier = Modifier) {
-    SubcomposeLayout(modifier) { constraints ->
-        val loose = constraints.copy(minWidth = constraints.maxWidth, minHeight = 0)
-        val tallest = pages.mapIndexed { index, page ->
-            subcompose("measure-$index") { PageBody(page) }
-                .maxOf { it.measure(loose).height }
-        }.max().coerceAtMost(constraints.maxHeight)
-        val placeables = subcompose("current") { PageBody(pages[current]) }
-            .map { it.measure(loose) }
-        layout(constraints.maxWidth, tallest) {
-            placeables.forEach { it.place(0, 0) }
-        }
-    }
-}
 
 // ------------------------------------------------------------------------------------------------
 // Tutorial primer (home screen → "How to play" → these pages → the interactive scripted hand)
@@ -252,6 +66,7 @@ fun TutorialIntroDialog(
         onDismiss = onDismiss,
         uniformBodyHeight = true,
         narration = narration,
+        narrationUriFor = ::narrationUriFor,
     )
 }
 

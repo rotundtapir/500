@@ -1,37 +1,23 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.ui
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.core.Joker
@@ -43,6 +29,11 @@ import io.github.rotundtapir.cardkit.ui.PlayingCard
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
+import io.github.rotundtapir.cardkit.ui.tutorial.BubbleLayout
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrateEffect
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrationState
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialAnchors
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import kotlin.math.roundToInt
@@ -54,7 +45,7 @@ import kotlin.math.roundToInt
  */
 @Composable
 internal fun TutorialBubble(
-    tutorial: TutorialScriptState,
+    tutorial: TutorialScriptState<TutorialStep>,
     view: PlayerView,
     botNames: Map<Seat, String>,
     anchors: TutorialAnchors,
@@ -92,7 +83,7 @@ internal fun TutorialBubble(
     val tailDown = targetKey != "trick"
     val target = anchors[targetKey] ?: anchors["hand"] ?: anchors["trick"] ?: return
     val showTrumpOrder = isHumanDecision && step?.showTrumpOrder == true
-    NarrateEffect(narration, text)
+    NarrateEffect(narration, text, uriFor = ::narrationUriFor)
 
     BubbleLayout(
         target = target,
@@ -124,31 +115,6 @@ internal fun TutorialBubble(
                 }
             }
         }
-    }
-}
-
-/** The bubble's little triangular tail, slid horizontally to point at the anchor. */
-@Composable
-internal fun BubbleTail(pointUp: Boolean, offsetX: () -> Int) {
-    val tailColor = Color(0xFFFAFAFA)
-    Canvas(
-        modifier = Modifier
-            .offset { IntOffset(offsetX().coerceAtLeast(0), 0) }
-            .size(26.dp, 12.dp),
-    ) {
-        val path = Path().apply {
-            if (pointUp) {
-                moveTo(0f, size.height)
-                lineTo(size.width, size.height)
-                lineTo(size.width / 2f, 0f)
-            } else {
-                moveTo(0f, 0f)
-                lineTo(size.width, 0f)
-                lineTo(size.width / 2f, size.height)
-            }
-            close()
-        }
-        drawPath(path, tailColor)
     }
 }
 
