@@ -2,8 +2,9 @@
 package io.github.rotundtapir.fivehundred.online
 
 import io.github.rotundtapir.cardkit.core.Seat
-import io.github.rotundtapir.fivehundred.PacingGates
+import io.github.rotundtapir.cardkit.ui.pacing.PacingGates
 import io.github.rotundtapir.fivehundred.engine.Phase
+import io.github.rotundtapir.fivehundred.transitions
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
 import kotlinx.coroutines.CoroutineScope
@@ -142,7 +143,7 @@ class OnlineGameSession(
         // server-paced auction visibly advances behind the result dialog.
         val handStartView = view.phase == Phase.BIDDING && view.biddingHistory.isEmpty()
         if (!instant && view.winner == null && !handStartView) {
-            pacing.awaitHandRevealed(view)
+            pacing.awaitHandRevealed(view.transitions)
             if (gen != generation) return // reset() ran during the hold — dead game's view
         }
         if (!instant && previousActor != null && previousActor != view.seat) {

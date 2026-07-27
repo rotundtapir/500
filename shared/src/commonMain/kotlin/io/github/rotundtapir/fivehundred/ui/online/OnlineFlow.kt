@@ -37,7 +37,8 @@ import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.fivehundred.net.ConnectionState
-import io.github.rotundtapir.fivehundred.rememberGameSoundEffects
+import io.github.rotundtapir.cardkit.ui.pacing.rememberTableSoundEffects
+import io.github.rotundtapir.fivehundred.transitions
 import io.github.rotundtapir.fivehundred.online.OnlineScreen
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.ui.GameMode
@@ -189,7 +190,7 @@ private fun OnlineGame(
     val view by vm.session.views.collectAsState()
     val seatNames by vm.seatNames.collectAsState()
     // Called unconditionally (before the null branch) to satisfy Compose's stable-call-order rule.
-    val playSound = rememberGameSoundEffects(view = view, volume = soundVolume)
+    val playSound = rememberTableSoundEffects(view = view?.transitions, volume = soundVolume)
     // Stable across recompositions so GameScreen's incoming-emote collector isn't restarted.
     val onlineControls = remember(vm) { OnlineGameControls(vm.emotes, vm::sendEmote) }
 

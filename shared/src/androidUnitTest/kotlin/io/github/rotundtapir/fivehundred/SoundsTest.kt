@@ -3,6 +3,7 @@ package io.github.rotundtapir.fivehundred
 
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.SoundEffect
+import io.github.rotundtapir.cardkit.ui.pacing.soundEffectsFor
 import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
@@ -39,8 +40,8 @@ class SoundsTest {
     @Test
     fun `a null on either side of the transition triggers nothing`() {
         val some = seatViews(2024L).first()
-        assertEquals(emptyList(), soundEffectsFor(null, some))
-        assertEquals(emptyList(), soundEffectsFor(some, null))
+        assertEquals(emptyList(), soundEffectsFor(null, some.transitions))
+        assertEquals(emptyList(), soundEffectsFor(some.transitions, null))
         assertEquals(emptyList(), soundEffectsFor(null, null))
     }
 
@@ -52,7 +53,7 @@ class SoundsTest {
         var sawTrickTaken = false
         var sawScore = false
         views.zipWithNext { prev, next ->
-            val effects = soundEffectsFor(prev, next)
+            val effects = soundEffectsFor(prev.transitions, next.transitions)
             assertEquals(
                 next.currentTrick.size > prev.currentTrick.size,
                 SoundEffect.CARD_PLACE in effects,
@@ -87,6 +88,6 @@ class SoundsTest {
         val doubled = afterFirstScore.copy(
             handResults = afterFirstScore.handResults + afterFirstScore.handResults.last(),
         )
-        assertTrue(SoundEffect.SCORE in soundEffectsFor(afterFirstScore, doubled))
+        assertTrue(SoundEffect.SCORE in soundEffectsFor(afterFirstScore.transitions, doubled.transitions))
     }
 }

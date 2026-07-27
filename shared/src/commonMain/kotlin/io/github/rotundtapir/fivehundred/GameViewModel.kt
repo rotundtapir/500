@@ -54,8 +54,8 @@ class GameViewModel : ViewModel() {
     /** Whether completed tricks stay on the felt until tapped away — set live from the UI toggle. */
     val holdTricks = MutableStateFlow(false)
 
-    /** Signal-driven pacing shared with the online client; see [PacingGates]. */
-    private val pacing = PacingGates(animationSpeed, holdTricks)
+    /** Signal-driven pacing shared with the online client; see [fiveHundredPacingGates]. */
+    private val pacing = fiveHundredPacingGates(animationSpeed, holdTricks)
 
     /** Called by the UI when the hand-result dialog is dismissed; unblocks the next hand. */
     fun acknowledgeHandResult(handNumber: Int) = pacing.acknowledgeHandResult(handNumber)
@@ -143,10 +143,10 @@ class GameViewModel : ViewModel() {
             )
         }
 
-    /** Wraps a bot so its turns are visibly paced by the current [animationSpeed] (see [PacingGates]). */
+    /** Wraps a bot so its turns are visibly paced by the current [animationSpeed] (see [fiveHundredPacingGates]). */
     private fun paced(inner: Player<PlayerView, Action>): Player<PlayerView, Action> =
         Player { view ->
-            pacing.awaitGates(view)
+            pacing.awaitGates(view.transitions)
             delay(pacing.botBeatMillis)
             inner.decide(view)
         }
