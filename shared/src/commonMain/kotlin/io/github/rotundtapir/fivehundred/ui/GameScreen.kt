@@ -43,6 +43,13 @@ import io.github.rotundtapir.cardkit.ui.deal.DealingHandRow
 import io.github.rotundtapir.cardkit.ui.deal.FlyingDealCard
 import io.github.rotundtapir.cardkit.ui.deal.dealTimings
 import io.github.rotundtapir.cardkit.ui.deal.runDealAnimation
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrationState
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrationToggle
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialAnchors
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialPage
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialPagesDialog
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
+import io.github.rotundtapir.cardkit.ui.tutorial.tutorialTarget
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.HAND_SIZE
@@ -65,7 +72,7 @@ fun GameScreen(
     onPlay: (Card) -> Unit,
     onExit: () -> Unit,
     modifier: Modifier = Modifier,
-    tutorial: TutorialScriptState? = null,
+    tutorial: TutorialScriptState<TutorialStep>? = null,
     // Non-null while the tutorial narrates: drives the top-bar mute toggle and the spoken bubble.
     narration: NarrationState? = null,
     onResultDismiss: (Int) -> Unit = {},
@@ -319,6 +326,7 @@ fun GameScreen(
             onFinish = onExit,
             lastPageTag = "tutorialComplete",
             narration = narration,
+            narrationUriFor = ::narrationUriFor,
         )
     }
 }

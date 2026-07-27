@@ -6,8 +6,13 @@ import io.github.rotundtapir.cardkit.core.Joker
 import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Suit
 import io.github.rotundtapir.cardkit.core.of
+import io.github.rotundtapir.cardkit.ui.tutorial.NarrationLine
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialPage
+import io.github.rotundtapir.cardkit.ui.tutorial.cardSpeechText
+import io.github.rotundtapir.fivehundred.generated.resources.Res
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.Trump
+import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 /**
  * The interactive "How to play" tutorial: a real 4-player hand on a fixed seed, replayed through the
@@ -50,9 +55,6 @@ sealed interface TutorialStep {
         override val showTrumpOrder: Boolean = false,
     ) : TutorialStep
 }
-
-/** A titled page of tutorial prose, shown in the paged card dialogs before and after the hand. */
-data class TutorialPage(val title: String, val body: String)
 
 /** The primer's hand-over page: what the scripted tutorial hand is about to do. */
 const val TUTORIAL_INTRO =
@@ -247,14 +249,9 @@ val tutorialTrickNotes: Map<Int, String> = mapOf(
 /** Bubble text once the scripted hand is over, behind the hand-result dialog; also narrated. */
 const val TUTORIAL_HAND_DONE = "That's the whole hand. See how it scored."
 
-/** One narrated tutorial line: [id] is the stable stem of its audio asset (files/narration/<id>.mp3). */
-data class NarrationLine(val id: String, val text: String)
-
 // Declared before tutorialNarration below: top-level initializers run in file order, and
 // speechText needs these at class-init time.
-private val CARD_NOTATION = Regex("(10|[2-9AKQJ])([♠♥♦♣])")
 private val NO_TRUMP_BID = Regex("\\b(10|[6-9])NT\\b")
-private val PLUS_POINTS = Regex("\\+(\\d+)")
 
 /**
  * Phrase-level speech substitutions where synthesizers stumble on the written form. RULE: a
@@ -268,13 +265,6 @@ private val SPEECH_SUBSTITUTIONS = listOf(
     // Reading the parenthetical verbatim repeats the word: "seven, seven of spades or higher".
     "seven (7♠ or higher)" to "7♠ or higher",
 )
-
-/**
- * An all-caps EMPHASIS word ("JACKS OUTRANK THE ACE", "BLACK"). Synthesizers read these as
- * acronyms or letter-spell them ("B-lack"); spoken text folds them to lowercase. Runs after the
- * notation rules, so "NT" is already "no trumps" by then.
- */
-private val SHOUTED_WORD = Regex("\\b[A-Z]{2,}\\b")
 
 // Every display text the tutorial shows, with the stable id of its narration clip. The clip audio
 // is pre-generated from these by scripts/generate-narration.sh (Piper TTS); NarrationManifestTest
@@ -303,30 +293,21 @@ private val narrationIdByDisplay: Map<String, String> =
 fun narrationIdFor(displayText: String): String? = narrationIdByDisplay[displayText]
 
 /**
- * Expands card-table notation for the synthesizer: "J♠" → "jack of spades", "10NT" →
- * "10 no trumps", "+140" → "plus 140". Everything else is spoken as written.
+ * Expands card-table notation for the synthesizer via cardkit's [cardSpeechText]: "J♠" →
+ * "jack of spades", "+140" → "plus 140", with 500's own no-trump notation ("10NT" →
+ * "10 no trumps") passed as a notation rule so it expands before the shouted-word fold.
  */
-fun speechText(display: String): String = SPEECH_SUBSTITUTIONS
-    .fold(display) { text, (from, to) -> text.replace(from, to) }
-    .replace(CARD_NOTATION) { m ->
-        val rank = when (val r = m.groupValues[1]) {
-            "A" -> "ace"; "K" -> "king"; "Q" -> "queen"; "J" -> "jack"
-            else -> r
-        }
-        val suit = when (m.groupValues[2]) {
-            "♠" -> "spades"; "♥" -> "hearts"; "♦" -> "diamonds"; else -> "clubs"
-        }
-        "$rank of $suit"
-    }
-    .replace(NO_TRUMP_BID) { m -> "${m.groupValues[1]} no trumps" }
-    .replace(PLUS_POINTS) { m -> "plus ${m.groupValues[1]}" }
-    .replace(SHOUTED_WORD) { m -> m.value.lowercase() }
+fun speechText(display: String): String = cardSpeechText(
+    display,
+    substitutions = SPEECH_SUBSTITUTIONS,
+    notationRules = listOf(NO_TRUMP_BID to { m: MatchResult -> "${m.groupValues[1]} no trumps" }),
+)
 
 /**
- * The live tutorial state handed to [GameScreen]: the index of the next human decision in
- * [tutorialSteps], and how to advance it once that decision is taken.
+ * The narration clip URI for a display text the tutorial UI is showing (see [narrationIdFor]),
+ * or null for dynamic texts with no pre-generated clip. Passed to cardkit's NarrateEffect and
+ * TutorialPagesDialog, which own the playback but not the game's clip lookup.
  */
-class TutorialScriptState(val stepIndex: Int, val onAdvance: () -> Unit) {
-    /** The pending human decision, or null once the scripted hand is over. */
-    val step: TutorialStep? get() = tutorialSteps.getOrNull(stepIndex)
-}
+@OptIn(ExperimentalResourceApi::class)
+fun narrationUriFor(displayText: String): String? =
+    narrationIdFor(displayText)?.let { Res.getUri("files/narration/$it.mp3") }

@@ -52,6 +52,8 @@ import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
 import io.github.rotundtapir.cardkit.ui.felt.OpponentTeamColors
 import io.github.rotundtapir.cardkit.ui.felt.PartnerHighlight
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
+import io.github.rotundtapir.cardkit.ui.tutorial.TutorialAnchors
+import io.github.rotundtapir.cardkit.ui.tutorial.tutorialTarget
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase
