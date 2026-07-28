@@ -54,12 +54,7 @@ class AdvancedAiFlowTest {
         },
     )
 
-    private fun hasTestTagPrefix(prefix: String) =
-        SemanticsMatcher("testTag starts with '$prefix'") { node ->
-            node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(prefix) == true
-        }
-
-    private val clickableCard = hasClickAction() and hasAnyDescendant(hasTestTagPrefix("card:"))
+    private val clickableCard = hasClickAction() and hasAnyDescendant(cardFace())
 
     private fun textExists(text: String, substring: Boolean = false): Boolean =
         rule.onAllNodes(
