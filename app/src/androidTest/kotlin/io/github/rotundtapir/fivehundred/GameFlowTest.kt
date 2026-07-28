@@ -69,14 +69,8 @@ class GameFlowTest {
     // Semantics helpers
     // ---------------------------------------------------------------------------------------------
 
-    /** Matches nodes whose testTag starts with [prefix] (cards are tagged `card:<label>`). */
-    private fun hasTestTagPrefix(prefix: String) =
-        SemanticsMatcher("testTag starts with '$prefix'") { node ->
-            node.config.getOrNull(SemanticsProperties.TestTag)?.startsWith(prefix) == true
-        }
-
     /** A face-up card the human can currently tap (its wrapper is clickable only when legal). */
-    private val clickableCard = hasClickAction() and hasAnyDescendant(hasTestTagPrefix("card:"))
+    private val clickableCard = hasClickAction() and hasAnyDescendant(cardFace())
 
     private fun textExists(text: String, substring: Boolean = false): Boolean =
         rule.onAllNodes(
@@ -90,8 +84,11 @@ class GameFlowTest {
     private fun waitForText(text: String, substring: Boolean = false) =
         rule.waitUntil(STEP_TIMEOUT_MS) { textExists(text, substring) }
 
+    // Counts every card face on screen. cardkit tags them all, so this is deliberately global —
+    // safe only because this shell never composes CardArtWarmup (54 more, visible to unmerged-tree
+    // finders even though it clears its merged semantics). Scope it if that ever changes.
     private fun cardsOnScreen(): Int =
-        rule.onAllNodes(hasTestTagPrefix("card:"), useUnmergedTree = true).fetchSemanticsNodes().size
+        rule.onAllNodes(cardFace(), useUnmergedTree = true).fetchSemanticsNodes().size
 
     private fun clickableCards() = rule.onAllNodes(clickableCard, useUnmergedTree = true)
 
