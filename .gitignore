@@ -30,3 +30,6 @@ Thumbs.db
 *.log
 .claude/
 docs/fdroid/
+
+# Cross-session agent mailbox (inbound messages from sibling repo sessions), never committed
+/agent-mail/
