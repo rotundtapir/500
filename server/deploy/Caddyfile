@@ -7,14 +7,7 @@
 	# acme_ca https://acme-staging-v02.api.letsencrypt.org/directory
 }
 
-{$SERVER_DOMAIN} {
-	encode gzip
-
-	# Admin + metrics are for on-box use only (docker compose exec / curl over SSH); never expose them.
-	respond /admin* 403
-	respond /metrics 403
-
-	# Caddy proxies WebSocket upgrades transparently and does not time out established streams, so
-	# long-lived game sockets are safe with no extra config. It sets X-Forwarded-For for the server.
-	reverse_proxy server:8080
-}
+# One vhost file per game, each dropped in by that game's own deploy job. 500's lives in
+# sites/500.caddy in this repo; a second game (euchre) adds its own without touching this file or
+# 500's, which is what lets the two deploy independently through one Caddy.
+import /etc/caddy/sites/*.caddy

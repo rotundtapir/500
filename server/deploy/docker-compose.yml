@@ -5,6 +5,7 @@
 services:
   caddy:
     image: caddy:2-alpine
+    container_name: 500-caddy         # stable name so another game's deploy can reload this Caddy
     restart: unless-stopped
     ports:
       - "80:80"
@@ -12,12 +13,15 @@ services:
       - "443:443/udp"   # HTTP/3
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Per-game vhosts, one file each. Games other than 500 rsync theirs in here.
+      - /opt/caddy-sites:/etc/caddy/sites:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
       SERVER_DOMAIN: ${SERVER_DOMAIN:-500.29022617.xyz}
       ACME_EMAIL: ${ACME_EMAIL:-rotund_tapir@protonmail.com}
     mem_limit: 128m
+    networks: [default, edge]
     depends_on:
       - server
 
@@ -28,20 +32,28 @@ services:
     expose:
       - "8080"                         # internal only — never map to a host port
     environment:
-      JAVA_OPTS: "-Xms64m -Xmx256m -XX:MaxMetaspaceSize=96m"
+      # Retuned to leave room for a second game server on the same 1 GB box (see the runbook).
+      JAVA_OPTS: "-Xms32m -Xmx144m -XX:MaxMetaspaceSize=80m"
       TRUST_PROXY: "true"              # X-Forwarded-For comes from Caddy
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://rotundtapir.github.io}
       MIN_APP_VERSION: ${MIN_APP_VERSION:-0.3.0}
       DATA_DIR: "/data"                # room snapshots: in-flight games survive a restart/deploy
     volumes:
       - server_data:/data
-    mem_limit: 512m
+    mem_limit: 288m
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 40s
+
+# Caddy also joins an external network so it can reach another game's server container, which lives
+# in its own compose project. Create it once with `docker network create edge`.
+networks:
+  edge:
+    name: edge
+    external: true
 
 volumes:
   caddy_data:
