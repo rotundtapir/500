@@ -30,7 +30,7 @@ object FiveHundredDescriptor : GameDescriptor<GameState, Action, PlayerView, Lob
     override val stateSerializer = GameState.serializer()
     override val configSerializer = LobbyConfig.serializer()
 
-    override fun bot(): Strategy<PlayerView, Action> = FiveHundredBot()
+    override fun bot(config: LobbyConfig): Strategy<PlayerView, Action> = FiveHundredBot()
 
     override fun rulesFor(config: LobbyConfig): GameRules<GameState, Action, PlayerView> = FiveHundredRules(
         playerCount = config.playerCount,
