@@ -36,7 +36,7 @@ import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
-import io.github.rotundtapir.fivehundred.net.ConnectionState
+import io.github.rotundtapir.cardkit.net.ConnectionState
 import io.github.rotundtapir.cardkit.ui.pacing.rememberTableSoundEffects
 import io.github.rotundtapir.fivehundred.transitions
 import io.github.rotundtapir.fivehundred.online.OnlineScreen

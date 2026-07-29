@@ -1,16 +1,18 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.server
 
+import io.github.rotundtapir.cardkit.net.ClientMessage
+import io.github.rotundtapir.cardkit.net.ErrorCode
+import io.github.rotundtapir.cardkit.net.ErrorMessage
+import io.github.rotundtapir.cardkit.net.GameOver
+import io.github.rotundtapir.cardkit.net.ServerMessage
 import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
-import io.github.rotundtapir.fivehundred.net.ClientMessage
-import io.github.rotundtapir.fivehundred.net.ErrorCode
-import io.github.rotundtapir.fivehundred.net.ErrorMessage
-import io.github.rotundtapir.fivehundred.net.GameOver
+import io.github.rotundtapir.fivehundred.net.AnyViewUpdate
 import io.github.rotundtapir.fivehundred.net.LobbyState
-import io.github.rotundtapir.fivehundred.net.ServerMessage
 import io.github.rotundtapir.fivehundred.net.SubmitAction
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
 import io.github.rotundtapir.fivehundred.net.WireJson
+import io.github.rotundtapir.fivehundred.net.forFiveHundred
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
@@ -60,9 +62,12 @@ suspend fun DefaultClientWebSocketSession.playWithBotUntilGameOver(seed: Long = 
     while (true) {
         when (val message = nextMsg()) {
             is GameOver -> return message
-            is ViewUpdate -> if (message.view.isMyTurn) {
-                val action = bot.decide(message.view, rng)
-                sendMsg(SubmitAction(message.stateVersion, action))
+            is AnyViewUpdate -> {
+                val update = message.forFiveHundred()
+                if (update.view.isMyTurn) {
+                    val action = bot.decide(update.view, rng)
+                    sendMsg(SubmitAction(update.stateVersion, action))
+                }
             }
             // A STALE_ACTION can legitimately occur if a slow runner let the turn timeout fire and the
             // server's bot already played: our late move is simply obsolete, not a failure. The next

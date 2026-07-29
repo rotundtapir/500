@@ -7,10 +7,10 @@ import io.github.rotundtapir.cardkit.core.StrategyPlayer
 import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.engine.GameState
-import kotlinx.coroutines.test.runTest
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlinx.coroutines.test.runTest
 
 /**
  * The server's authority rests on the engine being deterministic from a seed. This proves the

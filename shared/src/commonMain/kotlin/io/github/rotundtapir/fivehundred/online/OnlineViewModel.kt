@@ -6,46 +6,50 @@ import androidx.lifecycle.viewModelScope
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Suit
+import io.github.rotundtapir.cardkit.net.ClientMessage
+import io.github.rotundtapir.cardkit.net.ConfigureLobby
+import io.github.rotundtapir.cardkit.net.ConnectionState
+import io.github.rotundtapir.cardkit.net.DisbandLobby
+import io.github.rotundtapir.cardkit.net.Distribution
+import io.github.rotundtapir.cardkit.net.Emote
+import io.github.rotundtapir.cardkit.net.EmoteReceived
+import io.github.rotundtapir.cardkit.net.ErrorCode
+import io.github.rotundtapir.cardkit.net.ErrorMessage
+import io.github.rotundtapir.cardkit.net.GameClient
+import io.github.rotundtapir.cardkit.net.GameOver
+import io.github.rotundtapir.cardkit.net.Hello
+import io.github.rotundtapir.cardkit.net.JoinLobby
+import io.github.rotundtapir.cardkit.net.KtorGameClient
+import io.github.rotundtapir.cardkit.net.LeaveLobby
+import io.github.rotundtapir.cardkit.net.LobbyDisbanded
+import io.github.rotundtapir.cardkit.net.OccupancyStatus
+import io.github.rotundtapir.cardkit.net.PickSeat
+import io.github.rotundtapir.cardkit.net.Platform
+import io.github.rotundtapir.cardkit.net.RequestRematch
+import io.github.rotundtapir.cardkit.net.ResumedState
+import io.github.rotundtapir.cardkit.net.RoomPhase
+import io.github.rotundtapir.cardkit.net.SeatStatus
+import io.github.rotundtapir.cardkit.net.SendEmote
+import io.github.rotundtapir.cardkit.net.ServerMessage
+import io.github.rotundtapir.cardkit.net.SetName
+import io.github.rotundtapir.cardkit.net.SetReady
+import io.github.rotundtapir.cardkit.net.StartGame
+import io.github.rotundtapir.cardkit.net.UpdateRequired
+import io.github.rotundtapir.cardkit.net.Welcome
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
-import io.github.rotundtapir.fivehundred.fiveHundredPacingGates
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.PlayerView
-import io.github.rotundtapir.fivehundred.net.ClientMessage
-import io.github.rotundtapir.fivehundred.net.ConfigureLobby
-import io.github.rotundtapir.fivehundred.net.ConnectionState
+import io.github.rotundtapir.fivehundred.fiveHundredPacingGates
+import io.github.rotundtapir.fivehundred.net.AnyLobbyState
+import io.github.rotundtapir.fivehundred.net.AnyViewUpdate
 import io.github.rotundtapir.fivehundred.net.CreateLobby
-import io.github.rotundtapir.fivehundred.net.DisbandLobby
-import io.github.rotundtapir.fivehundred.net.Emote
-import io.github.rotundtapir.fivehundred.net.EmoteReceived
-import io.github.rotundtapir.fivehundred.net.ErrorCode
-import io.github.rotundtapir.fivehundred.net.ErrorMessage
-import io.github.rotundtapir.fivehundred.net.GameClient
-import io.github.rotundtapir.fivehundred.net.GameOver
-import io.github.rotundtapir.fivehundred.net.Hello
-import io.github.rotundtapir.fivehundred.net.JoinLobby
-import io.github.rotundtapir.fivehundred.net.KtorGameClient
-import io.github.rotundtapir.fivehundred.net.LeaveLobby
-import io.github.rotundtapir.fivehundred.net.LobbyDisbanded
 import io.github.rotundtapir.fivehundred.net.LobbyState
-import io.github.rotundtapir.fivehundred.net.OccupancyStatus
 import io.github.rotundtapir.fivehundred.net.PROTOCOL_VERSION
-import io.github.rotundtapir.fivehundred.net.PickSeat
-import io.github.rotundtapir.fivehundred.net.Distribution
-import io.github.rotundtapir.fivehundred.net.Platform
-import io.github.rotundtapir.fivehundred.net.RequestRematch
-import io.github.rotundtapir.fivehundred.net.ResumedState
-import io.github.rotundtapir.fivehundred.net.RoomPhase
-import io.github.rotundtapir.fivehundred.net.SeatStatus
-import io.github.rotundtapir.fivehundred.net.SendEmote
-import io.github.rotundtapir.fivehundred.net.ServerMessage
-import io.github.rotundtapir.fivehundred.net.SetName
-import io.github.rotundtapir.fivehundred.net.SetReady
-import io.github.rotundtapir.fivehundred.net.StartGame
 import io.github.rotundtapir.fivehundred.net.SubmitAction
-import io.github.rotundtapir.fivehundred.net.UpdateRequired
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
-import io.github.rotundtapir.fivehundred.net.Welcome
+import io.github.rotundtapir.fivehundred.net.WireJson
+import io.github.rotundtapir.fivehundred.net.forFiveHundred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -72,7 +76,7 @@ enum class OnlineScreen { ENTRY, CREATE, JOIN, LOBBY, GAME }
  * factory is JVM-only and throws on wasm.
  */
 class OnlineViewModel(
-    private val client: GameClient = KtorGameClient(),
+    private val client: GameClient = KtorGameClient(WireJson),
     // Where the session token survives this instance (web: the tab's sessionStorage), so a page
     // reload can resume its seat. The default keeps it in memory only.
     private val tokenStore: SessionTokenStore = SessionTokenStore.None,
@@ -355,9 +359,11 @@ class OnlineViewModel(
         when (message) {
             is Welcome -> onWelcome(message)
             is UpdateRequired -> _updateRequired.value = message.message
-            is LobbyState -> onLobbyState(message)
-            is ViewUpdate -> {
-                session.offer(message, snapshot = pendingSnapshot)
+            // The payload-carrying messages are generic, so their type argument is erased: check the
+            // erased form and narrow (see AnyViewUpdate — this Json decodes only 500's payloads).
+            is AnyLobbyState -> onLobbyState(message.forFiveHundred())
+            is AnyViewUpdate -> {
+                session.offer(message.forFiveHundred(), snapshot = pendingSnapshot)
                 pendingSnapshot = false
             }
             is SeatStatus -> onSeatStatus(message.seat, message.status)
@@ -365,6 +371,8 @@ class OnlineViewModel(
             is EmoteReceived -> _emotes.tryEmit(message)
             is LobbyDisbanded -> onDisbanded(message)
             is ErrorMessage -> onError(message)
+            // ClientMessage/ServerMessage are open polymorphic, so this `when` cannot be exhaustive.
+            else -> Unit
         }
     }
 

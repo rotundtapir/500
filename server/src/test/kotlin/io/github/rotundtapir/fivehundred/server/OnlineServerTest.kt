@@ -1,30 +1,34 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.server
 
+import io.github.rotundtapir.cardkit.net.DisbandReason
+import io.github.rotundtapir.cardkit.net.ErrorCode
+import io.github.rotundtapir.cardkit.net.ErrorMessage
+import io.github.rotundtapir.cardkit.net.GameOver
+import io.github.rotundtapir.cardkit.net.Hello
+import io.github.rotundtapir.cardkit.net.JoinLobby
+import io.github.rotundtapir.cardkit.net.LeaveLobby
+import io.github.rotundtapir.cardkit.net.LobbyDisbanded
+import io.github.rotundtapir.cardkit.net.Platform
+import io.github.rotundtapir.cardkit.net.RequestRematch
+import io.github.rotundtapir.cardkit.net.RoomPhase
+import io.github.rotundtapir.cardkit.net.SetName
+import io.github.rotundtapir.cardkit.net.SetReady
+import io.github.rotundtapir.cardkit.net.StartGame
+import io.github.rotundtapir.cardkit.net.UpdateRequired
+import io.github.rotundtapir.cardkit.net.Welcome
+import io.github.rotundtapir.cardkit.server.ServerConfig
+import io.github.rotundtapir.cardkit.server.gameServerModule
 import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
+import io.github.rotundtapir.fivehundred.net.AnyViewUpdate
 import io.github.rotundtapir.fivehundred.net.CreateLobby
-import io.github.rotundtapir.fivehundred.net.DisbandReason
-import io.github.rotundtapir.fivehundred.net.ErrorCode
-import io.github.rotundtapir.fivehundred.net.ErrorMessage
-import io.github.rotundtapir.fivehundred.net.GameOver
-import io.github.rotundtapir.fivehundred.net.Hello
-import io.github.rotundtapir.fivehundred.net.JoinLobby
-import io.github.rotundtapir.fivehundred.net.LeaveLobby
-import io.github.rotundtapir.fivehundred.net.LobbyDisbanded
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.PROTOCOL_VERSION
-import io.github.rotundtapir.fivehundred.net.Platform
-import io.github.rotundtapir.fivehundred.net.RequestRematch
-import io.github.rotundtapir.fivehundred.net.RoomPhase
-import io.github.rotundtapir.fivehundred.net.SetName
-import io.github.rotundtapir.fivehundred.net.SetReady
-import io.github.rotundtapir.fivehundred.net.StartGame
 import io.github.rotundtapir.fivehundred.net.SubmitAction
-import io.github.rotundtapir.fivehundred.net.UpdateRequired
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
-import io.github.rotundtapir.fivehundred.net.Welcome
+import io.github.rotundtapir.fivehundred.net.forFiveHundred
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.client.request.get
@@ -33,6 +37,13 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpHeaders
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
+import java.util.concurrent.Executors
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -41,13 +52,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import java.util.concurrent.Executors
-import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 class OnlineServerTest {
 
@@ -59,7 +63,7 @@ class OnlineServerTest {
         val job = SupervisorJob()
         job.invokeOnCompletion { executor.shutdownNow() }
         val scope = CoroutineScope(job + executor.asCoroutineDispatcher())
-        val server = GameServer(config, scope)
+        val server = GameServer(config, scope, FiveHundredDescriptor)
         application { gameServerModule(server, config) }
         return server to scope
     }
@@ -317,12 +321,15 @@ class OnlineServerTest {
                     while (result == null) {
                         when (val m = nextMsg()) {
                             is GameOver -> result = m
-                            is ViewUpdate -> if (m.view.isMyTurn) {
-                                val action = bot.decide(m.view, rng)
-                                sendMsg(SubmitAction(m.stateVersion, action))
-                                if (!duplicated) {
-                                    sendMsg(SubmitAction(m.stateVersion, action)) // exact duplicate
-                                    duplicated = true
+                            is AnyViewUpdate -> {
+                                val update = m.forFiveHundred()
+                                if (update.view.isMyTurn) {
+                                    val action = bot.decide(update.view, rng)
+                                    sendMsg(SubmitAction(update.stateVersion, action))
+                                    if (!duplicated) {
+                                        sendMsg(SubmitAction(update.stateVersion, action)) // exact duplicate
+                                        duplicated = true
+                                    }
                                 }
                             }
                             is ErrorMessage -> error("duplicate must not be rejected: $m")

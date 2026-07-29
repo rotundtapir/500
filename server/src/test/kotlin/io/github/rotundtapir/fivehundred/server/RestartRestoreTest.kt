@@ -1,32 +1,28 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.server
 
+import io.github.rotundtapir.cardkit.net.DisbandReason
+import io.github.rotundtapir.cardkit.net.Hello
+import io.github.rotundtapir.cardkit.net.JoinLobby
+import io.github.rotundtapir.cardkit.net.LobbyDisbanded
+import io.github.rotundtapir.cardkit.net.Platform
+import io.github.rotundtapir.cardkit.net.RoomPhase
+import io.github.rotundtapir.cardkit.net.SetReady
+import io.github.rotundtapir.cardkit.net.StartGame
+import io.github.rotundtapir.cardkit.net.Welcome
+import io.github.rotundtapir.cardkit.server.ServerConfig
+import io.github.rotundtapir.cardkit.server.gameServerModule
+import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
 import io.github.rotundtapir.fivehundred.net.CreateLobby
-import io.github.rotundtapir.fivehundred.net.DisbandReason
-import io.github.rotundtapir.fivehundred.net.Hello
-import io.github.rotundtapir.fivehundred.net.JoinLobby
 import io.github.rotundtapir.fivehundred.net.LobbyConfig
-import io.github.rotundtapir.fivehundred.net.LobbyDisbanded
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.PROTOCOL_VERSION
-import io.github.rotundtapir.fivehundred.net.Platform
-import io.github.rotundtapir.fivehundred.net.RoomPhase
-import io.github.rotundtapir.fivehundred.net.SetReady
-import io.github.rotundtapir.fivehundred.net.StartGame
 import io.github.rotundtapir.fivehundred.net.SubmitAction
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
-import io.github.rotundtapir.fivehundred.net.Welcome
-import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.server.testing.ApplicationTestBuilder
 import io.ktor.server.testing.testApplication
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.withTimeout
-import kotlinx.serialization.json.Json
 import java.nio.file.Path
 import java.util.concurrent.Executors
 import kotlin.io.path.createTempDirectory
@@ -38,6 +34,12 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.json.Json
 
 /**
  * Issue #16: a server restart must not lose in-flight rooms. Each test runs a real server against a
@@ -53,7 +55,7 @@ class RestartRestoreTest {
         val job = SupervisorJob()
         job.invokeOnCompletion { executor.shutdownNow() }
         val scope = CoroutineScope(job + executor.asCoroutineDispatcher())
-        val server = GameServer(config, scope)
+        val server = GameServer(config, scope, FiveHundredDescriptor)
         server.restoreRooms()
         application { gameServerModule(server, config) }
         return server to scope
@@ -247,7 +249,7 @@ class RestartRestoreTest {
         val dataDir = createTempDirectory("snapshots")
         val scope = CoroutineScope(SupervisorJob())
         try {
-            val persistence = FileRoomPersistence(dataDir, scope)
+            val persistence = fileRoomPersistence(dataDir, scope)
             val base = snapshot(gameId = "old", joinCode = "AAAA", savedAtMillis = 0) // ancient
             persistence.save(base)
             persistence.save(
@@ -259,6 +261,7 @@ class RestartRestoreTest {
             val server = GameServer(
                 ServerConfig(devMode = true, dataDir = dataDir.toString()),
                 scope,
+                FiveHundredDescriptor,
             )
             server.restoreRooms()
             assertEquals(0, server.rooms.roomCount(), "expired + finished snapshots must not restore")
@@ -273,14 +276,18 @@ class RestartRestoreTest {
         val dataDir = createTempDirectory("snapshots")
         val scope = CoroutineScope(SupervisorJob())
         try {
-            val persistence = FileRoomPersistence(dataDir, scope)
+            val persistence = fileRoomPersistence(dataDir, scope)
             persistence.save(
                 snapshot(gameId = "future", joinCode = "DDDD", savedAtMillis = System.currentTimeMillis())
-                    .copy(snapshotVersion = RoomSnapshot.CURRENT_VERSION + 1),
+                    .copy(snapshotVersion = SNAPSHOT_VERSION + 1),
             )
             awaitFileCount(dataDir, 1)
 
-            val server = GameServer(ServerConfig(devMode = true, dataDir = dataDir.toString()), scope)
+            val server = GameServer(
+                ServerConfig(devMode = true, dataDir = dataDir.toString()),
+                scope,
+                FiveHundredDescriptor,
+            )
             server.restoreRooms()
             assertEquals(0, server.rooms.roomCount(), "a version-mismatched snapshot must not restore")
             awaitFileCount(dataDir, 0)
@@ -294,7 +301,7 @@ class RestartRestoreTest {
         val dataDir = createTempDirectory("snapshots")
         val scope = CoroutineScope(SupervisorJob())
         try {
-            val persistence = FileRoomPersistence(dataDir, scope)
+            val persistence = fileRoomPersistence(dataDir, scope)
             val saved = snapshot(gameId = "g1", joinCode = "CCCC", savedAtMillis = 123)
             persistence.save(saved)
             awaitFileCount(dataDir, 1)
@@ -319,7 +326,7 @@ class RestartRestoreTest {
         val scope = CoroutineScope(SupervisorJob())
         try {
             dataDir.resolve("broken.json").toFile().writeText("{ not json")
-            val persistence = FileRoomPersistence(dataDir, scope)
+            val persistence = fileRoomPersistence(dataDir, scope)
             assertTrue(persistence.loadAll().isEmpty())
             assertNull(
                 dataDir.listDirectoryEntries("*.json").firstOrNull(),
@@ -331,15 +338,15 @@ class RestartRestoreTest {
     }
 
     private fun snapshot(gameId: String, joinCode: String, savedAtMillis: Long) = RoomSnapshot(
-        snapshotVersion = RoomSnapshot.CURRENT_VERSION,
+        snapshotVersion = SNAPSHOT_VERSION,
         gameId = gameId,
         joinCode = joinCode,
         creatorToken = "tok-$gameId",
         lobbyConfig = LobbyConfig(playerCount = 2, teamCount = 2),
         phase = RoomPhase.LOBBY,
         seats = listOf(
-            RoomSnapshot.SeatSnapshot("Resa", isBot = false, ownerToken = "tok-$gameId"),
-            RoomSnapshot.SeatSnapshot(null, isBot = false, ownerToken = null),
+            SeatSnapshot("Resa", isBot = false, ownerToken = "tok-$gameId"),
+            SeatSnapshot(null, isBot = false, ownerToken = null),
         ),
         stateVersion = 0,
         gameState = null,

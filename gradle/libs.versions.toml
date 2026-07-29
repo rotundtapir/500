@@ -91,6 +91,8 @@ cardkit-ai = { module = "io.github.rotundtapir.cardkit:cardkit-ai", version.ref 
 cardkit-ui = { module = "io.github.rotundtapir.cardkit:cardkit-ui", version.ref = "cardkit" }
 cardkit-monetization = { module = "io.github.rotundtapir.cardkit:cardkit-monetization", version.ref = "cardkit" }
 cardkit-monetization-play = { module = "io.github.rotundtapir.cardkit:cardkit-monetization-play", version.ref = "cardkit" }
+cardkit-net = { module = "io.github.rotundtapir.cardkit:cardkit-net", version.ref = "cardkit" }
+cardkit-server = { module = "io.github.rotundtapir.cardkit:cardkit-server", version.ref = "cardkit" }
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }

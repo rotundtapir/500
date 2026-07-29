@@ -1,9 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
 package io.github.rotundtapir.fivehundred.server
 
+import io.github.rotundtapir.cardkit.net.RoomPhase
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.net.LobbyConfig
-import io.github.rotundtapir.fivehundred.net.RoomPhase
+import java.nio.file.Files
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,15 +16,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
-import java.nio.file.Files
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 /**
  * Pins the on-disk snapshot format, which is a compatibility contract of its own: a server that
  * restarts must be able to read the files its predecessor wrote, or the games those files represent
- * are lost. [RoomSnapshot.CURRENT_VERSION] is the escape hatch for a deliberate break — this test is
+ * are lost. [SNAPSHOT_VERSION] is the escape hatch for a deliberate break — this test is
  * here so an *accidental* one fails the build instead.
  *
  * The engine state is deliberately not pinned byte for byte: it is large, and it is allowed to change
@@ -32,15 +32,15 @@ class SnapshotFormatTest {
     private val json = Json { ignoreUnknownKeys = true } // the config FileRoomPersistence uses
 
     private fun snapshot() = RoomSnapshot(
-        snapshotVersion = RoomSnapshot.CURRENT_VERSION,
+        snapshotVersion = SNAPSHOT_VERSION,
         gameId = "game-1",
         joinCode = "AB12",
         creatorToken = "tok",
         lobbyConfig = LobbyConfig(playerCount = 2, teamCount = 2),
         phase = RoomPhase.PLAYING,
         seats = listOf(
-            RoomSnapshot.SeatSnapshot("Alice", isBot = false, ownerToken = "tok"),
-            RoomSnapshot.SeatSnapshot("Ivy (bot)", isBot = true, ownerToken = null),
+            SeatSnapshot("Alice", isBot = false, ownerToken = "tok"),
+            SeatSnapshot("Ivy (bot)", isBot = true, ownerToken = null),
         ),
         stateVersion = 4,
         gameState = FiveHundredRules(playerCount = 2, teamCount = 2).newGame(7L),
@@ -49,7 +49,7 @@ class SnapshotFormatTest {
 
     @Test
     fun `the snapshot envelope keeps its field names and order`() {
-        val encoded = json.encodeToString(RoomSnapshot.serializer(), snapshot())
+        val encoded = json.encodeToString(snapshotSerializer, snapshot())
         assertTrue(
             encoded.startsWith(
                 """{"snapshotVersion":1,"gameId":"game-1","joinCode":"AB12","creatorToken":"tok",""" +
@@ -69,8 +69,8 @@ class SnapshotFormatTest {
     fun `a snapshot round-trips with its engine state intact`() {
         val original = snapshot()
         val decoded = json.decodeFromString(
-            RoomSnapshot.serializer(),
-            json.encodeToString(RoomSnapshot.serializer(), original),
+            snapshotSerializer,
+            json.encodeToString(snapshotSerializer, original),
         )
         assertEquals(original, decoded)
         assertEquals(original.gameState, decoded.gameState, "the authoritative state must survive verbatim")
@@ -84,9 +84,9 @@ class SnapshotFormatTest {
             val original = snapshot()
             Files.writeString(
                 dir.resolve("${original.gameId}.json"),
-                json.encodeToString(RoomSnapshot.serializer(), original),
+                json.encodeToString(snapshotSerializer, original),
             )
-            val loaded = FileRoomPersistence(dir, scope).loadAll()
+            val loaded = fileRoomPersistence(dir, scope).loadAll()
             assertEquals(listOf(original), loaded)
             assertTrue(
                 Files.list(dir).use { paths -> paths.noneMatch { it.toString().endsWith(".corrupt") } },
@@ -102,7 +102,7 @@ class SnapshotFormatTest {
         val dir = Files.createTempDirectory("500-snapshot-writeback")
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
-            val persistence = FileRoomPersistence(dir, scope)
+            val persistence = fileRoomPersistence(dir, scope)
             val original = snapshot()
             persistence.save(original)
             persistence.flushSync()

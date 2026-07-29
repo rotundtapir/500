@@ -37,9 +37,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.rotundtapir.fivehundred.net.DEFAULT_IDLE_DISBAND_MINUTES
-import io.github.rotundtapir.fivehundred.net.DEFAULT_TURN_TIMEOUT_SECONDS
-import io.github.rotundtapir.fivehundred.net.Names
+import io.github.rotundtapir.cardkit.net.DEFAULT_IDLE_DISBAND_MINUTES
+import io.github.rotundtapir.cardkit.net.DEFAULT_TURN_TIMEOUT_SECONDS
+import io.github.rotundtapir.cardkit.net.Names
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameModeButton
 import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton

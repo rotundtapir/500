@@ -3,8 +3,22 @@ package io.github.rotundtapir.fivehundred
 
 import io.github.rotundtapir.cardkit.core.Rank
 import io.github.rotundtapir.cardkit.core.Seat
-import io.github.rotundtapir.cardkit.core.SuitedCard
 import io.github.rotundtapir.cardkit.core.Suit
+import io.github.rotundtapir.cardkit.core.SuitedCard
+import io.github.rotundtapir.cardkit.net.ClientMessage
+import io.github.rotundtapir.cardkit.net.ConnectionState
+import io.github.rotundtapir.cardkit.net.ErrorCode
+import io.github.rotundtapir.cardkit.net.ErrorMessage
+import io.github.rotundtapir.cardkit.net.GameClient
+import io.github.rotundtapir.cardkit.net.Hello
+import io.github.rotundtapir.cardkit.net.OccupancyStatus
+import io.github.rotundtapir.cardkit.net.Platform
+import io.github.rotundtapir.cardkit.net.ResumedState
+import io.github.rotundtapir.cardkit.net.RoomPhase
+import io.github.rotundtapir.cardkit.net.SeatInfo
+import io.github.rotundtapir.cardkit.net.SeatStatus
+import io.github.rotundtapir.cardkit.net.ServerMessage
+import io.github.rotundtapir.cardkit.net.Welcome
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.Contract
@@ -12,23 +26,10 @@ import io.github.rotundtapir.fivehundred.engine.HandResult
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.Trump
-import io.github.rotundtapir.fivehundred.net.ClientMessage
-import io.github.rotundtapir.fivehundred.net.ConnectionState
 import io.github.rotundtapir.fivehundred.net.CreateLobby
-import io.github.rotundtapir.fivehundred.net.ErrorCode
-import io.github.rotundtapir.fivehundred.net.ErrorMessage
-import io.github.rotundtapir.fivehundred.net.GameClient
-import io.github.rotundtapir.fivehundred.net.Hello
 import io.github.rotundtapir.fivehundred.net.LobbyConfig
 import io.github.rotundtapir.fivehundred.net.LobbyState
-import io.github.rotundtapir.fivehundred.net.OccupancyStatus
-import io.github.rotundtapir.fivehundred.net.Platform
-import io.github.rotundtapir.fivehundred.net.RoomPhase
-import io.github.rotundtapir.fivehundred.net.SeatInfo
-import io.github.rotundtapir.fivehundred.net.SeatStatus
-import io.github.rotundtapir.fivehundred.net.ServerMessage
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
-import io.github.rotundtapir.fivehundred.net.Welcome
 import io.github.rotundtapir.fivehundred.online.JoinLink
 import io.github.rotundtapir.fivehundred.online.OnlineGameSession
 import io.github.rotundtapir.fivehundred.online.OnlineScreen
@@ -36,6 +37,13 @@ import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.online.SessionTokenStore
 import io.github.rotundtapir.fivehundred.online.withOptimisticDiscard
 import io.github.rotundtapir.fivehundred.online.withOptimisticPlay
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -52,13 +60,6 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 /** A minimal [PlayerView] for pacing/session tests; only the shape-defining fields are meaningful. */
 internal fun testView(
@@ -441,7 +442,7 @@ class OnlineViewModelTest {
         val vm = OnlineViewModel(client)
         vm.enter("ws://localhost", "0.3.0", Platform.WEB)
         advanceUntilIdle()
-        client.push(Welcome("tok", "0.3.0", resumed = io.github.rotundtapir.fivehundred.net.ResumedState("AB12", RoomPhase.PLAYING)))
+        client.push(Welcome("tok", "0.3.0", resumed = ResumedState("AB12", RoomPhase.PLAYING)))
         client.push(lobby(RoomPhase.PLAYING, listOf(seat(0, "Alice"), seat(1, "Bruce (bot)", bot = true))))
         client.push(ViewUpdate(9, testView(handNumber = 3, phase = Phase.PLAY, trickNumber = 4), turnRemainingMillis = 20_000))
         advanceUntilIdle()
@@ -558,7 +559,7 @@ class OnlineViewModelTest {
         vm.enter("ws://localhost", "0.3.0", Platform.WEB)
         advanceUntilIdle()
         client.push(
-            Welcome("tok", "0.3.0", resumed = io.github.rotundtapir.fivehundred.net.ResumedState("AB12", RoomPhase.LOBBY)),
+            Welcome("tok", "0.3.0", resumed = ResumedState("AB12", RoomPhase.LOBBY)),
         )
         advanceUntilIdle()
         assertNotNull(vm.pendingRejoin.value, "the resumed room is offered back")
@@ -596,7 +597,7 @@ class OnlineViewModelTest {
         vm.enterWithJoinCode("ws://localhost", "0.3.0", Platform.WEB, "ab12")
         advanceUntilIdle()
         client.push(
-            Welcome("tok", "0.3.0", resumed = io.github.rotundtapir.fivehundred.net.ResumedState("AB12", RoomPhase.LOBBY)),
+            Welcome("tok", "0.3.0", resumed = ResumedState("AB12", RoomPhase.LOBBY)),
         )
         client.push(lobby(RoomPhase.LOBBY, listOf(seat(0, "Alice"))))
         advanceUntilIdle()
@@ -619,7 +620,7 @@ class OnlineViewModelTest {
 
         // The socket blips (an app switch, a network drop) and the reconnect resumes the very room
         // we're still displaying — asking "rejoin?" would interrupt a lobby the player never left.
-        client.push(Welcome("tok", "0.3.0", resumed = io.github.rotundtapir.fivehundred.net.ResumedState("AB12", RoomPhase.LOBBY)))
+        client.push(Welcome("tok", "0.3.0", resumed = ResumedState("AB12", RoomPhase.LOBBY)))
         advanceUntilIdle()
         assertEquals(null, vm.pendingRejoin.value, "no prompt for the room already on screen")
         assertEquals(OnlineScreen.LOBBY, vm.screen.value)
@@ -634,7 +635,7 @@ class OnlineViewModelTest {
         vm.enterWithJoinCode("ws://localhost", "0.3.0", Platform.WEB, "XY99")
         advanceUntilIdle()
         client.push(
-            Welcome("tok", "0.3.0", resumed = io.github.rotundtapir.fivehundred.net.ResumedState("AB12", RoomPhase.LOBBY)),
+            Welcome("tok", "0.3.0", resumed = ResumedState("AB12", RoomPhase.LOBBY)),
         )
         advanceUntilIdle()
         assertNotNull(vm.pendingRejoin.value, "a resume into a different room keeps the prompt")

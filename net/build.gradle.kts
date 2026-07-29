@@ -19,6 +19,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             api(project(":engine"))
+            api(libs.cardkit.net)
             api(libs.kotlinx.serialization.json)
             api(libs.kotlinx.coroutines.core)
             implementation(libs.ktor.client.core)

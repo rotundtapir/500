@@ -23,8 +23,8 @@ import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
 import io.github.rotundtapir.cardkit.ui.tutorial.rememberNarrationPlayer
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
-import io.github.rotundtapir.fivehundred.net.Distribution
-import io.github.rotundtapir.fivehundred.net.Platform
+import io.github.rotundtapir.cardkit.net.Distribution
+import io.github.rotundtapir.cardkit.net.Platform
 import io.github.rotundtapir.fivehundred.online.JoinLink
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
 import io.github.rotundtapir.fivehundred.online.SessionTokenStore
