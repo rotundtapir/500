@@ -3,23 +3,24 @@ package io.github.rotundtapir.fivehundred.server
 
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.core.Strategy
+import io.github.rotundtapir.cardkit.net.Platform
+import io.github.rotundtapir.cardkit.server.PlayerConnection
 import io.github.rotundtapir.fivehundred.engine.Action
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.FiveHundredRules
 import io.github.rotundtapir.fivehundred.engine.PlayerView
-import io.github.rotundtapir.fivehundred.net.Platform
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 
 /**
  * Deterministic unit tests for the seat's decision logic: bot fallback for empty/dropped seats,
@@ -101,20 +102,58 @@ class SeatHostTest {
     }
 
     @Test
-    fun `a stale action buffered between turns is drained, never replayed on a later turn`() = runTest {
+    fun `a stale action buffered between turns is dropped, never replayed on a later turn`() = runTest {
         val host = host().apply { occupant = connection() }
         // No decide() is parked, so this action just sits in the capacity-1 buffer (a stale submit
-        // that raced the room's bookkeeping). Use a distinct action so a replay would be detectable.
+        // that raced the room's bookkeeping after a timeout already ran the bot). Use a distinct
+        // action so a replay would be detectable.
         val staleAction = Action.PlaceBid(Bid.Misere)
         assertTrue(host.submit(staleAction))
-        // The next turn must NOT consume that buffered action — decide() drains it first, then waits.
+        // The room opening the next turn is what discards it — this used to happen when decide() was
+        // entered, which also discarded actions that were legitimately waiting for this turn.
+        host.beginTurn()
         var result: Action? = null
         val job = launch { result = host.decide(view) }
-        runCurrent() // let decide() run its drain + park, WITHOUT advancing past the turn timeout
+        runCurrent() // let decide() park, WITHOUT advancing past the turn timeout
         assertFalse(job.isCompleted, "decide must still be waiting, not have consumed the stale action")
         host.submit(humanAction) // the real action for this turn
         runCurrent()
         assertEquals(humanAction, result, "the turn is answered by the fresh action, not the stale one")
+        job.join()
+    }
+
+    @Test
+    fun `an action submitted before the driver reaches decide is still played`() = runTest {
+        // The mirror of the test above, and the bug it fixes: the room fans a view out and only then
+        // does the driver reach decide(), so a quick client's action is already waiting. Draining on
+        // entry to decide() discarded it, and because the room had already recorded the move as
+        // accepted, the client's resend was deduplicated away — the turn silently did nothing until
+        // it timed out to a bot.
+        val host = host().apply { occupant = connection() }
+        host.beginTurn() // the room opens the turn and delivers the view...
+        assertTrue(host.submit(humanAction), "...and the client answers immediately")
+
+        var result: Action? = null
+        val job = launch { result = host.decide(view) } // the driver only now catches up
+        runCurrent()
+        assertEquals(humanAction, result, "the action already waiting for this turn must be honoured")
+        job.join()
+    }
+
+    @Test
+    fun `a spent interrupt does not hand the next turn to the bot`() = runTest {
+        // beginTurn must drain interrupts as well as actions: a signal left over from a previous
+        // turn's disconnect would otherwise bot-play a turn whose occupant is present.
+        val host = host().apply { occupant = connection() }
+        host.interrupt()
+        host.beginTurn()
+        var result: Action? = null
+        val job = launch { result = host.decide(view) }
+        runCurrent()
+        assertFalse(job.isCompleted, "the stale interrupt must not have ended this turn")
+        host.submit(humanAction)
+        runCurrent()
+        assertEquals(humanAction, result)
         job.join()
     }
 }

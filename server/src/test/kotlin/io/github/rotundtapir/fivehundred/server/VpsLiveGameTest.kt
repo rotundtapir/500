@@ -3,29 +3,35 @@
 // -Dvps.url=wss://host/ws is passed. Delete after the deployment review.
 package io.github.rotundtapir.fivehundred.server
 
+import io.github.rotundtapir.cardkit.net.Emote
+import io.github.rotundtapir.cardkit.net.EmoteReceived
+import io.github.rotundtapir.cardkit.net.ErrorMessage
+import io.github.rotundtapir.cardkit.net.GameOver
+import io.github.rotundtapir.cardkit.net.Hello
+import io.github.rotundtapir.cardkit.net.JoinLobby
+import io.github.rotundtapir.cardkit.net.Platform
+import io.github.rotundtapir.cardkit.net.SendEmote
+import io.github.rotundtapir.cardkit.net.ServerMessage
+import io.github.rotundtapir.cardkit.net.SetReady
+import io.github.rotundtapir.cardkit.net.StartGame
+import io.github.rotundtapir.cardkit.net.Welcome
+import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
+import io.github.rotundtapir.fivehundred.net.AnyViewUpdate
 import io.github.rotundtapir.fivehundred.net.CreateLobby
-import io.github.rotundtapir.fivehundred.net.Emote
-import io.github.rotundtapir.fivehundred.net.EmoteReceived
-import io.github.rotundtapir.fivehundred.net.ErrorMessage
-import io.github.rotundtapir.fivehundred.net.GameOver
-import io.github.rotundtapir.fivehundred.net.Hello
-import io.github.rotundtapir.fivehundred.net.JoinLobby
 import io.github.rotundtapir.fivehundred.net.LobbyState
 import io.github.rotundtapir.fivehundred.net.PROTOCOL_VERSION
-import io.github.rotundtapir.fivehundred.net.Platform
-import io.github.rotundtapir.fivehundred.net.SendEmote
-import io.github.rotundtapir.fivehundred.net.ServerMessage
-import io.github.rotundtapir.fivehundred.net.SetReady
-import io.github.rotundtapir.fivehundred.net.StartGame
 import io.github.rotundtapir.fivehundred.net.SubmitAction
 import io.github.rotundtapir.fivehundred.net.ViewUpdate
-import io.github.rotundtapir.fivehundred.net.Welcome
-import io.github.rotundtapir.fivehundred.ai.FiveHundredBot
+import io.github.rotundtapir.fivehundred.net.forFiveHundred
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
-import io.ktor.client.request.header
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.webSocket
+import io.ktor.client.request.header
+import kotlin.random.Random
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -34,10 +40,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty
-import kotlin.random.Random
-import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
-import kotlin.test.assertTrue
 
 @EnabledIfSystemProperty(named = "vps.url", matches = ".+")
 class VpsLiveGameTest {
@@ -140,13 +142,16 @@ class VpsLiveGameTest {
                     while (result == null) {
                         when (val m = nextMsg()) {
                             is GameOver -> result = m
-                            is ViewUpdate -> if (m.view.isMyTurn) {
-                                val action = bot.decide(m.view, rng)
-                                delay(ACTION_PACE_MS)
-                                sendMsg(SubmitAction(m.stateVersion, action))
-                                if (!duplicated) { // double-send the very first action
-                                    sendMsg(SubmitAction(m.stateVersion, action))
-                                    duplicated = true
+                            is AnyViewUpdate -> {
+                                val update = m.forFiveHundred()
+                                if (update.view.isMyTurn) {
+                                    val action = bot.decide(update.view, rng)
+                                    delay(ACTION_PACE_MS)
+                                    sendMsg(SubmitAction(update.stateVersion, action))
+                                    if (!duplicated) { // double-send the very first action
+                                        sendMsg(SubmitAction(update.stateVersion, action))
+                                        duplicated = true
+                                    }
                                 }
                             }
                             is ErrorMessage -> error("server rejected: $m")
@@ -191,9 +196,11 @@ class VpsLiveGameTest {
             when (val message: ServerMessage = nextMsg()) {
                 is GameOver -> return message
                 is EmoteReceived -> emoteSeen?.complete(message)
-                is ViewUpdate -> if (message.view.isMyTurn) {
-                    delay(ACTION_PACE_MS) // stay under the production 10 msg/s limiter
-                    sendMsg(SubmitAction(message.stateVersion, bot.decide(message.view, rng)))
+                is AnyViewUpdate -> message.forFiveHundred().run {
+                    if (view.isMyTurn) {
+                        delay(ACTION_PACE_MS) // stay under the production 10 msg/s limiter
+                        sendMsg(SubmitAction(stateVersion, bot.decide(view, rng)))
+                    }
                 }
                 is ErrorMessage -> error("server rejected a move mid-game: $message")
                 else -> Unit

@@ -15,6 +15,7 @@ kotlin {
 
 dependencies {
     implementation(project(":net"))
+    implementation(libs.cardkit.server)
     implementation(project(":engine"))
     implementation(project(":ai"))
     implementation(libs.kotlinx.coroutines.core)

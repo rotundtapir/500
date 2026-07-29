@@ -2,33 +2,24 @@
 package io.github.rotundtapir.fivehundred.server
 
 import io.github.rotundtapir.cardkit.core.Seat
+import io.github.rotundtapir.cardkit.server.AbuseLog
+import io.github.rotundtapir.cardkit.server.Metrics
+import io.github.rotundtapir.cardkit.server.RateLimiter
+import io.github.rotundtapir.cardkit.server.ServerConfig
+import io.github.rotundtapir.cardkit.server.SessionRegistry
+import io.github.rotundtapir.cardkit.server.SlidingWindowCounter
+import io.github.rotundtapir.cardkit.server.Versions
 import io.github.rotundtapir.fivehundred.net.LobbyConfig
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 
 class ServerUnitTest {
-
-    @Test
-    fun `bot names never collide with a seated human name, case-insensitively`() {
-        // Every seed, every count: a human "jack" (or "JACK") means no bot may be named Jack.
-        for (seed in 0L until 50L) {
-            val picked = Room.pickBotNames(
-                pool = Room.BOT_NAMES,
-                taken = listOf("jack", "ALICE", "Mona"),
-                count = 3,
-                random = kotlin.random.Random(seed),
-            )
-            assertEquals(3, picked.size)
-            assertEquals(3, picked.distinct().size, "bot names must be unique among themselves")
-            assertTrue(picked.none { it.lowercase() in setOf("jack", "alice", "mona") }, "picked=$picked")
-        }
-    }
 
     @Test
     fun `version comparison handles differing segment counts`() {
@@ -103,6 +94,7 @@ class ServerUnitTest {
         val server = GameServer(
             ServerConfig(devMode = false, maxConnectionsPerIp = 2),
             CoroutineScope(SupervisorJob()),
+            FiveHundredDescriptor,
         )
         assertTrue(server.tryOpenConnection("1.2.3.4"))
         assertTrue(server.tryOpenConnection("1.2.3.4"))
@@ -115,7 +107,11 @@ class ServerUnitTest {
 
     @Test
     fun `dev mode bypasses the per-IP connection cap`() {
-        val server = GameServer(ServerConfig(devMode = true, maxConnectionsPerIp = 1), CoroutineScope(SupervisorJob()))
+        val server = GameServer(
+            ServerConfig(devMode = true, maxConnectionsPerIp = 1),
+            CoroutineScope(SupervisorJob()),
+            FiveHundredDescriptor,
+        )
         repeat(10) { assertTrue(server.tryOpenConnection("1.2.3.4")) }
     }
 
@@ -125,10 +121,17 @@ class ServerUnitTest {
         // end so they don't leak onto Dispatchers.Default and starve other tests in the same JVM.
         val scope = CoroutineScope(SupervisorJob())
         try {
-            val registry = RoomRegistry(ServerConfig(devMode = true), scope, SessionRegistry(), Metrics(), AbuseLog())
+            val registry = RoomRegistry(
+                ServerConfig(devMode = true),
+                scope,
+                FiveHundredDescriptor,
+                SessionRegistry(),
+                Metrics(FiveHundredDescriptor.metricsPrefix),
+                AbuseLog(),
+            )
             val codes = (1..200).mapNotNull {
                 (registry.create("tok-$it", LobbyConfig(playerCount = 2, teamCount = 2), null)
-                    as? RoomRegistry.CreateResult.Created)?.room?.joinCode
+                    as? RoomCreated)?.room?.joinCode
             }
             assertEquals(200, codes.size)
             assertEquals(codes.size, codes.toSet().size, "codes must be unique")
@@ -144,7 +147,7 @@ class ServerUnitTest {
 
     @Test
     fun `metrics render in Prometheus text format`() {
-        val metrics = Metrics()
+        val metrics = Metrics(FiveHundredDescriptor.metricsPrefix)
         metrics.connectionOpened()
         metrics.gameStarted()
         val text = metrics.render(roomsActive = 3, draining = true)

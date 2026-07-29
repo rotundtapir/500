@@ -35,11 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.fivehundred.LocalLinkSharer
-import io.github.rotundtapir.fivehundred.net.GameOver
+import io.github.rotundtapir.cardkit.net.GameOver
 import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton
 import io.github.rotundtapir.fivehundred.net.LobbyState
-import io.github.rotundtapir.fivehundred.net.RoomPhase
-import io.github.rotundtapir.fivehundred.net.SeatInfo
+import io.github.rotundtapir.cardkit.net.RoomPhase
+import io.github.rotundtapir.cardkit.net.SeatInfo
 import io.github.rotundtapir.fivehundred.online.JoinLink
 import kotlinx.coroutines.delay
 

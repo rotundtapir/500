@@ -55,8 +55,8 @@ import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.HAND_SIZE
 import io.github.rotundtapir.fivehundred.engine.Phase
 import io.github.rotundtapir.fivehundred.engine.PlayerView
-import io.github.rotundtapir.fivehundred.net.Emote
-import io.github.rotundtapir.fivehundred.net.EmoteReceived
+import io.github.rotundtapir.cardkit.net.Emote
+import io.github.rotundtapir.cardkit.net.EmoteReceived
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.first
