@@ -121,8 +121,44 @@ present, drains the server and reboots once games have finished (cap 1 h). Servi
   doesn't maintain `DOCKER-USER` for IPv6 by default, so an abusive IPv6 client is logged but not
   banned. If you publish an AAAA record and see IPv6 abuse, either drop the AAAA or add an
   `ip6tables`-based ban action — v6 banning is not yet wired up.
-- 1 GB RAM is tight (~700–850 MB steady). If it gets tight, drop `-Xmx256m` to `-Xmx192m` in the
-  compose `JAVA_OPTS`.
+- 1 GB RAM is tight (~700–850 MB steady). The 500 server is now capped at `-Xmx144m` /
+  `mem_limit: 288m` rather than 256m/512m, to leave room for a second game server (euchre) on the
+  same box. If memory gets tight, take both games down a step together — they are sized as a pair,
+  and the numbers live in each repo's `server/deploy/docker-compose.yml`.
+- **A `.corrupt` snapshot file is not necessarily a disk problem.** Until the cardkit-server
+  adoption, `flushSync` and the snapshot writer could write the same room's temp file concurrently
+  and publish the interleaved result, which was then quarantined as `.corrupt` and cost that room
+  its game at the next boot. Any quarantine file older than that deploy is more likely that race
+  than bad hardware. Also fixed at the same time: `flushSync` could throw out of the shutdown
+  handler when exactly one room was pending, abandoning every snapshot still queued — so a deploy
+  could drop games it was supposed to preserve.
+
+## Hosting a second game on this box
+
+The Caddy in 500's compose project is the shared edge for every game. Its `Caddyfile` no longer
+contains a vhost: it does `import /etc/caddy/sites/*.caddy`, and **each game's deploy job owns
+exactly one file in that directory** (500 writes `500.caddy`). That is what lets two repos add
+hostnames and deploy independently without ever rewriting each other's config.
+
+A game's own server container lives in its own compose project and joins the external `edge`
+network, which is how Caddy reaches it across projects.
+
+One-time migration on the box, before another game deploys for the first time (idempotent, and the
+next 500 tag deploy will simply re-sync the same files):
+
+```bash
+mkdir -p /opt/caddy-sites
+docker network create edge          # shared by Caddy and each game's server
+cd /opt/500-server
+# copy the updated docker-compose.yml, Caddyfile and sites/500.caddy from the repo, then:
+cp <repo>/server/deploy/sites/500.caddy /opt/caddy-sites/
+docker compose up -d --wait
+docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+curl -fsS https://500.29022617.xyz/health   # confirm 500 is still served
+```
+
+Removing a game later is `rm /opt/caddy-sites/<game>.caddy`, a `caddy reload`, and
+`docker compose -f /opt/<game>-server/docker-compose.yml down`. 500 is unaffected either way.
 
 ## DNS (porkbun)
 

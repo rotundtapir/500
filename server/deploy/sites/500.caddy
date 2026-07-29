@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
+# 500's vhost. One file per game under /opt/caddy-sites, each owned by that game's deploy job, so
+# two repos can add hostnames to the shared Caddy without ever rewriting each other's config.
+{$SERVER_DOMAIN} {
+	encode gzip
+
+	# Admin + metrics are for on-box use only (docker compose exec / curl over SSH); never expose them.
+	respond /admin* 403
+	respond /metrics 403
+
+	# Caddy proxies WebSocket upgrades transparently and does not time out established streams, so
+	# long-lived game sockets are safe with no extra config. It sets X-Forwarded-For for the server.
+	reverse_proxy server:8080
+}
