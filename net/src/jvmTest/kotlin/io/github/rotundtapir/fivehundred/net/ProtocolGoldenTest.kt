@@ -12,6 +12,7 @@ import io.github.rotundtapir.fivehundred.engine.PlayerView
 import io.github.rotundtapir.fivehundred.engine.Trump
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 /**
@@ -85,6 +86,144 @@ class ProtocolGoldenTest {
         assertEquals(
             """{"type":"game.over","winnerTeam":0,"scores":{"0":520,"1":260}}""",
             WireJson.encodeToString<ServerMessage>(GameOver(0, mapOf(0 to 520, 1 to 260))),
+        )
+    }
+
+    // The goldens above cover the shapes most likely to be edited by hand. The ones below complete
+    // the set, so that *every* message type is pinned by bytes rather than only by round-tripping —
+    // a round-trip stays green through a rename or a reordering that would break a released client.
+
+    @Test
+    fun `every remaining client message shape is pinned`() {
+        assertEquals(
+            """{"type":"lobby.create","displayName":"Bob","playerCount":4,"teamCount":2}""",
+            WireJson.encodeToString<ClientMessage>(CreateLobby("Bob", playerCount = 4, teamCount = 2)),
+            "defaults must stay omitted: that is what makes adding an optional field non-breaking",
+        )
+        assertEquals(
+            """{"type":"lobby.create","displayName":"Bob","playerCount":6,"teamCount":3,""" +
+                """"misereEnabled":false,"noTrumpsEnabled":false,"turnTimeoutSeconds":60,""" +
+                """"idleDisbandMinutes":30,"seed":42}""",
+            WireJson.encodeToString<ClientMessage>(
+                CreateLobby(
+                    "Bob",
+                    playerCount = 6,
+                    teamCount = 3,
+                    misereEnabled = false,
+                    noTrumpsEnabled = false,
+                    turnTimeoutSeconds = 60,
+                    idleDisbandMinutes = 30,
+                    seed = 42L,
+                ),
+            ),
+        )
+        assertEquals(
+            """{"type":"lobby.setName","displayName":"Dave"}""",
+            WireJson.encodeToString<ClientMessage>(SetName("Dave")),
+        )
+        assertEquals(
+            """{"type":"lobby.ready","ready":true}""",
+            WireJson.encodeToString<ClientMessage>(SetReady(true)),
+        )
+        assertEquals(
+            """{"type":"lobby.configure","turnTimeoutSeconds":60}""",
+            WireJson.encodeToString<ClientMessage>(ConfigureLobby(turnTimeoutSeconds = 60)),
+        )
+        assertEquals(
+            """{"type":"lobby.configure","turnTimeoutSeconds":60,"idleDisbandMinutes":30}""",
+            WireJson.encodeToString<ClientMessage>(
+                ConfigureLobby(turnTimeoutSeconds = 60, idleDisbandMinutes = 30),
+            ),
+        )
+        assertEquals("""{"type":"lobby.leave"}""", WireJson.encodeToString<ClientMessage>(LeaveLobby))
+        assertEquals("""{"type":"lobby.disband"}""", WireJson.encodeToString<ClientMessage>(DisbandLobby))
+        assertEquals("""{"type":"lobby.rematch"}""", WireJson.encodeToString<ClientMessage>(RequestRematch))
+        // A card inside an action carries a fully-qualified discriminator, because cardkit's Card
+        // hierarchy has no @SerialName. Verbose, but it is what released clients speak — giving those
+        // types short names would be a breaking change needing a PROTOCOL_VERSION bump.
+        assertEquals(
+            """{"type":"game.action","stateVersion":1,"action":{"type":"playCard","card":""" +
+                """{"type":"io.github.rotundtapir.cardkit.core.SuitedCard","rank":"ACE","suit":"SPADES"}}}""",
+            WireJson.encodeToString<ClientMessage>(
+                SubmitAction(1, Action.PlayCard(SuitedCard(Rank.ACE, Suit.SPADES))),
+            ),
+        )
+        assertEquals(
+            """{"type":"game.action","stateVersion":2,"action":{"type":"exchangeKitty","discards":[""" +
+                """{"type":"io.github.rotundtapir.cardkit.core.SuitedCard","rank":"TWO","suit":"CLUBS"}]}}""",
+            WireJson.encodeToString<ClientMessage>(
+                SubmitAction(2, Action.ExchangeKitty(listOf(SuitedCard(Rank.TWO, Suit.CLUBS)))),
+            ),
+        )
+    }
+
+    @Test
+    fun `every remaining server message shape is pinned`() {
+        assertEquals(
+            """{"type":"welcome","sessionToken":"tok","serverVersion":"0.3.0"}""",
+            WireJson.encodeToString<ServerMessage>(Welcome("tok", "0.3.0")),
+        )
+        assertEquals(
+            """{"type":"welcome","sessionToken":"tok","serverVersion":"0.3.0",""" +
+                """"resumed":{"joinCode":"AB12","phase":"playing"}}""",
+            WireJson.encodeToString<ServerMessage>(
+                Welcome("tok", "0.3.0", ResumedState("AB12", RoomPhase.PLAYING)),
+            ),
+        )
+        assertEquals(
+            """{"type":"updateRequired","minAppVersion":"0.3.0","message":"please update"}""",
+            WireJson.encodeToString<ServerMessage>(UpdateRequired("0.3.0", "please update")),
+        )
+        assertEquals(
+            """{"type":"lobby.state","joinCode":"AB12","gameId":"ab12cdef-0000",""" +
+                """"config":{"playerCount":4,"teamCount":2},""" +
+                """"seats":[{"seat":0,"name":"Alice","isBot":false,"ready":true,"connected":true}],""" +
+                """"creatorSeat":0,"yourSeat":0,"phase":"lobby"}""",
+            WireJson.encodeToString<ServerMessage>(
+                LobbyState(
+                    joinCode = "AB12",
+                    gameId = "ab12cdef-0000",
+                    config = LobbyConfig(playerCount = 4, teamCount = 2),
+                    seats = listOf(SeatInfo(Seat(0), "Alice", isBot = false, ready = true, connected = true)),
+                    creatorSeat = Seat(0),
+                    yourSeat = Seat(0),
+                    phase = RoomPhase.LOBBY,
+                ),
+            ),
+        )
+        assertEquals(
+            """{"type":"lobby.disbanded","reason":"idleTimeout"}""",
+            WireJson.encodeToString<ServerMessage>(LobbyDisbanded(DisbandReason.IDLE_TIMEOUT)),
+        )
+        assertEquals(
+            """{"type":"emote","seat":1,"emote":"oops"}""",
+            WireJson.encodeToString<ServerMessage>(EmoteReceived(Seat(1), Emote.OOPS)),
+        )
+    }
+
+    @Test
+    fun `the whole player view is pinned, field for field`() {
+        // The largest and most fragile shape on the wire: every field of PlayerView, in order, as an
+        // old client expects to read it. Its enums (phase/rank/suit/trump) have no UNKNOWN sink, which
+        // is why adding a value to any of them is a PROTOCOL_VERSION bump, not an additive change.
+        assertEquals(
+            """{"type":"game.view","stateVersion":7,"view":{"seat":0,"phase":"BIDDING",""" +
+                """"playerCount":2,"teamCount":2,"handNumber":1,"hand":[""" +
+                """{"type":"io.github.rotundtapir.cardkit.core.SuitedCard","rank":"ACE","suit":"SPADES"},""" +
+                """{"type":"io.github.rotundtapir.cardkit.core.SuitedCard","rank":"KING","suit":"HEARTS"}],""" +
+                """"handSizes":{"0":10,"1":10},"dealer":1,"scores":{"0":0,"1":0},"toAct":0,""" +
+                """"biddingHistory":[],"highBid":null,"highBidder":null,""" +
+                """"legalBids":[{"type":"pass"},{"type":"named","level":6,"trump":"SPADES"}],""" +
+                """"contract":null,"trump":null,"leader":null,"currentTrick":[],"ledSuit":null,""" +
+                """"lastTrick":null,"tricksWon":{},"trickNumber":0,"legalPlays":[],"mustDiscard":0,""" +
+                """"exposedDeclarerHand":null,"activeSeats":[0,1],"lastHandResult":null,"winner":null},""" +
+                """"turnRemainingMillis":30000}""",
+            WireJson.encodeToString<ServerMessage>(ViewUpdate(7, sampleView(), turnRemainingMillis = 30_000)),
+        )
+        // The countdown is absent, not zero, when it is nobody's turn.
+        assertFalse(
+            WireJson.encodeToString<ServerMessage>(ViewUpdate(8, sampleView())).contains("turnRemainingMillis"),
+            "an absent turn timer must be omitted rather than sent as a value",
         )
     }
 
