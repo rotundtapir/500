@@ -89,23 +89,10 @@ fun main() {
                 FiveHundredApp(
                     monetization = remember { BrowserMonetization(ProjectLinks.DONATION_URL) },
                     settings = remember { LocalStorageSettingsRepository() },
-                    appConfig = AppConfig(
-                        feedbackUri = ProjectLinks.ISSUE_TRACKER,
-                        version = AppBuildInfo.VERSION,
-                        platform = AppPlatform.WEB,
-                        flavor = AppDistribution.WEB,
-                        commit = AppBuildInfo.COMMIT,
-                    ),
+                    appConfig = webAppConfig(),
                     nextSeed = { seedOverride ?: Random.nextLong() },
                     linkSharer = remember { BrowserLinkSharer() },
-                    // What the About dialog adds to AppConfig on web: the versionCode the Android
-                    // builds show too, and the browser identifying itself for bug reports.
-                    buildDetails = remember {
-                        BuildDetails(
-                            versionCode = AppBuildInfo.VERSION_CODE,
-                            environment = window.navigator.userAgent,
-                        )
-                    },
+                    buildDetails = remember { webBuildDetails() },
                     textCopier = remember { BrowserTextCopier() },
                     sessionTokenStore = remember { SessionStorageTokenStore() },
                     joinCodeOverride = joinCodeOverride,
@@ -120,3 +107,22 @@ fun main() {
         }
     }
 }
+
+/** The build values the shared UI reads: feedback target, version and commit of this wasm build. */
+private fun webAppConfig() = AppConfig(
+    feedbackUri = ProjectLinks.ISSUE_TRACKER,
+    version = AppBuildInfo.VERSION,
+    platform = AppPlatform.WEB,
+    flavor = AppDistribution.WEB,
+    commit = AppBuildInfo.COMMIT,
+)
+
+/**
+ * What the About dialog adds to [AppConfig] on web: the versionCode the Android builds report too
+ * (generated into [AppBuildInfo] from the same gradle property), and the browser identifying
+ * itself — the closest thing to a device line a bug report can get here.
+ */
+private fun webBuildDetails() = BuildDetails(
+    versionCode = AppBuildInfo.VERSION_CODE,
+    environment = window.navigator.userAgent,
+)
