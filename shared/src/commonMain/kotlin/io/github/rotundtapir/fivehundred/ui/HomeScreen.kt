@@ -39,6 +39,9 @@ import io.github.rotundtapir.cardkit.ui.tutorial.NarrationState
 import io.github.rotundtapir.cardkit.ui.tutorial.NarrationToggle
 import io.github.rotundtapir.cardkit.ui.SettingsIcon
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundIconButton
+import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton
+import io.github.rotundtapir.cardkit.ui.felt.cardSurfaceButtonColors
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
 
 /**
@@ -81,19 +84,15 @@ fun HomeScreen(
                 .fillMaxSize()
                 .safeDrawingPadding(),
         ) {
-            IconButton(
+            OnBackgroundIconButton(
+                imageVector = SettingsIcon,
+                contentDescription = "Settings",
                 onClick = { showSettings = true },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(8.dp)
                     .testTag("settingsButton"),
-            ) {
-                Icon(
-                    imageVector = SettingsIcon,
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                )
-            }
+            )
 
             Column(
                 modifier = Modifier
@@ -108,26 +107,19 @@ fun HomeScreen(
 
                 Button(
                     onClick = onPlayWithBots,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = CardSurfaceWhite,
-                        contentColor = InkOnCardSurface,
-                    ),
+                    colors = cardSurfaceButtonColors(),
                     modifier = Modifier.testTag("playWithBotsButton"),
                 ) { Text("Play with bots", fontWeight = FontWeight.Bold) }
                 Spacer(Modifier.height(16.dp))
 
-                OutlinedButton(
+                OnBackgroundOutlinedButton(
                     onClick = onPlayWithFriends,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
                     modifier = Modifier.testTag("playOnlineButton"),
                 ) { Text("Play with friends") }
                 Spacer(Modifier.height(16.dp))
 
-                OutlinedButton(
+                OnBackgroundOutlinedButton(
                     onClick = { showTutorialIntro = true },
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
                     modifier = Modifier.testTag("walkthroughButton"),
                     // The ♪ warns that the tutorial speaks aloud — no surprise audio. It drops
                     // when narration is muted, and the toggle below flips it back any time.

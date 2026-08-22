@@ -121,13 +121,17 @@ class AdvancedBot(
         budget: Duration,
         random: Random,
         minWorlds: Int = 1,
-    ): Action? = monteCarlo.best(
+    ): Action? {
+        // Invariants of this decision, hoisted out of the hundreds-of-worlds sampling loop.
+        val setup = determinizer.prepare(view, tracker)
+        return monteCarlo.best(
         arms = arms,
         budget = budget,
         minWorlds = minWorlds,
-        sampleWorld = { determinizer.sample(view, tracker, random) },
+        sampleWorld = { determinizer.sample(view, setup, random) },
         evaluate = { world, arm -> evaluate(world, view.seat, view.myTeam, arm, random) },
-    )
+        )
+    }
 
     /** Applies [arm] to [world] and plays the hand out with [fallback] as everyone's policy. */
     private fun evaluate(world: GameState, seat: Seat, myTeam: Int, arm: Action, random: Random): Double {

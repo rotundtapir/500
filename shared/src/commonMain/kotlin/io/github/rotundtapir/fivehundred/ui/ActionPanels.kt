@@ -41,6 +41,8 @@ import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
 import io.github.rotundtapir.cardkit.ui.tutorial.tutorialTarget
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton
+import io.github.rotundtapir.cardkit.ui.felt.feltTonalButtonColors
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
 import io.github.rotundtapir.fivehundred.engine.Bid
 import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
@@ -172,23 +174,16 @@ private fun BiddingPanel(
         ) {
             // Pass first, then the ranked contracts.
             view.legalBids.sortedBy { it != Bid.Pass }.forEach { bid ->
-                OutlinedButton(
+                // Enabled bids are solid card-white pills (cardkit's emphasized felt button), so
+                // the suit symbols keep their true card colors and the solid-vs-ghost split makes
+                // the one enabled button unmistakable in the tutorial.
+                OnBackgroundOutlinedButton(
                     onClick = {
                         acted = true
                         onBid(bid)
                     },
                     enabled = !acted && bidEnabled(bid),
-                    // Enabled bids are solid card-white pills, so the suit symbols keep their true
-                    // card colors (black ♠♣ / red ♥♦) and read exactly like the cards in hand.
-                    // Disabled bids stay ghost outlines with dimmed-light text — on the felt the
-                    // M3 default (dark onSurface at 38%) was near-invisible, and the solid-vs-ghost
-                    // split makes the one enabled button unmistakable in the tutorial.
-                    colors = ButtonDefaults.outlinedButtonColors(
-                        containerColor = CardSurfaceWhite,
-                        contentColor = Color(0xFF1B1B1B),
-                        disabledContentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.38f),
-                    ),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+                    emphasized = true,
                     modifier = Modifier
                         .testTag("bid:${bid.label}")
                         .bringIntoViewVia(anchorInView.takeIf { bid == anchorBid })
@@ -278,10 +273,7 @@ private fun HumanHand(
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(
             onClick = onToggleSort,
-            colors = ButtonDefaults.outlinedButtonColors(
-                containerColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f),
-                contentColor = MaterialTheme.colorScheme.onBackground,
-            ),
+            colors = feltTonalButtonColors(),
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
             modifier = Modifier.height(30.dp).testTag("sortToggle"),
@@ -291,11 +283,7 @@ private fun HumanHand(
                 style = MaterialTheme.typography.labelMedium,
             )
         }
-        // Memoized: HumanHand recomposes on every PlayerView emission, but the sort's inputs only
-        // change on a new hand, a play, or the trump being decided.
-        val hand = if (sortHand) {
-            remember(view.hand, view.trump) { sortedForDisplay(view.hand, view.trump) }
-        } else view.hand
+        val hand = rememberDisplayHand(view, sortHand)
         // Every card except the fan's last is mostly covered by its right neighbour: only the left
         // HAND_EXPOSURE strip shows, so that's the rect the tutorial tail should point at.
         val lastCard = hand.lastOrNull()

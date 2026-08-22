@@ -74,8 +74,9 @@ class NtBidInvestigationTest {
         val armStat = RunningStat()
         val passStat = RunningStat()
         val gapStat = RunningStat()
+        val setup = determinizer.prepare(view, tracker)
         repeat(worlds) {
-            val world = determinizer.sample(view, tracker, random)
+            val world = determinizer.sample(view, setup, random)
             val a = rolloutReward(world, view.seat, arm, random)
             val p = rolloutReward(world, view.seat, Action.PlaceBid(Bid.Pass), random)
             armStat.add(a)

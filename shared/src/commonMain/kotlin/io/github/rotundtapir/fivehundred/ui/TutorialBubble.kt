@@ -60,11 +60,10 @@ internal fun TutorialBubble(
         null -> false
     }
     // A completed trick held on the felt (the tutorial forces the hold on): explain what happened.
-    // Mirrors TrickArea's holdingTrick — after a completed trick, view.trickNumber IS that trick's
-    // number (it advanced when the trick closed), so it keys tutorialTrickNotes directly.
+    // Same predicate the felt's hold uses (hasClosedTrick) — after a completed trick,
+    // view.trickNumber IS that trick's number, so it keys tutorialTrickNotes directly.
     val lastTrick = view.lastTrick
-    val trickHeld = view.phase == Phase.PLAY && view.currentTrick.isEmpty() &&
-        lastTrick != null && !view.isMyTurn
+    val trickHeld = lastTrick != null && view.hasClosedTrick() // explicit null check keeps the smart cast below
     // While the bots act there is deliberately NO bubble: an ever-present "watch the table" box
     // added noise (and narration) without teaching anything — the moving cards speak for themselves.
     val text = when {

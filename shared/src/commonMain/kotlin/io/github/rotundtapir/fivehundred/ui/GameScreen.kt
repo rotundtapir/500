@@ -208,17 +208,18 @@ fun GameScreen(
                     modifier = Modifier
                         .weight(1f)
                         .tutorialTarget(tutorialAnchors, "trick"),
-                    holdTricks = settings.holdTricks,
+                    // Decided ONCE here — the same expression the ViewModel's pacing gates use
+                    // (holdTricks || tutorial active). Two independent derivations of "is the felt
+                    // holding" wedged euchre when they drifted; one boolean cannot.
+                    holdTricks = settings.holdTricks || tutorial != null,
                     // The tutorial always holds completed tricks so the bubble can explain each
                     // outcome (still inert at OFF, like all pacing).
-                    forceHold = tutorial != null,
+                    hideTapHint = tutorial != null,
                     onTrickAcknowledge = onTrickAcknowledge,
                 )
                 if (dealState.dealing) {
                     DealingHandRow(
-                        cards = if (sortHand) {
-                            remember(view.hand, view.trump) { sortedForDisplay(view.hand, view.trump) }
-                        } else view.hand,
+                        cards = rememberDisplayHand(view, sortHand),
                         state = dealState,
                         humanSeat = view.seat,
                         timings = dealTimings(animationSpeed),

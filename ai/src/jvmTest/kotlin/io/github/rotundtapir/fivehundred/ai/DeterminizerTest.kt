@@ -80,7 +80,7 @@ class DeterminizerTest {
         val view = rules.view(state, target)
         val determinizer = Determinizer(rules.playerCount)
         repeat(5) { i ->
-            val world = determinizer.sample(view, tracker, Random(i.toLong()))
+            val world = determinizer.sample(view, determinizer.prepare(view, tracker), Random(i.toLong()))
             assertConsistent(world, view, tracker)
             assertEquals(3, world.kitty.size, "a bidding-phase world needs a face-down kitty")
             rolloutHand(world)
@@ -96,7 +96,7 @@ class DeterminizerTest {
         val view = rules.view(state, target)
         val determinizer = Determinizer(rules.playerCount)
         repeat(5) { i ->
-            val world = determinizer.sample(view, tracker, Random(100L + i))
+            val world = determinizer.sample(view, determinizer.prepare(view, tracker), Random(100L + i))
             assertConsistent(world, view, tracker)
             rolloutHand(world)
         }
@@ -126,7 +126,8 @@ class DeterminizerTest {
         val tracker = SeenTracker()
         val view = rules.view(s, declarer)
         tracker.observe(view)
-        val world = Determinizer(rules.playerCount).sample(view, tracker, Random(7))
+        val det = Determinizer(rules.playerCount)
+        val world = det.sample(view, det.prepare(view, tracker), Random(7))
         assertConsistent(world, view, tracker)
         rolloutHand(world)
     }
@@ -188,7 +189,7 @@ class DeterminizerTest {
         val determinizer = Determinizer(4)
         val eval = TrickEvaluator(Trump.SPADES)
         repeat(20) { i ->
-            val world = determinizer.sample(view, tracker, Random(i.toLong()))
+            val world = determinizer.sample(view, determinizer.prepare(view, tracker), Random(i.toLong()))
             val offending = world.hands.getValue(Seat(2)).filter { eval.effectiveSuit(it) == Suit.SPADES }
             assertTrue(offending.isEmpty(), "seat 2 is void in spades but was dealt $offending")
         }

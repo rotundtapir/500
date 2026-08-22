@@ -48,7 +48,9 @@ import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.cardFaceShape
 import io.github.rotundtapir.cardkit.ui.deal.DealAnimationState
 import io.github.rotundtapir.cardkit.ui.deal.OpponentPile
+import io.github.rotundtapir.cardkit.ui.clickableWhen
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundIconButton
 import io.github.rotundtapir.cardkit.ui.felt.OpponentTeamColors
 import io.github.rotundtapir.cardkit.ui.felt.PartnerHighlight
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
@@ -75,10 +77,6 @@ private fun teamColor(view: PlayerView, seat: Seat): Color {
     val idx = (0 until view.teamCount).filter { it != view.myTeam }.indexOf(team)
     return OpponentTeamColors.getOrElse(idx) { Color.Unspecified }
 }
-
-/** Clickable only while [enabled] — written as a factory to avoid conditional `.then` chains. */
-private fun Modifier.tappableWhen(enabled: Boolean, onTap: () -> Unit): Modifier =
-    if (enabled) this.clickable(onClick = onTap) else this
 
 @Composable
 internal fun ScoreBar(
@@ -114,16 +112,12 @@ internal fun ScoreBar(
         }
         Row(verticalAlignment = Alignment.CenterVertically) {
             trailing?.invoke()
-            IconButton(
+            OnBackgroundIconButton(
+                imageVector = SettingsIcon,
+                contentDescription = "Settings",
                 onClick = onOpenSettings,
                 modifier = Modifier.testTag("gameSettingsButton"),
-            ) {
-                Icon(
-                    imageVector = SettingsIcon,
-                    contentDescription = "Settings",
-                    tint = MaterialTheme.colorScheme.onBackground,
-                )
-            }
+            )
             TextButton(
                 onClick = onMenu,
                 colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onBackground),
@@ -303,27 +297,25 @@ internal fun TrickArea(
     dealState: DealAnimationState,
     modifier: Modifier = Modifier,
     holdTricks: Boolean = false,
-    // Forces the hold on regardless of the setting — the tutorial uses this so every completed
-    // trick waits to be explained.
-    forceHold: Boolean = false,
+    // The tutorial's guidance bubble carries its own "tap the trick" instruction and can sit over
+    // the felt's hint — this hides only the hint text, never the hold itself (the hold decision
+    // arrives fully formed in [holdTricks]).
+    hideTapHint: Boolean = false,
     onTrickAcknowledge: (Int, Int) -> Unit = { _, _ -> },
 ) {
-    // With "Hold completed tricks" on (in settings), a completed trick stays on the felt until the
-    // player taps it away — time to memorise the cards for counting.
-    val holdingTrick = (holdTricks || forceHold) &&
+    // With the hold on (settings toggle, or the tutorial forcing it — decided by the caller), a
+    // completed trick stays on the felt until the player taps it away.
+    val holdingTrick = holdTricks &&
         animationSpeed != AnimationSpeed.OFF &&
         !dealState.dealing &&
-        view.phase == Phase.PLAY &&
-        view.currentTrick.isEmpty() &&
-        view.lastTrick != null &&
-        !view.isMyTurn
+        view.hasClosedTrick()
     // The "felt" — a slightly darker rounded table centre where the current trick lands.
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
             .background(Color(0x22000000), RoundedCornerShape(16.dp))
-            .tappableWhen(holdingTrick) { onTrickAcknowledge(view.handNumber, view.trickNumber) },
+            .clickableWhen(holdingTrick) { onTrickAcknowledge(view.handNumber, view.trickNumber) },
         contentAlignment = Alignment.Center,
     ) {
         // Size the cards on the felt from the felt itself: a full trick (with its name labels and
@@ -356,9 +348,7 @@ internal fun TrickArea(
                         TrickPlaysRow(v, botNames, lastTrick.plays, cardWidth)
                         Spacer(Modifier.height(4.dp))
                         Text("${seatLabel(v, botNames, lastTrick.winner)} won the trick")
-                        // In the tutorial (forceHold) the guidance bubble already says "Tap the
-                        // trick to continue" and can sit over this spot — skip the duplicate hint.
-                        if (holdingTrick && !forceHold) {
+                        if (holdingTrick && !hideTapHint) {
                             Spacer(Modifier.height(2.dp))
                             Text(
                                 "tap to continue",

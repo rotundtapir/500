@@ -295,12 +295,15 @@ class FiveHundredRules(
     // --- Play ------------------------------------------------------------------------------------
 
     private fun playerToAct(state: GameState): Seat {
-        val order = playOrder(state.leader!!, state.activeSeats)
-        return order[state.currentTrick.size]
+        // Index arithmetic instead of materialising cardkit's playOrder list: this is called from
+        // legalActions, view() and apply()'s turn check — several times per reducer step, and an
+        // AdvancedBot decision runs thousands of steps. activeSeats is built ascending, which is
+        // the order playOrder walks from the leader, so the results are identical by construction
+        // (pinned by the engine's golden tests).
+        val active = state.activeSeats
+        val start = active.indexOf(state.leader!!)
+        return active[(start + state.currentTrick.size) % active.size]
     }
-
-    private fun playOrder(leader: Seat, active: List<Seat>): List<Seat> =
-        io.github.rotundtapir.cardkit.core.playOrder(leader, active)
 
     private fun legalPlaysFor(state: GameState, seat: Seat): List<Card> {
         val hand = state.hands[seat].orEmpty()
@@ -309,9 +312,14 @@ class FiveHundredRules(
     }
 
     private fun applyPlay(state: GameState, seat: Seat, action: Action.PlayCard): GameState {
-        val legal = legalPlaysFor(state, seat)
-        require(action.card in legal) { "Illegal play ${action.card.code}" }
+        // Validate in place with the evaluator this function needs anyway, instead of rebuilding
+        // the whole legalPlaysFor list (the caller usually just took the action out of
+        // legalActions, so this runs on every single card of every rollout).
         val eval = TrickEvaluator(state.contract!!.trump)
+        val handBefore = state.hands[seat].orEmpty()
+        val legal = action.card in handBefore &&
+            (state.currentTrick.isEmpty() || action.card in eval.legalFollows(handBefore, state.ledSuit))
+        require(legal) { "Illegal play ${action.card.code}" }
 
         val hand = state.hands[seat].orEmpty().toMutableList().apply { remove(action.card) }
         val hands = state.hands.toMutableMap().apply { put(seat, hand) }
