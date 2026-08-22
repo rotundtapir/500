@@ -33,6 +33,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
@@ -109,6 +111,12 @@ fun OnlineFlow(
         // off in-game, where deal/trick animations already drive frames.
         if (LocalAppConfig.current.platform == AppPlatform.WEB && screen != OnlineScreen.GAME) {
             NetworkFrameKeepAlive()
+        }
+        // Returning to the foreground: the socket may be a zombie (Android kills backgrounded
+        // sockets silently; a hidden browser tab can be throttled the same way). Nudge the
+        // connection so moves made while away appear now, not after a ping timeout.
+        LifecycleEventEffect(Lifecycle.Event.ON_START) {
+            vm.onAppForegrounded()
         }
         when (screen) {
             OnlineScreen.ENTRY -> OnlineEntryScreen(

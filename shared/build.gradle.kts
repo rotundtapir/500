@@ -39,6 +39,8 @@ kotlin {
             // JetBrains' multiplatform androidx.lifecycle: ViewModel/viewModelScope/viewModel()
             // under the same package names as on Android.
             api(libs.jetbrains.lifecycle.viewmodel.compose)
+            // LifecycleEventEffect for the online foreground nudge (ON_START -> reconnect check).
+            implementation(libs.jetbrains.lifecycle.runtime.compose)
         }
         androidMain.dependencies {
             implementation(libs.androidx.datastore.preferences)

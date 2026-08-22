@@ -212,9 +212,11 @@ class OnlineViewModel(
             var backoff = INITIAL_BACKOFF_MILLIS
             while (isActive && !intentionalDisconnect) {
                 val hello = Hello(PROTOCOL_VERSION, appVersion, platform, sessionToken, buildFlavor, commit)
+                var connectedThisAttempt = false
                 val collector = launch { client.incoming.collect(::handleServerMessage) }
                 val greeter = launch {
                     client.state.first { it == ConnectionState.CONNECTED }
+                    connectedThisAttempt = true
                     client.send(hello)
                 }
                 runCatching { client.run(wsUrl) }
@@ -222,10 +224,30 @@ class OnlineViewModel(
                 greeter.cancel()
                 sessionReady.value = false
                 if (intentionalDisconnect) break
+                // A drop after a real connection reconnects promptly (the foreground nudge relies
+                // on this); only consecutive FAILED attempts back off, or a dead server would be
+                // hammered at the initial interval forever.
+                if (connectedThisAttempt) backoff = INITIAL_BACKOFF_MILLIS
                 delay(backoff)
                 backoff = (backoff * 2).coerceAtMost(MAX_BACKOFF_MILLIS)
             }
         }
+    }
+
+    /**
+     * Called when the app returns to the foreground (ON_START). Android silently kills a
+     * backgrounded app's sockets without telling it, so the connection can be a zombie: state says
+     * CONNECTED, nothing arrives, and the player waits out the ping timeout before seeing any
+     * move made while they were away. Force the socket closed instead — the connect loop resumes
+     * the session immediately (token in the Hello), and the server replays the current state. On
+     * a healthy connection this costs one cheap resume round-trip; on a zombie it converts a
+     * multi-second stall into an instant refresh.
+     */
+    fun onAppForegrounded() {
+        if (intentionalDisconnect) return
+        if (connectJob?.isActive != true) return
+        if (connection.value != ConnectionState.CONNECTED) return // an in-flight attempt is fresh
+        viewModelScope.launch { client.close() }
     }
 
     // --- Navigation -------------------------------------------------------------------------------

@@ -64,6 +64,7 @@ certificate rate limit; comment it out and `docker compose restart caddy` once i
 | `LOBBIES_PER_IP_PER_10MIN` | `5` | Lobby-creation throttle. |
 | `MAX_ROOMS` | `500` | Server-wide room cap. |
 | `LOBBY_GRACE_MILLIS` | `900000` (15 min) | How long a lobby/post-game seat is held for its owner after a bare socket drop (a page reload, a network blip) before the room is disbanded (creator) or the seat freed (guest). |
+| `GAME_GRACE_MILLIS` | `180000` (3 min) | How long a PLAYING seat is held for its owner after a socket drop before the bot takes over (an app-switch on Android drops the socket within seconds). The current turn keeps waiting during the grace; `0` restores instant bot substitution. |
 | `DATA_DIR` | *(unset)* | Directory for transient per-room snapshots. Set it (the bundled compose file uses `/data` on a volume) and in-progress games survive a server restart — players rejoin their seats automatically. Unset ⇒ in-memory only; a restart drops every game. |
 | `DEV_MODE` | `false` | Relaxes IP/rate limits and honours a client-supplied game seed. **Local testing only.** |
 
