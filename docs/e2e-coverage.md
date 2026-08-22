@@ -11,6 +11,7 @@ host-run dev server). Server integration = JVM tests over real WebSockets (`serv
 | Local game vs bots (seed 42) | `game.spec.ts` | `GameFlowTest` (full hand, scoring, win dialog) | — |
 | Interactive tutorial | `tutorial.spec.ts` (boot only) | `GameFlowTest` (full scripted hand) | — |
 | Settings persistence | `settings.spec.ts` | covered by unit tests (`SettingsTest`) | — |
+| About / build info (bug-report details) | `about.spec.ts` (values + clipboard copy) | `GameFlowTest.aboutDialog…` (values + clipboard copy) | — |
 | Online: connect + create lobby | `online.spec.ts` | `OnlineFlowTest.test1…` | `OnlineServerTest` |
 | Online: start game → play | `restart.spec.ts` (host-start to the human's bid turn + a bid) | `OnlineFlowTest.test1…` (to the human's bid turn) | full bot-backed games to completion |
 | Online: reload / session resume | `online.spec.ts` (rejoin offer + own-link auto-rejoin) | n/a — the Android app doesn't reload; warm-start covered by unit tests | reconnect/resume + lobby disconnect grace |

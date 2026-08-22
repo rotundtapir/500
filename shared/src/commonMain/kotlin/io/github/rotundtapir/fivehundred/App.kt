@@ -55,6 +55,10 @@ fun FiveHundredApp(
     nextSeed: () -> Long,
     // Shares an online invite link: native share sheet on Android, clipboard copy on web.
     linkSharer: LinkSharer = LinkSharer { _, _ -> false },
+    // Build facts cardkit's AppConfig doesn't carry (versionCode, build type, device/browser) and
+    // the clipboard hook behind them — what the About dialog reports for bug reports.
+    buildDetails: BuildDetails = BuildDetails(),
+    textCopier: TextCopier = TextCopier.None,
     // A join code from a deep link (Android App Links / web ?joinCode=): opens online mode straight
     // to the join screen with the code prefilled. Changes across warm-start intents on Android.
     joinCodeOverride: String? = null,
@@ -253,6 +257,8 @@ fun FiveHundredApp(
                     appScreen = AppScreen.ONLINE.name
                 },
                 settings = settingsControls,
+                buildDetails = buildDetails,
+                onCopyDetails = textCopier::copy,
             )
         }
     }

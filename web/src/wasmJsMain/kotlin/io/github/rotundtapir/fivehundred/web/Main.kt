@@ -19,6 +19,7 @@ import io.github.rotundtapir.cardkit.ui.CardArtWarmup
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
+import io.github.rotundtapir.fivehundred.BuildDetails
 import io.github.rotundtapir.fivehundred.FiveHundredApp
 import io.github.rotundtapir.fivehundred.ProjectLinks
 import io.github.rotundtapir.fivehundred.web.generated.resources.Res
@@ -97,6 +98,15 @@ fun main() {
                     ),
                     nextSeed = { seedOverride ?: Random.nextLong() },
                     linkSharer = remember { BrowserLinkSharer() },
+                    // What the About dialog adds to AppConfig on web: the versionCode the Android
+                    // builds show too, and the browser identifying itself for bug reports.
+                    buildDetails = remember {
+                        BuildDetails(
+                            versionCode = AppBuildInfo.VERSION_CODE,
+                            environment = window.navigator.userAgent,
+                        )
+                    },
+                    textCopier = remember { BrowserTextCopier() },
                     sessionTokenStore = remember { SessionStorageTokenStore() },
                     joinCodeOverride = joinCodeOverride,
                     animationSpeedOverride = animationSpeedOverride,
