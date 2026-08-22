@@ -55,11 +55,13 @@ data class AboutInfo(
             ).joinToString(" "),
             commit = config.commit.ifBlank { UNKNOWN },
             // "android · foss · release" — enough to tell an F-Droid APK from a Play one from web.
+            // distinct() because on web the platform and the distribution are the same word: the
+            // line reads "web", not "web · web".
             build = listOf(
                 config.platform.name.lowercase(),
                 config.flavor.reportLabel(),
                 details.buildType,
-            ).filter { it.isNotBlank() }.joinToString(" · "),
+            ).filter { it.isNotBlank() }.distinct().joinToString(" · "),
             environment = details.environment,
             serverUrl = serverUrl,
         )

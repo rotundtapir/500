@@ -51,6 +51,25 @@ class AboutInfoTest {
     }
 
     @Test
+    fun `the web build line names web once, not twice`() {
+        // Regression (caught by about.spec.ts): on web the platform and the distribution are the
+        // same word, so the naive join read "web · web".
+        val info = AboutInfo.from(
+            AppConfig(
+                feedbackUri = ProjectLinks.ISSUE_TRACKER,
+                version = "0.5.0",
+                platform = AppPlatform.WEB,
+                flavor = AppDistribution.WEB,
+                commit = "5dec28b1",
+            ),
+            BuildDetails(versionCode = "13", environment = "Mozilla/5.0 … Chrome/141.0.0.0"),
+            serverUrl = "wss://500.example/ws",
+        )
+
+        assertEquals("web", info.build)
+    }
+
+    @Test
     fun `omits build facts the platform does not have`() {
         // Blank fields are dropped rather than shown empty, and an UNKNOWN distribution
         // contributes nothing to the build line.
