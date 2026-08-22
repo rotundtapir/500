@@ -26,7 +26,7 @@ The two are the `play` and `foss` build flavors. The F-Droid build excludes the
   [releases](https://github.com/rotundtapir/500/releases) (install directly;
   updates keep the same signature).
 - **Google Play**: internal testing (ad-supported flavor).
-- **F-Droid**: submission planned.
+- **F-Droid**: [![F-Droid](https://img.shields.io/f-droid/v/io.github.rotundtapir.fivehundred?logo=fdroid)](https://f-droid.org/packages/io.github.rotundtapir.fivehundred/)
 
 Support development via [Liberapay](https://liberapay.com/rotund-tapir).
 
@@ -34,7 +34,7 @@ Support development via [Liberapay](https://liberapay.com/rotund-tapir).
 
 The `foss` release build is [reproducible](https://f-droid.org/en/docs/Reproducible_Builds/):
 a clean checkout of a release tag rebuilds the GitHub-release APK bit-for-bit
-(only the signing block differs). The planned F-Droid listing uses this so
+(only the signing block differs). The F-Droid listing uses this so
 F-Droid can verify its own rebuild against our release asset and publish the
 **developer-signed** APK — the same file as on GitHub releases, so you can
 switch install sources without uninstalling. The release signing certificate's
