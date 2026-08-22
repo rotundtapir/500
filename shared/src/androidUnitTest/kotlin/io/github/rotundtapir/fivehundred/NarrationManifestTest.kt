@@ -12,8 +12,9 @@ import kotlin.test.fail
 /**
  * The drift gate between the tutorial's on-screen words and its pre-generated voice clips.
  *
- * `scripts/generate-narration.sh` synthesizes one MP3 per [tutorialNarration] line (Piper TTS) and
- * records each line's SHA-256 in the manifest beside the clips. If a tutorial text changes without
+ * `scripts/generate-narration.sh` synthesizes one MP3 per [tutorialNarration] line and records
+ * each line's SHA-256 in the manifest beside the clips (the script and the manifest header name
+ * the engine). If a tutorial text changes without
  * regenerating, this test fails — the voice must always say what the screen shows.
  */
 class NarrationManifestTest {
