@@ -12,9 +12,14 @@
         android:supportsRtl="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
+        <!-- userPortrait, not portrait: respects the user's display-rotation accessibility
+             setting. Stopgap for #41 (the game column clips the hand off screen in landscape);
+             remove when the height-adaptive layout lands. On targetSdk 36+ large screens the
+             restriction is ignored by the platform, which is fine - large screens fit. -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:screenOrientation="userPortrait"
             android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
