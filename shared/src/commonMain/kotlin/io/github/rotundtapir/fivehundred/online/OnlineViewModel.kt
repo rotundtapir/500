@@ -62,6 +62,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** Which online screen is showing. Lobby/Game are chosen from the server's [LobbyState.phase]. */
 enum class OnlineScreen { ENTRY, CREATE, JOIN, LOBBY, GAME }
@@ -224,31 +225,37 @@ class OnlineViewModel(
                 greeter.cancel()
                 sessionReady.value = false
                 if (intentionalDisconnect) break
-                // A drop after a real connection reconnects promptly (the foreground nudge relies
-                // on this); only consecutive FAILED attempts back off, or a dead server would be
-                // hammered at the initial interval forever.
+                // A drop after a real connection reconnects promptly; only consecutive FAILED
+                // attempts back off, or a dead server would be hammered at the initial interval
+                // forever. The backoff wait itself can be cut short by the foreground nudge — a
+                // player looking at the screen shouldn't wait out a timer they can't see.
                 if (connectedThisAttempt) backoff = INITIAL_BACKOFF_MILLIS
-                delay(backoff)
+                withTimeoutOrNull(backoff) { retryNow.first() }
                 backoff = (backoff * 2).coerceAtMost(MAX_BACKOFF_MILLIS)
             }
         }
     }
 
     /**
-     * Called when the app returns to the foreground (ON_START). Android silently kills a
-     * backgrounded app's sockets without telling it, so the connection can be a zombie: state says
-     * CONNECTED, nothing arrives, and the player waits out the ping timeout before seeing any
-     * move made while they were away. Force the socket closed instead — the connect loop resumes
-     * the session immediately (token in the Hello), and the server replays the current state. On
-     * a healthy connection this costs one cheap resume round-trip; on a zombie it converts a
-     * multi-second stall into an instant refresh.
+     * Called when the app returns to the foreground (ON_START). If the connection is down, skip
+     * whatever remains of the reconnect backoff and retry NOW — the player is looking at the
+     * screen; waiting out a timer they can't see reads as "the app is slow to receive moves".
+     *
+     * Deliberately does NOT touch a connection that reports CONNECTED: the 20s client ping owns
+     * zombie detection (a dead socket flips to CLOSED within about two intervals, upon which the
+     * loop reconnects and this nudge's skip applies). Force-cycling a healthy-looking socket here
+     * would hand the current turn to the bot on any deployed server without the in-game
+     * disconnect grace — a move made "without input" the moment the app foregrounds.
      */
     fun onAppForegrounded() {
         if (intentionalDisconnect) return
         if (connectJob?.isActive != true) return
-        if (connection.value != ConnectionState.CONNECTED) return // an in-flight attempt is fresh
-        viewModelScope.launch { client.close() }
+        if (connection.value == ConnectionState.CONNECTED) return
+        retryNow.tryEmit(Unit)
     }
+
+    /** Fired by [onAppForegrounded] to cut a pending reconnect backoff short. */
+    private val retryNow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     // --- Navigation -------------------------------------------------------------------------------
     fun goToCreate() {
