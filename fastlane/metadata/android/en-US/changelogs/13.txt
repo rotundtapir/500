@@ -1,0 +1,7 @@
+Online play grows up:
+• Your seat now survives app switches — 3 minutes of grace before a bot covers you, and it's yours again the moment you return
+• Turn timers default to a relaxed 30 minutes (options tucked under Advanced)
+• One-tap Ready button in the lobby
+• Faster reconnects, correct player labels after rejoining
+Fixed: hand vanishing when animations were enabled mid-hand; landscape clipping (portrait for now)
+Now on F-Droid!
