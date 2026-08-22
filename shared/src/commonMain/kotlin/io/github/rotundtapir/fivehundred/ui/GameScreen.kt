@@ -129,7 +129,14 @@ fun GameScreen(
     // result dialog must not flash its cards and bid ladder before the shuffle has run.
     var dealtHand by rememberSaveable { mutableIntStateOf(0) }
     LaunchedEffect(view.handNumber) {
-        if (animationSpeed == AnimationSpeed.OFF) return@LaunchedEffect
+        if (animationSpeed == AnimationSpeed.OFF) {
+            // A hand dealt at OFF is already fully on screen — record it as dealt, or switching
+            // animations back on mid-hand blanks the ActionArea for the rest of the hand (#40):
+            // the blanking branch below sees handNumber > dealtHand and nothing ever advances it.
+            dealtHand = maxOf(dealtHand, view.handNumber)
+            lastAnimatedHand = view.handNumber
+            return@LaunchedEffect
+        }
         if (view.handNumber == lastAnimatedHand) {
             // Recreation mid-hand: the deal was already shown (or abandoned) — never leave the
             // hand area blanked waiting for an animation that won't replay.
