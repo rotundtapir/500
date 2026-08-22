@@ -79,15 +79,38 @@ internal class Determinizer(playerCount: Int) {
     /** The full deck for this table size — also the universe for "which cards are still unseen". */
     val deck: List<Card> get() = sampler.deck
 
+    /**
+     * The per-decision invariants of [sample]: nothing here changes between the hundreds of worlds
+     * sampled for ONE decision (the tracker only mutates between decisions), so compute them once
+     * instead of per world. RNG consumption order is untouched — the sampler draws exactly as
+     * before, so seed-pinned tests and traces are unaffected.
+     */
+    class SampleSetup internal constructor(
+        internal val fixedHands: Map<Seat, List<Card>>,
+        internal val handSizes: Map<Seat, Int>,
+        internal val knownGone: Set<Card>,
+        internal val voids: Map<Seat, Set<Suit>>,
+        internal val eval: TrickEvaluator?,
+    )
+
+    /** Compute [SampleSetup] once per decision; feed it to every [sample] call for that decision. */
+    fun prepare(view: PlayerView, tracker: SeenTracker): SampleSetup = SampleSetup(
+        fixedHands = fixedHands(view),
+        handSizes = view.handSizes,
+        knownGone = tracker.seenPlays + tracker.myDiscards,
+        voids = tracker.voids,
+        // Before PLAY no void can have been proven, so skip the repair pass entirely.
+        eval = if (view.phase == Phase.PLAY) TrickEvaluator(view.trump ?: Trump.NO_TRUMP) else null,
+    )
+
     /** One sampled world: a [GameState] the reducer accepts, agreeing with everything [view] shows. */
-    fun sample(view: PlayerView, tracker: SeenTracker, random: Random): GameState {
+    fun sample(view: PlayerView, setup: SampleSetup, random: Random): GameState {
         val result = sampler.sample(
-            fixedHands = fixedHands(view),
-            handSizes = view.handSizes,
-            knownGone = tracker.seenPlays + tracker.myDiscards,
-            voids = tracker.voids,
-            // Before PLAY no void can have been proven, so skip the repair pass entirely.
-            eval = if (view.phase == Phase.PLAY) TrickEvaluator(view.trump ?: Trump.NO_TRUMP) else null,
+            fixedHands = setup.fixedHands,
+            handSizes = setup.handSizes,
+            knownGone = setup.knownGone,
+            voids = setup.voids,
+            eval = setup.eval,
             random = random,
         )
         // During BIDDING the kitty is still face down and must exist — the auction winner takes it
