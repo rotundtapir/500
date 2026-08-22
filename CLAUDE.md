@@ -175,7 +175,7 @@ seat, action)` is a pure reducer; `GameDriver` loops it, asking each seat's `Pla
 `GameViewModel` paces bots with **signals, not timers**: bot turns await `dealAnimationDone`,
 `trickAcked` (with `holdTricks` — a held trick releases live when the toggle flips off), and
 `handResultAcked` StateFlows that the UI raises. **Every pacing mechanism must be inert at
-`AnimationSpeed.OFF`** — the 22-test connected suite (`GameFlowTest`) depends on it, pinning
+`AnimationSpeed.OFF`** — the 25-test connected suite (`GameFlowTest`) depends on it, pinning
 `EXTRA_SEED=42`, `EXTRA_ANIMATION_SPEED="OFF"` and `EXTRA_SOUND_VOLUME=0f` via intent extras
 (volume 0 also means the SoundPool is never created — native audio playback crashes the
 instrumented process on the `-no-audio` emulator).

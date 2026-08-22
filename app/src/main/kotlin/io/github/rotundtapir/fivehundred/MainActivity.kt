@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred
 
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -93,6 +94,17 @@ class MainActivity : ComponentActivity() {
     private fun aiBudgetMillisOverride(): Long? =
         if (intent?.hasExtra(EXTRA_AI_BUDGET_MS) == true) intent.getLongExtra(EXTRA_AI_BUDGET_MS, 0) else null
 
+    /**
+     * What the About dialog reports on top of [AppConfig]: the versionCode and build type from
+     * BuildConfig, and the device/OS line a bug report needs to reproduce anything.
+     */
+    private fun buildDetails() = BuildDetails(
+        versionCode = BuildConfig.VERSION_CODE.toString(),
+        buildType = BuildConfig.BUILD_TYPE,
+        environment = "Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}) · " +
+            "${Build.MANUFACTURER} ${Build.MODEL}",
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         monetization = MonetizationProvider.create(this)
@@ -115,6 +127,8 @@ class MainActivity : ComponentActivity() {
                     ),
                     nextSeed = ::newGameSeed,
                     linkSharer = remember { AndroidLinkSharer(this) },
+                    buildDetails = remember { buildDetails() },
+                    textCopier = remember { AndroidTextCopier(applicationContext) },
                     joinCodeOverride = deepLinkJoinCode,
                     animationSpeedOverride = animationSpeedOverride(),
                     soundVolumeOverride = soundVolumeOverride(),

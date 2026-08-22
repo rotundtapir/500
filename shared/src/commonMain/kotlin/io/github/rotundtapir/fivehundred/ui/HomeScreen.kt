@@ -35,11 +35,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.rotundtapir.cardkit.monetization.Monetization
+import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.cardkit.ui.tutorial.NarrationState
 import io.github.rotundtapir.cardkit.ui.tutorial.NarrationToggle
 import io.github.rotundtapir.cardkit.ui.SettingsIcon
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
+import io.github.rotundtapir.fivehundred.AboutInfo
+import io.github.rotundtapir.fivehundred.BuildDetails
 
 /**
  * A game mode the bot-setup screen offers: a table size plus its team structure. [players] and
@@ -66,10 +69,15 @@ fun HomeScreen(
     onStartTutorial: () -> Unit,
     settings: SettingsControls,
     narration: NarrationState,
+    // What the About dialog reports: the build facts only the entry point knows, and the clipboard
+    // hook its "Copy details" button uses.
+    buildDetails: BuildDetails,
+    onCopyDetails: (String) -> Boolean,
     modifier: Modifier = Modifier,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showTutorialIntro by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
 
     Surface(
         modifier = modifier.fillMaxSize(),
@@ -133,6 +141,16 @@ fun HomeScreen(
                     // when narration is muted, and the toggle below flips it back any time.
                 ) { Text(if (narration.enabled) "How to play ♪" else "How to play") }
                 NarrationToggle(narration)
+                Spacer(Modifier.height(8.dp))
+
+                // Version/commit/device, in one place users can be pointed at when they report a bug.
+                TextButton(
+                    onClick = { showAbout = true },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                    ),
+                    modifier = Modifier.testTag("aboutButton"),
+                ) { Text("About") }
             }
         }
     }
@@ -145,6 +163,13 @@ fun HomeScreen(
             },
             onDismiss = { showTutorialIntro = false },
             narration = narration,
+        )
+    }
+    if (showAbout) {
+        AboutDialog(
+            info = AboutInfo.from(LocalAppConfig.current, buildDetails, settings.serverUrl),
+            onCopy = onCopyDetails,
+            onDismiss = { showAbout = false },
         )
     }
     if (showSettings) {

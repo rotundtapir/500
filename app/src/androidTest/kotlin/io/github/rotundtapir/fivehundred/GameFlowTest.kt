@@ -270,6 +270,32 @@ class GameFlowTest {
     }
 
     @Test
+    fun aboutDialog_reportsTheBuildAndOffersTheDetailsForCopying() {
+        rule.onNodeWithTag("aboutButton").performClick()
+        waitForText("About 500")
+
+        // The build facts a bug report needs: this APK's version and the commit it was built from.
+        // Asserted against the values BuildConfig actually holds, so stale wiring fails here.
+        assertTrue(
+            "the version row must show the build's version",
+            textExists(BuildConfig.VERSION_NAME, substring = true),
+        )
+        assertTrue(
+            "the commit row must show the build's commit",
+            textExists(BuildConfig.GIT_COMMIT, substring = true),
+        )
+        assertTrue("the build row must name the flavor", textExists(BuildConfig.FLAVOR, substring = true))
+        assertTrue("the device/OS line must be reported", textExists("Android ", substring = true))
+
+        // Copying reaches the real clipboard, so the details can be pasted into an issue verbatim.
+        rule.onNodeWithTag("aboutCopy").performScrollTo().performClick()
+        waitForText("Copied to clipboard.")
+
+        rule.onNodeWithTag("aboutClose").performClick()
+        rule.onNodeWithText("Play with bots").assertIsDisplayed()
+    }
+
+    @Test
     fun newGame_dealsTenCards_andBiddingReachesHuman() {
         startGame()
         waitForBidPanel()
