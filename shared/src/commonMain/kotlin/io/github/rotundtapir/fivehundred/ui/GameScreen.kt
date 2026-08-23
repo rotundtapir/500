@@ -91,6 +91,12 @@ fun GameScreen(
     leaveConfirmText: String? = null,
     // Non-null in an online game: adds the emote control to the top bar and shows incoming emotes.
     online: OnlineGameControls? = null,
+    // The hidden cheats section (#51), or null. The caller passes null for an online game: the
+    // cheats cannot work there, and the section should not even appear.
+    cheats: CheatControls? = null,
+    // Cheat-only: every seat's cards, from the local game state. Empty unless the cheat is on, and
+    // necessarily empty online (the client never receives other hands).
+    revealedHands: Map<Seat, List<Card>> = emptyMap(),
 ) {
     val animationSpeed = settings.animationSpeed
     // Captured by the deal LaunchedEffect below; rememberUpdatedState so a recomposition that
@@ -208,6 +214,7 @@ fun GameScreen(
                 // Side by side the exposed hand lives in the panel instead: on the felt's side it
                 // would squeeze the trick down to a sliver at landscape-phone heights.
                 if (!sideBySide) ExposedDeclarerHand(view, botNames)
+                RevealedHands(view, botNames, revealedHands)
                 TrickArea(
                     view = view,
                     botNames = botNames,
@@ -283,6 +290,7 @@ fun GameScreen(
                             Spacer(Modifier.height(8.dp))
                             OpponentsColumn(view, botNames, dealState, seatAnchors = seatAnchors)
                             ExposedDeclarerHand(view, botNames, compact = true)
+                            RevealedHands(view, botNames, revealedHands, compact = true)
                         }
                         Column(modifier = Modifier.weight(1f).fillMaxHeight()) { board() }
                     }
@@ -321,6 +329,7 @@ fun GameScreen(
             inGame = true,
             monetization = monetization,
             onDismiss = { showSettings = false },
+            cheats = cheats,
         )
     }
 

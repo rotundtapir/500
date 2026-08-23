@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardAspectRatio
 import io.github.rotundtapir.cardkit.ui.PlayingCard
@@ -350,6 +351,56 @@ internal fun ExposedDeclarerHand(
             horizontalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp),
         ) {
             exposed.forEach { card -> PlayingCard(card, width = if (compact) 26.dp else 40.dp) }
+        }
+    }
+}
+
+/**
+ * Cheat-only (#51): every other seat's hand, face up. Same presentation as [ExposedDeclarerHand] —
+ * the renderer is worth reusing — but a completely different data path: these cards come from the
+ * caller's local `GameState`, never from [PlayerView], so an online client has nothing to show and
+ * `PlayerView` stays un-widened.
+ */
+@Composable
+internal fun RevealedHands(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    hands: Map<Seat, List<Card>>,
+    compact: Boolean = false,
+) {
+    if (hands.isEmpty()) return
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        // Filtered first rather than skipped inside the loop: two `continue`s in one body reads
+        // worse than one comprehension (and detekt agrees).
+        val others = view.activeSeats.filter { it != view.seat }.mapNotNull { seat ->
+            hands[seat]?.let { seat to it }
+        }
+        for ((seat, hand) in others) {
+            FaceUpHandRow(seatLabel(view, botNames, seat), hand, compact)
+        }
+    }
+}
+
+/** A labelled row of small face-up cards — the shape both the open-misère and cheat reveals want. */
+@Composable
+private fun FaceUpHandRow(label: String, cards: List<Card>, compact: Boolean) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (compact) Alignment.Start else Alignment.CenterHorizontally,
+    ) {
+        Text(
+            label,
+            style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp),
+        ) {
+            cards.forEach { card -> PlayingCard(card, width = if (compact) 22.dp else 32.dp) }
         }
     }
 }

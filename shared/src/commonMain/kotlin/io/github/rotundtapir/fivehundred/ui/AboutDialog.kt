@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -25,6 +26,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
+import io.github.rotundtapir.cardkit.ui.clickableWhen
 import io.github.rotundtapir.fivehundred.AboutInfo
 
 /**
@@ -40,9 +42,15 @@ fun AboutDialog(
     info: AboutInfo,
     onCopy: (String) -> Boolean,
     onDismiss: () -> Unit,
+    // Tapping the version row repeatedly unlocks the hidden cheats menu, the way Android's Settings
+    // → About phone → Build number unlocks developer options (#51). Null when already unlocked (or
+    // where no unlock should be offered), which also stops the countdown reappearing.
+    onUnlockCheats: (() -> Unit)? = null,
 ) {
     // null until "Copy details" is pressed, then whether the clipboard actually took it.
     var copied by remember { mutableStateOf<Boolean?>(null) }
+    var versionTaps by remember { mutableIntStateOf(0) }
+    val tapsLeft = UNLOCK_TAPS - versionTaps
     val uriHandler = LocalUriHandler.current
     val feedbackUri = LocalAppConfig.current.feedbackUri
 
@@ -62,8 +70,37 @@ fun AboutDialog(
                 // button can't work (an older browser, a locked-down WebView).
                 SelectionContainer {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        info.rows().forEach { (label, value) -> AboutRow(label, value) }
+                        info.rows().forEach { (label, value) ->
+                            AboutRow(
+                                label,
+                                value,
+                                // Only the version row counts taps, and only while an unlock is on
+                                // offer — so the gesture stays undiscoverable by accident but is
+                                // findable by anyone who knows the Android convention.
+                                onTap = if (label == VERSION_LABEL && onUnlockCheats != null) {
+                                    {
+                                        versionTaps++
+                                        if (versionTaps >= UNLOCK_TAPS) {
+                                            versionTaps = 0
+                                            onUnlockCheats()
+                                        }
+                                    }
+                                } else {
+                                    null
+                                },
+                            )
+                        }
                     }
+                }
+                // The countdown only starts once a few taps have landed, so idle curiosity doesn't
+                // reveal that anything is there.
+                if (onUnlockCheats != null && versionTaps >= UNLOCK_HINT_AFTER && tapsLeft > 0) {
+                    Text(
+                        "You are now $tapsLeft ${if (tapsLeft == 1) "tap" else "taps"} away from the cheats menu.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("unlockCountdown"),
+                    )
                 }
                 Text(
                     "Please include these details in a bug report — they say exactly which build " +
@@ -97,8 +134,8 @@ fun AboutDialog(
 
 /** One build fact: a fixed-width label so the values line up, and the value itself. */
 @Composable
-private fun AboutRow(label: String, value: String) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+private fun AboutRow(label: String, value: String, onTap: (() -> Unit)? = null) {
+    Row(modifier = Modifier.fillMaxWidth().clickableWhen(onTap != null) { onTap?.invoke() }) {
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
@@ -113,3 +150,12 @@ private fun AboutRow(label: String, value: String) {
         )
     }
 }
+
+/** The row whose label unlocks the cheats menu — must match [AboutInfo]'s own label for it. */
+private const val VERSION_LABEL = "Version"
+
+/** Taps on the version row that unlock the cheats menu; Android's developer options use 7 too. */
+private const val UNLOCK_TAPS = 7
+
+/** Taps before the countdown appears — before this, nothing hints that a gesture exists. */
+private const val UNLOCK_HINT_AFTER = 3

@@ -8,6 +8,9 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import io.github.rotundtapir.fivehundred.ui.CheatControls
+import io.github.rotundtapir.fivehundred.ai.SeedSearch
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -104,6 +107,7 @@ fun FiveHundredApp(
     // One sound engine for the whole app: reacts to game-state transitions, and hands back a play
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
     val playSound = rememberTableSoundEffects(view = view?.transitions, volume = soundVolume)
+    val allHands by vm.allHands.collectAsState()
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
     // Tutorial voice narration: the toggle is persisted; playback additionally requires a nonzero
     // master volume (at 0 no audio object is ever created — the -no-audio emulator rule).
@@ -143,6 +147,51 @@ fun FiveHundredApp(
         playerName = playerName,
         onSetPlayerName = { value -> scope.launch { settings.setPlayerName(value) } },
     )
+    // --- Cheats (#51): hidden until unlocked, and offline-only by construction -------------------
+    val cheatsUnlocked by settings.cheatsUnlocked.collectAsState(initial = SettingsDefaults.CHEATS_UNLOCKED)
+    var showAllHands by remember { mutableStateOf(false) }
+    var seedSearchStatus by remember { mutableStateOf<String?>(null) }
+    val currentSeed by vm.currentSeed.collectAsState()
+    val cheatControls = if (cheatsUnlocked) {
+        CheatControls(
+            seed = currentSeed,
+            showAllHands = showAllHands,
+            onSetShowAllHands = { showAllHands = it },
+            // A null seed means "next one": the successor keeps repeated re-deals walking forward
+            // instead of re-dealing the same board, and stays reproducible.
+            onRedeal = { seed -> vm.cheatRedeal(seed ?: ((currentSeed ?: 0L) + 1)) },
+            onRiggedDeal = { level ->
+                scope.launch {
+                    seedSearchStatus = "Searching for a $level+ hand…"
+                    // Runs on the UI dispatcher, which on wasm is the browser's only thread — the
+                    // search suspends periodically so the canvas keeps painting rather than freezing.
+                    val found = SeedSearch.findSeedFor(
+                        from = (currentSeed ?: 0L) + 1,
+                        onProgress = { attempts -> seedSearchStatus = "Searching… ($attempts seeds)" },
+                        predicate = SeedSearch.atLeastLevel(level),
+                    )
+                    seedSearchStatus = if (found != null) {
+                        vm.cheatRedeal(found)
+                        "Dealt seed $found (a $level+ hand)."
+                    } else {
+                        "No $level+ hand found in ${SeedSearch.DEFAULT_MAX_ATTEMPTS} seeds."
+                    }
+                }
+            },
+            searchStatus = seedSearchStatus,
+            onCopy = textCopier::copy,
+            onRelock = {
+                showAllHands = false
+                seedSearchStatus = null
+                scope.launch { settings.setCheatsUnlocked(false) }
+            },
+        )
+    } else {
+        null
+    }
+    val onUnlockCheats: (() -> Unit)? =
+        if (cheatsUnlocked) null else ({ scope.launch { settings.setCheatsUnlocked(true) } })
+
     // Stored by name so rememberSaveable needs no custom Saver.
     var modeName by rememberSaveable { mutableStateOf(GameMode.FOUR_PLAYER.name) }
     val mode = GameMode.valueOf(modeName)
@@ -231,6 +280,10 @@ fun FiveHundredApp(
                 onDealAnimationFinish = vm::dealAnimationFinished,
                 onTrickAcknowledge = vm::acknowledgeTrick,
                 soundHook = playSound,
+                cheats = cheatControls,
+                // Cheat-only, offline-only: the unredacted hands, straight off the local state.
+                // The online flow below passes nothing, and its client never holds them anyway.
+                revealedHands = if (cheatControls?.showAllHands == true) allHands else emptyMap(),
             )
             appScreen == AppScreen.BOT_SETUP.name -> BotSetupScreen(
                 mode = mode,
@@ -265,6 +318,8 @@ fun FiveHundredApp(
                 settings = settingsControls,
                 buildDetails = buildDetails,
                 onCopyDetails = textCopier::copy,
+                cheats = cheatControls,
+                onUnlockCheats = onUnlockCheats,
             )
         }
     }

@@ -48,6 +48,8 @@ class GameViewModel : ViewModel() {
 
     private val state = MutableStateFlow<GameState?>(null)
 
+    private val _currentSeed = MutableStateFlow<Long?>(null)
+
     /** How quickly bot turns play out — set by the activity from the persisted setting, read live. */
     val animationSpeed = MutableStateFlow(AnimationSpeed.NORMAL)
 
@@ -79,7 +81,63 @@ class GameViewModel : ViewModel() {
         .map { snapshot -> snapshot?.let { rules.view(it, humanSeat) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /**
+     * Cheat-only, offline-only: every seat's hand, straight off the local [GameState].
+     *
+     * Deliberately NOT a [PlayerView] field. In a local game this process is the authority and
+     * already holds the unredacted state, so the cheat needs no engine change; online, the client
+     * never receives other hands at all, so there is nothing here for a forgotten conditional to
+     * leak. That is the difference between an invariant and a guard — see #51.
+     */
+    val allHands: StateFlow<Map<Seat, List<Card>>> = state
+        .map { it?.hands ?: emptyMap() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
+
+    /**
+     * The seed the current match was built from, for the cheats menu's show/copy affordance.
+     *
+     * Offline only, and load-bearing: the engine is public and strictly seed-deterministic, so a
+     * seed IS the full game state — anyone holding it can reconstruct all four hands and every
+     * future deal. It must never be rendered during an online game (`online != null`), which is
+     * why this lives on the local ViewModel and no wire message carries it.
+     */
+    val currentSeed: StateFlow<Long?> = _currentSeed
+
     private var gameJob: Job? = null
+
+    /** The arguments the current match was started with, so a cheat re-deal can reuse them. */
+    private var lastSetup: GameSetup? = null
+
+    /** Everything [newGame] needs except the seed — what "re-deal this hand" keeps constant. */
+    private data class GameSetup(
+        val playerCount: Int,
+        val misereEnabled: Boolean,
+        val noTrumpsEnabled: Boolean,
+        val teamCount: Int,
+        val botSkill: BotSkill,
+        val aiBudgetMillis: Long?,
+    )
+
+    /**
+     * Cheat: deal again from a fresh seed, keeping the table exactly as it is.
+     *
+     * This restarts the match (scores and hand history reset) rather than re-rolling the current
+     * hand in place: `rngSeed` evolves per deal, so re-dealing one hand mid-match would need the
+     * hand's entry seed retained in the engine. For "cycle deals until an interesting one appears",
+     * which is what this is for, a restart is what's wanted — and it is honest about what happened.
+     */
+    fun cheatRedeal(seed: Long) {
+        val setup = lastSetup ?: return
+        newGame(
+            seed = seed,
+            playerCount = setup.playerCount,
+            misereEnabled = setup.misereEnabled,
+            noTrumpsEnabled = setup.noTrumpsEnabled,
+            teamCount = setup.teamCount,
+            botSkill = setup.botSkill,
+            aiBudgetMillis = setup.aiBudgetMillis,
+        )
+    }
 
     fun newGame(
         seed: Long,
@@ -95,6 +153,8 @@ class GameViewModel : ViewModel() {
         gameJob?.cancel()
         state.value = null
         pacing.reset()
+        _currentSeed.value = seed
+        lastSetup = GameSetup(playerCount, misereEnabled, noTrumpsEnabled, teamCount, botSkill, aiBudgetMillis)
         rules = FiveHundredRules(
             playerCount = playerCount,
             misereEnabled = misereEnabled,

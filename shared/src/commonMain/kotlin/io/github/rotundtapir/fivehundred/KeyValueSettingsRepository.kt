@@ -77,4 +77,10 @@ class KeyValueSettingsRepository(private val store: KeyValueStore) : SettingsRep
         store.stringSetting(SettingsKeys.PLAYER_NAME, SettingsDefaults.PLAYER_NAME)
 
     override suspend fun setPlayerName(value: String) = store.putString(SettingsKeys.PLAYER_NAME, value)
+
+    override val cheatsUnlocked: Flow<Boolean> =
+        store.booleanSetting(SettingsKeys.CHEATS_UNLOCKED, SettingsDefaults.CHEATS_UNLOCKED)
+
+    override suspend fun setCheatsUnlocked(value: Boolean) =
+        store.putBoolean(SettingsKeys.CHEATS_UNLOCKED, value)
 }
