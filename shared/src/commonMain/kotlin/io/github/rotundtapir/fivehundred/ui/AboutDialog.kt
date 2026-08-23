@@ -22,11 +22,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
-import io.github.rotundtapir.cardkit.ui.clickableWhen
 import io.github.rotundtapir.fivehundred.AboutInfo
 
 /**
@@ -135,7 +136,16 @@ fun AboutDialog(
 /** One build fact: a fixed-width label so the values line up, and the value itself. */
 @Composable
 private fun AboutRow(label: String, value: String, onTap: (() -> Unit)? = null) {
-    Row(modifier = Modifier.fillMaxWidth().clickableWhen(onTap != null) { onTap?.invoke() }) {
+    // Deliberately pointerInput rather than clickable: `clickable` adds semantics that MERGE the
+    // row's children into one node, which both announces the hidden gesture to screen readers and
+    // hides the version text from anything locating by text (the web e2e About spec broke on it).
+    // An easter egg should be invisible to the accessibility tree, not advertised in it.
+    val tapModifier = if (onTap != null) {
+        Modifier.pointerInput(onTap) { detectTapGestures { onTap() } }
+    } else {
+        Modifier
+    }
+    Row(modifier = Modifier.fillMaxWidth().then(tapModifier)) {
         Text(
             label,
             style = MaterialTheme.typography.bodySmall,
