@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-or-later WITH LicenseRef-cardkit-ads-exception
+# The bare domain: browsers land here from the ssh-convenience A/AAAA records (#37). Nothing is
+# served from the box itself — permanent-redirect to the landing page on GitHub Pages. Owned by
+# 500's deploy job (it bootstrapped the box); hardcoded because the apex is shared by every game.
+29022617.xyz {
+	redir https://rotundtapir.github.io/ 308
+}
