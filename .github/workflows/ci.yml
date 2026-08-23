@@ -326,10 +326,11 @@ jobs:
           rsync -e "ssh -p ${{ secrets.DEPLOY_PORT }} -i ~/.ssh/id_ed25519" -av \
             server/deploy/docker-compose.yml server/deploy/Caddyfile \
             root@${{ secrets.DEPLOY_HOST }}:/opt/500-server/
-          # Only 500's own vhost file. The shared Caddy imports every file in this directory, and
-          # each other game's deploy owns its own — so neither job ever rewrites the other's config.
+          # Only 500's own vhost file plus the shared apex redirect (this job bootstrapped the box,
+          # so it owns the apex). The shared Caddy imports every file in this directory, and each
+          # other game's deploy owns its own — so neither job ever rewrites the other's config.
           rsync -e "ssh -p ${{ secrets.DEPLOY_PORT }} -i ~/.ssh/id_ed25519" -av \
-            server/deploy/sites/500.caddy \
+            server/deploy/sites/500.caddy server/deploy/sites/apex.caddy \
             root@${{ secrets.DEPLOY_HOST }}:/opt/caddy-sites/
       - name: Pin version and bring up
         run: |
