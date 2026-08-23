@@ -94,10 +94,16 @@ fun CheatsSection(cheats: CheatControls, modifier: Modifier = Modifier) {
         }
 
         SwitchRow(
-            label = "Show all hands and the kitty",
+            label = "Reveal hands and the kitty",
             checked = cheats.showAllHands,
             onCheckedChange = cheats.onSetShowAllHands,
             switchModifier = Modifier.testTag("cheatShowAllHands"),
+        )
+        Text(
+            "Tap a player's cards to see that hand — one at a time, so the felt keeps its room. " +
+                "The kitty turns face up too.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
         OutlinedButton(

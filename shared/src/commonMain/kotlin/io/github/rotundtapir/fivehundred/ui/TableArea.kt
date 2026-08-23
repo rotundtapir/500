@@ -35,6 +35,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -162,6 +164,9 @@ internal fun OpponentsRow(
     // True when the screen is too short for full-size chrome (landscape phone, small window): the
     // row uses its compact form so the height it gives up goes to the hand instead (#41).
     shortScreen: Boolean = false,
+    // Cheat-only (#51): tapping a seat's pile reveals THAT hand, one at a time. Null in a normal
+    // game, so the piles are inert exactly as before.
+    onSeatTap: ((Seat) -> Unit)? = null,
 ) {
     // With 5 opponents (6-player game) the row gets tight: shrink each column and allow the row to
     // scroll horizontally as a safety valve on narrow screens. A short screen compacts for height
@@ -189,7 +194,7 @@ internal fun OpponentsRow(
             // ellipsised within its slot instead of stretching it and squishing the others. Compact
             // (6-player) keeps its fixed-width scrolling columns.
             val columnModifier = if (crowded) Modifier else Modifier.weight(1f)
-            OpponentStatus(view, botNames, seat, compact, dealState, columnModifier, seatAnchors)
+            OpponentStatus(view, botNames, seat, compact, dealState, columnModifier, seatAnchors, onSeatTap)
         }
     }
 }
@@ -203,11 +208,21 @@ private fun OpponentStatus(
     dealState: DealAnimationState,
     modifier: Modifier = Modifier,
     seatAnchors: TutorialAnchors? = null,
+    onSeatTap: ((Seat) -> Unit)? = null,
 ) {
     val textStyle = if (compact) MaterialTheme.typography.bodySmall else LocalTextStyle.current
+    // pointerInput, not clickable: `clickable` merges the column into one semantics node, which
+// changes what the connected suite can locate — and a cheat affordance has no business being
+    // announced as a button either. The whole column is the target: a 56dp pile is a small thing to
+    // hit on a phone, and the name and counts are just as much "that player".
+    val tapModifier = if (onSeatTap != null) {
+        Modifier.pointerInput(seat) { detectTapGestures { onSeatTap(seat) } }
+    } else {
+        Modifier
+    }
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.tutorialTarget(seatAnchors, "seat:${seat.index}"),
+        modifier = modifier.tutorialTarget(seatAnchors, "seat:${seat.index}").then(tapModifier),
     ) {
         val active = seat in view.activeSeats
         // Colour each name by its team so sides read at a glance across the table: your own team in
@@ -278,6 +293,7 @@ internal fun OpponentsColumn(
     dealState: DealAnimationState,
     modifier: Modifier = Modifier,
     seatAnchors: TutorialAnchors? = null,
+    onSeatTap: ((Seat) -> Unit)? = null,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         for (offset in 1 until view.playerCount) {
@@ -285,7 +301,12 @@ internal fun OpponentsColumn(
             val isPartner = teamOf(seat, view.teamCount) == view.myTeam
             val active = seat in view.activeSeats
             val cardCount = if (dealState.dealing) dealState.dealtTo(seat) else view.handSizes[seat] ?: 0
-            Column(modifier = Modifier.tutorialTarget(seatAnchors, "seat:${seat.index}")) {
+            val tap = if (onSeatTap != null) {
+                Modifier.pointerInput(seat) { detectTapGestures { onSeatTap(seat) } }
+            } else {
+                Modifier
+            }
+            Column(modifier = Modifier.tutorialTarget(seatAnchors, "seat:${seat.index}").then(tap)) {
                 Text(
                     seatLabel(view, botNames, seat) + if (isPartner) " (partner)" else "",
                     style = MaterialTheme.typography.bodySmall,
@@ -373,8 +394,10 @@ internal fun RevealedHands(
         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        // Filtered first rather than skipped inside the loop: two `continue`s in one body reads
-        // worse than one comprehension (and detekt agrees).
+        // Ordered by the table rather than by map iteration, and never our own hand (it is already
+        // in the fan). Normally a single entry: the caller reveals one seat at a time, because three
+        // rows at once crowd the felt off the screen — the space budgeted for the open-misère row is
+        // the space this gets.
         val others = view.activeSeats.filter { it != view.seat }.mapNotNull { seat ->
             hands[seat]?.let { seat to it }
         }
