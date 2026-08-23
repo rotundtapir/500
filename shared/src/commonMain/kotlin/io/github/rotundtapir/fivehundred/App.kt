@@ -2,6 +2,22 @@
 package io.github.rotundtapir.fivehundred
 
 import androidx.compose.runtime.Composable
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -56,6 +72,7 @@ fun FiveHundredApp(
     settings: SettingsRepository,
     appConfig: AppConfig,
     nextSeed: () -> Long,
+    modifier: Modifier = Modifier,
     // Shares an online invite link: native share sheet on Android, clipboard copy on web.
     linkSharer: LinkSharer = LinkSharer { _, _ -> false },
     // Reloads the app in place — real only on web, where it's the "Update required" fix.
@@ -255,6 +272,16 @@ fun FiveHundredApp(
         // view still null), so its internal state survives the transition instead of being rebuilt.
         val current = view
         val onGameScreen = appScreen == AppScreen.GAME.name && current != null
+        BoxWithConstraints(modifier = modifier.fillMaxSize()) {
+        // Below this height the app is not worth contorting: the game screen adapts down to a
+        // landscape phone (#41), but the menus and dialogs have irreducible content — a browser on
+        // a phone in landscape leaves ~300dp, where the home screen's own buttons and the tutorial's
+        // "Next" do not fit and there is nothing sensible left to shrink. Rather than bodge each
+        // screen (and ship a game nobody can read), say so and let the taller orientation do it.
+        if (maxHeight < MIN_PLAYABLE_HEIGHT) {
+            TooShortScreen(landscape = maxWidth > maxHeight)
+            return@BoxWithConstraints
+        }
         when {
             appScreen == AppScreen.ONLINE.name -> OnlineFlow(
                 vm = onlineVm,
@@ -330,8 +357,49 @@ fun FiveHundredApp(
                 onUnlockCheats = onUnlockCheats,
             )
         }
+        }
     }
 }
+
+/**
+ * Shown instead of the app when the viewport is too short to lay out honestly (see
+ * [MIN_PLAYABLE_HEIGHT]). Deliberately a dead end with no dismiss: it is a statement about the
+ * window, not a choice, and offering "continue anyway" would just return the unusable screen.
+ */
+@Composable
+private fun TooShortScreen(landscape: Boolean, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier.fillMaxSize(),
+        color = MaterialTheme.colorScheme.background,
+        contentColor = MaterialTheme.colorScheme.onBackground,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("Not enough room", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(
+                if (landscape) {
+                    "This window is too short for the table. Turn your device to portrait — " +
+                        "landscape is fine on a taller screen."
+                } else {
+                    "This window is too short for the table. Make it taller to play."
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
+        }
+    }
+}
+
+/**
+ * The shortest viewport the app will lay out. Sits below a landscape phone's *app* height (the game
+ * screen is verified playable at 390dp) and above a browser-on-a-phone landscape viewport (~300dp),
+ * which is the case that cannot be made to fit.
+ */
+private val MIN_PLAYABLE_HEIGHT = 340.dp
 
 /** Top-level screens the app switches between. */
 private enum class AppScreen { HOME, BOT_SETUP, GAME, ONLINE }
