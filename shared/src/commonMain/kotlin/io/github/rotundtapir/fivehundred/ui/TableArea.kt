@@ -158,11 +158,16 @@ internal fun OpponentsRow(
     botNames: Map<Seat, String>,
     dealState: DealAnimationState,
     seatAnchors: TutorialAnchors? = null,
+    // True when the screen is too short for full-size chrome (landscape phone, small window): the
+    // row uses its compact form so the height it gives up goes to the hand instead (#41).
+    shortScreen: Boolean = false,
 ) {
     // With 5 opponents (6-player game) the row gets tight: shrink each column and allow the row to
-    // scroll horizontally as a safety valve on narrow screens.
-    val compact = view.playerCount == 6
-    val rowModifier = if (compact) {
+    // scroll horizontally as a safety valve on narrow screens. A short screen compacts for height
+    // rather than width, so it takes the smaller text and pile without the horizontal scroll.
+    val crowded = view.playerCount == 6
+    val compact = crowded || shortScreen
+    val rowModifier = if (crowded) {
         Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState())
@@ -171,7 +176,7 @@ internal fun OpponentsRow(
     }
     Row(
         modifier = rowModifier,
-        horizontalArrangement = if (compact) Arrangement.spacedBy(12.dp) else Arrangement.SpaceEvenly,
+        horizontalArrangement = if (crowded) Arrangement.spacedBy(12.dp) else Arrangement.SpaceEvenly,
     ) {
         // Order opponents going clockwise from the local player, so the seating reads like a real
         // table: your partner lands opposite (in the middle) and the two other-team seats flank it,
@@ -182,7 +187,7 @@ internal fun OpponentsRow(
             // Equal-width columns so a long name (e.g. a bot-substituted human's "Name (bot)") is
             // ellipsised within its slot instead of stretching it and squishing the others. Compact
             // (6-player) keeps its fixed-width scrolling columns.
-            val columnModifier = if (compact) Modifier else Modifier.weight(1f)
+            val columnModifier = if (crowded) Modifier else Modifier.weight(1f)
             OpponentStatus(view, botNames, seat, compact, dealState, columnModifier, seatAnchors)
         }
     }
@@ -261,11 +266,71 @@ private fun OpponentStatus(
 }
 
 /**
+ * The opponents as a narrow vertical list — the landscape/short-screen counterpart of
+ * [OpponentsRow]. Trading the piles and the stacked cards/tricks lines for one line per seat is
+ * what frees the height a landscape phone needs for the felt and the player's own hand (#41).
+ */
+@Composable
+internal fun OpponentsColumn(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    dealState: DealAnimationState,
+    modifier: Modifier = Modifier,
+    seatAnchors: TutorialAnchors? = null,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        for (offset in 1 until view.playerCount) {
+            val seat = Seat((view.seat.index + offset) % view.playerCount)
+            val isPartner = teamOf(seat, view.teamCount) == view.myTeam
+            val active = seat in view.activeSeats
+            val cardCount = if (dealState.dealing) dealState.dealtTo(seat) else view.handSizes[seat] ?: 0
+            Column(modifier = Modifier.tutorialTarget(seatAnchors, "seat:${seat.index}")) {
+                Text(
+                    seatLabel(view, botNames, seat) + if (isPartner) " (partner)" else "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = teamColor(view, seat),
+                    fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                SuitText(
+                    if (active) {
+                        "$cardCount cards · ${view.tricksWon[seat] ?: 0} tricks${seatBidSuffix(view, seat)}"
+                    } else {
+                        "sitting out"
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
+    }
+}
+
+/** " · passed" / " · bid 7♠" for the auction and kitty phases; empty once play starts. */
+private fun seatBidSuffix(view: PlayerView, seat: Seat): String = when (view.phase) {
+    Phase.BIDDING -> when (val last = view.biddingHistory.lastOrNull { it.first == seat }?.second) {
+        null -> ""
+        Bid.Pass -> " · passed"
+        else -> " · bid ${last.label}"
+    }
+    Phase.KITTY -> view.biddingHistory
+        .lastOrNull { it.first == seat && it.second != Bid.Pass }?.second
+        ?.let { " · bid ${it.label}" } ?: ""
+    else -> ""
+}
+
+/**
  * During an open-misère PLAY phase every defender sees the declarer's exposed hand; render it as a
  * labelled row of small face-up cards above the trick area. Null (and absent) for the declarer.
  */
 @Composable
-internal fun ExposedDeclarerHand(view: PlayerView, botNames: Map<Seat, String>) {
+internal fun ExposedDeclarerHand(
+    view: PlayerView,
+    botNames: Map<Seat, String>,
+    // Landscape renders this in the side panel, where the cards must be smaller and the caption
+    // tighter — otherwise the exposed row eats the felt it is supposed to sit beside (#41).
+    compact: Boolean = false,
+) {
     val exposed = view.exposedDeclarerHand ?: return
     val declarer = view.contract?.declarer ?: return
     Column(
@@ -276,15 +341,15 @@ internal fun ExposedDeclarerHand(view: PlayerView, botNames: Map<Seat, String>) 
     ) {
         Text(
             "${seatLabel(view, botNames, declarer)}'s hand (open misère)",
-            style = MaterialTheme.typography.labelMedium,
+            style = if (compact) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Bold,
         )
         Spacer(Modifier.height(4.dp))
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 2.dp else 4.dp),
         ) {
-            exposed.forEach { card -> PlayingCard(card, width = 40.dp) }
+            exposed.forEach { card -> PlayingCard(card, width = if (compact) 26.dp else 40.dp) }
         }
     }
 }
@@ -302,6 +367,9 @@ internal fun TrickArea(
     // arrives fully formed in [holdTricks]).
     hideTapHint: Boolean = false,
     onTrickAcknowledge: (Int, Int) -> Unit = { _, _ -> },
+    // A short screen (landscape phone) lets the felt's cards go below the usual floor rather than
+    // overflow the felt they sit on (#41).
+    shortScreen: Boolean = false,
 ) {
     // With the hold on (settings toggle, or the tutorial forcing it — decided by the caller), a
     // completed trick stays on the felt until the player taps it away.
@@ -326,7 +394,7 @@ internal fun TrickArea(
         val perRow = if (rows == 1) seats else (seats + 1) / 2
         val byWidth = (maxWidth - 16.dp - 8.dp * (perRow - 1)) / perRow
         val byHeight = (maxHeight - 48.dp - 26.dp * rows - 6.dp * (rows - 1)) / rows / CardAspectRatio
-        val cardWidth = minOf(byWidth, byHeight).coerceIn(56.dp, 96.dp)
+        val cardWidth = minOf(byWidth, byHeight).coerceIn(if (shortScreen) 36.dp else 56.dp, 96.dp)
         if (dealState.dealing) {
             // Deck + growing kitty pile while cards fly out.
             DealFelt(dealState, cardWidth)

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.core.Card
 import io.github.rotundtapir.cardkit.core.Seat
@@ -65,6 +66,9 @@ internal fun ActionArea(
     targets: TutorialAnchors? = null,
     // Tutorial: peek-scroll the hand on the kitty-exchange step so the off-screen cards are seen.
     peekDiscardHand: Boolean = false,
+    // Card width for the human's fan, scaled to the space the screen actually has (#41): the caller
+    // derives it from available height, so a short screen shrinks the fan instead of clipping it.
+    cardWidth: Dp = HandCardWidth,
 ) {
     // In the tutorial only the scripted action is enabled, and taking it advances the script.
     val step = tutorial?.step
@@ -100,6 +104,7 @@ internal fun ActionArea(
                 HumanHand(
                     view, sortHand, onToggleSort,
                     playable = { false }, dimUnplayable = false, onClick = {}, targets = targets,
+                    cardWidth = cardWidth,
                 )
             }
             view.phase == Phase.KITTY && view.mustDiscard > 0 -> {
@@ -118,6 +123,7 @@ internal fun ActionArea(
                     },
                     targets = targets,
                     peekOnAppear = peekDiscardHand,
+                    cardWidth = cardWidth,
                 )
             }
             view.phase == Phase.PLAY && view.isMyTurn -> {
@@ -136,6 +142,7 @@ internal fun ActionArea(
                         onPlay(card)
                     },
                     targets = targets,
+                    cardWidth = cardWidth,
                 )
             }
             else -> {
@@ -144,6 +151,7 @@ internal fun ActionArea(
                 HumanHand(
                     view, sortHand, onToggleSort,
                     playable = { false }, dimUnplayable = false, onClick = {}, targets = targets,
+                    cardWidth = cardWidth,
                 )
             }
         }
@@ -213,6 +221,7 @@ private fun DiscardPanel(
     requiredDiscards: Set<Card>? = null,
     targets: TutorialAnchors? = null,
     peekOnAppear: Boolean = false,
+    cardWidth: Dp = HandCardWidth,
 ) {
     var selected by remember(view.hand) { mutableStateOf(emptySet<Card>()) }
     // Guard against double taps: one discard per PlayerView.
@@ -249,9 +258,13 @@ private fun DiscardPanel(
                 else if (selected.size < KITTY_SIZE) selected + card else selected
             },
             peekOnAppear = peekOnAppear,
+            cardWidth = cardWidth,
         )
     }
 }
+
+/** The fan's card width on a screen with room to spare; short screens scale down from here (#41). */
+internal val HandCardWidth = 84.dp
 
 /** Fan exposure: each card advances this fraction of a card width, so only that strip is visible. */
 private const val HAND_EXPOSURE = 0.45f
@@ -269,6 +282,7 @@ private fun HumanHand(
     // One slow scroll to the fan's end and back when the hand first appears — shows the player the
     // full extent of a fan wider than the screen (the tutorial's kitty-exchange step uses this).
     peekOnAppear: Boolean = false,
+    cardWidth: Dp = HandCardWidth,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         OutlinedButton(
@@ -310,7 +324,7 @@ private fun HumanHand(
         ) {
             CardHand(
                 cards = hand,
-                cardWidth = 84.dp,
+                cardWidth = cardWidth,
                 exposure = HAND_EXPOSURE,
                 playable = playable,
                 dimUnplayable = dimUnplayable,
