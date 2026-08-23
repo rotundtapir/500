@@ -24,6 +24,7 @@ kotlin {
             implementation(libs.junit.jupiter)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.kotlinx.serialization.json) // GameState snapshot round-trip test
+            implementation(libs.cardkit.testing) // drive()/driveRandomly() — the random-play sweep
             runtimeOnly(libs.junit.platform.launcher)
         }
     }
