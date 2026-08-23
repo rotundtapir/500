@@ -108,6 +108,7 @@ fun FiveHundredApp(
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
     val playSound = rememberTableSoundEffects(view = view?.transitions, volume = soundVolume)
     val allHands by vm.allHands.collectAsState()
+    val gameGeneration by vm.gameGeneration.collectAsState()
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
     // Tutorial voice narration: the toggle is persisted; playback additionally requires a nonzero
     // master volume (at 0 no audio object is ever created — the -no-audio emulator rule).
@@ -150,6 +151,7 @@ fun FiveHundredApp(
     // --- Cheats (#51): hidden until unlocked, and offline-only by construction -------------------
     val cheatsUnlocked by settings.cheatsUnlocked.collectAsState(initial = SettingsDefaults.CHEATS_UNLOCKED)
     var showAllHands by remember { mutableStateOf(false) }
+    var redealOnFelt by remember { mutableStateOf(false) }
     var seedSearchStatus by remember { mutableStateOf<String?>(null) }
     val currentSeed by vm.currentSeed.collectAsState()
     val cheatControls = if (cheatsUnlocked) {
@@ -160,6 +162,8 @@ fun FiveHundredApp(
             // A null seed means "next one": the successor keeps repeated re-deals walking forward
             // instead of re-dealing the same board, and stays reproducible.
             onRedeal = { seed -> vm.cheatRedeal(seed ?: ((currentSeed ?: 0L) + 1)) },
+            redealOnFelt = redealOnFelt,
+            onSetRedealOnFelt = { redealOnFelt = it },
             onRiggedDeal = { level ->
                 scope.launch {
                     seedSearchStatus = "Searching for a $level+ hand…"
@@ -182,6 +186,7 @@ fun FiveHundredApp(
             onCopy = textCopier::copy,
             onRelock = {
                 showAllHands = false
+                redealOnFelt = false
                 seedSearchStatus = null
                 scope.launch { settings.setCheatsUnlocked(false) }
             },
@@ -281,6 +286,7 @@ fun FiveHundredApp(
                 onTrickAcknowledge = vm::acknowledgeTrick,
                 soundHook = playSound,
                 cheats = cheatControls,
+                gameGeneration = gameGeneration,
                 // Cheat-only, offline-only: the unredacted hands, straight off the local state.
                 // The online flow below passes nothing, and its client never holds them anyway.
                 revealedHands = if (cheatControls?.showAllHands == true) allHands else emptyMap(),

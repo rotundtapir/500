@@ -24,6 +24,7 @@ import io.github.rotundtapir.fivehundred.engine.PlayerView
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -49,6 +50,17 @@ class GameViewModel : ViewModel() {
     private val state = MutableStateFlow<GameState?>(null)
 
     private val _currentSeed = MutableStateFlow<Long?>(null)
+
+    private val _gameGeneration = MutableStateFlow(0)
+
+    /**
+     * Bumped by every [newGame]. A new match starts at `handNumber == 1` just like the last one, so
+     * the hand number alone cannot tell the UI "this is a different game" — and the deal animation's
+     * bookkeeping keys off the hand number. Without this, a cheat re-deal looked like a recreation
+     * mid-hand: the deal was skipped AND its pacing signal never fired, so the first bot bid waited
+     * out the gates' whole deadlock backstop (~3× the deal estimate) before playing.
+     */
+    val gameGeneration: StateFlow<Int> = _gameGeneration.asStateFlow()
 
     /** How quickly bot turns play out — set by the activity from the persisted setting, read live. */
     val animationSpeed = MutableStateFlow(AnimationSpeed.NORMAL)
@@ -154,6 +166,7 @@ class GameViewModel : ViewModel() {
         state.value = null
         pacing.reset()
         _currentSeed.value = seed
+        _gameGeneration.value += 1
         lastSetup = GameSetup(playerCount, misereEnabled, noTrumpsEnabled, teamCount, botSkill, aiBudgetMillis)
         rules = FiveHundredRules(
             playerCount = playerCount,

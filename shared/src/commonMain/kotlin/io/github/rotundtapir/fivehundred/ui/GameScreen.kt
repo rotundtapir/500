@@ -4,6 +4,9 @@ package io.github.rotundtapir.fivehundred.ui
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -35,6 +38,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInRoot
@@ -47,6 +51,7 @@ import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.SoundEffect
 import io.github.rotundtapir.cardkit.ui.deal.DealAnimationState
 import io.github.rotundtapir.cardkit.ui.CardAspectRatio
+import io.github.rotundtapir.cardkit.ui.felt.feltTonalButtonColors
 import io.github.rotundtapir.cardkit.ui.deal.DealingHandRow
 import io.github.rotundtapir.cardkit.ui.deal.FlyingDealCard
 import io.github.rotundtapir.cardkit.ui.deal.dealTimings
@@ -97,6 +102,9 @@ fun GameScreen(
     // Cheat-only: every seat's cards, from the local game state. Empty unless the cheat is on, and
     // necessarily empty online (the client never receives other hands).
     revealedHands: Map<Seat, List<Card>> = emptyMap(),
+    // Bumped by the ViewModel per new match. A new game is hand 1 again, so without this the deal
+    // bookkeeping below reads it as "the deal for hand 1 already ran" — see [gameGeneration] there.
+    gameGeneration: Int = 0,
 ) {
     val animationSpeed = settings.animationSpeed
     // Captured by the deal LaunchedEffect below; rememberUpdatedState so a recomposition that
@@ -142,7 +150,18 @@ fun GameScreen(
     // view.handNumber is beyond this, the hand area renders NOTHING: a fresh hand held behind the
     // result dialog must not flash its cards and bid ladder before the shuffle has run.
     var dealtHand by rememberSaveable { mutableIntStateOf(0) }
-    LaunchedEffect(view.handNumber) {
+    // Which match the deal bookkeeping below belongs to. Saveable alongside it so a recreation
+    // doesn't look like a new game (which would replay a deal that already ran).
+    var animatedGeneration by rememberSaveable { mutableIntStateOf(gameGeneration) }
+    LaunchedEffect(view.handNumber, gameGeneration) {
+        if (gameGeneration != animatedGeneration) {
+            // A different match: forget the previous one's deal history so hand 1 is treated as a
+            // genuine hand start — the deal runs and, crucially, its signal fires. Skipping that
+            // signal is what left the bots waiting on an animation that never happened.
+            animatedGeneration = gameGeneration
+            lastAnimatedHand = 0
+            dealtHand = 0
+        }
         if (animationSpeed == AnimationSpeed.OFF) {
             // A hand dealt at OFF is already fully on screen — record it as dealt, or switching
             // animations back on mid-hand blanks the ActionArea for the rest of the hand (#40):
@@ -236,6 +255,22 @@ fun GameScreen(
                     onTrickAcknowledge = onTrickAcknowledge,
                     shortScreen = shortScreen,
                 )
+                if (cheats?.redealOnFelt == true) {
+                    // Under the felt rather than on it: the felt's own space is already tight in
+                    // portrait, and a button overlaying it would sit on the trick cards.
+                    OutlinedButton(
+                        onClick = { cheats.onRedeal(null) },
+                        colors = feltTonalButtonColors(),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .height(30.dp)
+                            .testTag("feltRedeal"),
+                    ) {
+                        Text("Re-deal ⟳", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
                 if (dealState.dealing) {
                     DealingHandRow(
                         cards = rememberDisplayHand(view, sortHand),
