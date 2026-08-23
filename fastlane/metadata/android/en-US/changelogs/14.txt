@@ -1,0 +1,5 @@
+Landscape and a hidden toolbox:
+• Landscape play works properly — opponents move to a side column so the felt and your hand keep their room
+• Very short windows say "turn to portrait" instead of hiding their buttons
+• "Update required" now names your version and the one you need
+• Hidden cheats menu for local games: About → tap Version 7×. Show or replay a seed, re-deal from the felt, deal yourself a strong hand, peek at a player's cards
