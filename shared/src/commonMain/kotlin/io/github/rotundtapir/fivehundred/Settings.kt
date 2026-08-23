@@ -24,6 +24,7 @@ object SettingsKeys {
     const val NARRATION_ENABLED = "narration_enabled"
     const val SERVER_URL = "server_url"
     const val PLAYER_NAME = "player_name"
+    const val CHEATS_UNLOCKED = "cheats_unlocked"
 }
 
 /**
@@ -47,6 +48,9 @@ object SettingsDefaults {
 
     /** Empty until the player picks a name on the online entry screen. */
     const val PLAYER_NAME = ""
+
+    /** The developer-style cheats menu stays hidden until deliberately unlocked (see #51). */
+    const val CHEATS_UNLOCKED = false
 }
 
 /**
@@ -104,4 +108,15 @@ interface SettingsRepository {
     val playerName: Flow<String>
 
     suspend fun setPlayerName(value: String)
+
+    /**
+     * Whether the hidden cheats menu has been unlocked (tapping the About dialog's version row, the
+     * way Android unlocks developer options). Persisted so it survives a restart, and re-lockable
+     * from the menu itself — an unlock a user cannot undo is a trap.
+     *
+     * Every cheat behind it is offline-only; see `ui/CheatsPanel.kt`.
+     */
+    val cheatsUnlocked: Flow<Boolean>
+
+    suspend fun setCheatsUnlocked(value: Boolean)
 }

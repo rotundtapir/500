@@ -77,6 +77,11 @@ fun HomeScreen(
     buildDetails: BuildDetails,
     onCopyDetails: (String) -> Boolean,
     modifier: Modifier = Modifier,
+    // The hidden cheats section (#51), or null when locked. Offered here as well as in-game so a
+    // seed can be dialled in before a game starts.
+    cheats: CheatControls? = null,
+    // Null once unlocked: the About dialog's version-row tap gesture that reveals the section.
+    onUnlockCheats: (() -> Unit)? = null,
 ) {
     var showSettings by remember { mutableStateOf(false) }
     var showTutorialIntro by remember { mutableStateOf(false) }
@@ -162,6 +167,7 @@ fun HomeScreen(
             info = AboutInfo.from(LocalAppConfig.current, buildDetails, settings.serverUrl),
             onCopy = onCopyDetails,
             onDismiss = { showAbout = false },
+            onUnlockCheats = onUnlockCheats,
         )
     }
     if (showSettings) {
@@ -170,6 +176,7 @@ fun HomeScreen(
             inGame = false,
             monetization = monetization,
             onDismiss = { showSettings = false },
+            cheats = cheats,
         )
     }
 }

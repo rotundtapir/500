@@ -46,6 +46,10 @@ fun SettingsDialog(
     inGame: Boolean,
     monetization: Monetization,
     onDismiss: () -> Unit,
+    // The hidden cheats section, or null: absent when locked AND absent during an online game (the
+    // caller decides, since only it knows whether a game is online). Every cheat is local-only —
+    // see [CheatsSection]'s own note on why that is structural rather than a forgotten guard.
+    cheats: CheatControls? = null,
 ) {
     var showAcknowledgments by remember { mutableStateOf(false) }
     if (showAcknowledgments) {
@@ -150,6 +154,11 @@ fun SettingsDialog(
                         onClick = { settings.onSetServerUrl(SettingsDefaults.SERVER_URL) },
                         modifier = Modifier.testTag("serverUrlReset"),
                     ) { Text("Reset to official server") }
+                }
+
+                cheats?.let {
+                    HorizontalDivider()
+                    CheatsSection(it)
                 }
 
                 HorizontalDivider()
