@@ -94,7 +94,7 @@ fun CheatsSection(cheats: CheatControls, modifier: Modifier = Modifier) {
         }
 
         SwitchRow(
-            label = "Show all hands",
+            label = "Show all hands and the kitty",
             checked = cheats.showAllHands,
             onCheckedChange = cheats.onSetShowAllHands,
             switchModifier = Modifier.testTag("cheatShowAllHands"),

@@ -2,6 +2,7 @@
 package io.github.rotundtapir.fivehundred
 
 import io.github.rotundtapir.cardkit.core.Seat
+import io.github.rotundtapir.fivehundred.engine.KITTY_SIZE
 import io.github.rotundtapir.cardkit.ui.settings.InMemoryKeyValueStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -71,6 +72,12 @@ class CheatDataSourceTest {
             assertEquals(4, hands.size, "the local game holds every seat's hand")
             assertTrue(hands.values.all { it.size == 10 }, "…and they are the dealt hands")
             assertEquals(42L, vm.currentSeed.value, "the seed is exposed for show/copy")
+            assertEquals(
+                KITTY_SIZE,
+                vm.kitty.value.size,
+                "the kitty rides along with the reveal — with every hand visible it is just their " +
+                    "complement, so withholding it would be friction rather than secrecy",
+            )
 
             // The redacted view — what a server would send — must expose neither. This is the
             // invariant the cheat is designed around: online there is nothing to leak.

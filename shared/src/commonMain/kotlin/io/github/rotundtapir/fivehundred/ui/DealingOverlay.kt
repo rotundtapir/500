@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
+import io.github.rotundtapir.cardkit.ui.PlayingCard
+import io.github.rotundtapir.cardkit.core.Card
 import androidx.compose.ui.unit.dp
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.CardBack
@@ -54,14 +56,29 @@ internal fun fiveHundredDealSchedule(playerCount: Int, dealer: Seat): List<DealP
 private val KittyCardWidth = 56.dp
 private val KittyCardGap = 6.dp
 
-/** The [count] face-down kitty cards, trick-sized and side by side, growing centred as they land. */
+/**
+ * The [count] face-down kitty cards, trick-sized and side by side, growing centred as they land.
+ *
+ * [faceUp] is the cheat path (#51): with all four hands revealed the kitty is just the complement
+ * of what you can already see, so keeping it face down is friction rather than secrecy. Empty in
+ * every normal game, and necessarily empty online.
+ */
 @Composable
-internal fun KittyPile(count: Int, modifier: Modifier = Modifier, cardWidth: Dp = KittyCardWidth) {
+internal fun KittyPile(
+    count: Int,
+    modifier: Modifier = Modifier,
+    cardWidth: Dp = KittyCardWidth,
+    faceUp: List<Card> = emptyList(),
+) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
         Box(contentAlignment = Alignment.Center) {
             Spacer(Modifier.size(cardWidth * 3 + KittyCardGap * 2, cardWidth * 1.4f))
             Row(horizontalArrangement = Arrangement.spacedBy(KittyCardGap)) {
-                repeat(count) { CardBack(width = cardWidth) }
+                if (faceUp.isEmpty()) {
+                    repeat(count) { CardBack(width = cardWidth) }
+                } else {
+                    faceUp.forEach { card -> PlayingCard(card, width = cardWidth) }
+                }
             }
         }
         Spacer(Modifier.height(4.dp))

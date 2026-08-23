@@ -108,6 +108,7 @@ fun FiveHundredApp(
     // function that the dealing animation's sound hook uses for shuffle/deal effects.
     val playSound = rememberTableSoundEffects(view = view?.transitions, volume = soundVolume)
     val allHands by vm.allHands.collectAsState()
+    val kitty by vm.kitty.collectAsState()
     val gameGeneration by vm.gameGeneration.collectAsState()
     val holdTricks by settings.holdTricks.collectAsState(initial = SettingsDefaults.HOLD_TRICKS)
     // Tutorial voice narration: the toggle is persisted; playback additionally requires a nonzero
@@ -290,6 +291,7 @@ fun FiveHundredApp(
                 // Cheat-only, offline-only: the unredacted hands, straight off the local state.
                 // The online flow below passes nothing, and its client never holds them anyway.
                 revealedHands = if (cheatControls?.showAllHands == true) allHands else emptyMap(),
+                revealedKitty = if (cheatControls?.showAllHands == true) kitty else emptyList(),
             )
             appScreen == AppScreen.BOT_SETUP.name -> BotSetupScreen(
                 mode = mode,

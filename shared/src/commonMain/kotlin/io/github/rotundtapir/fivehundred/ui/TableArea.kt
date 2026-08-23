@@ -421,6 +421,9 @@ internal fun TrickArea(
     // A short screen (landscape phone) lets the felt's cards go below the usual floor rather than
     // overflow the felt they sit on (#41).
     shortScreen: Boolean = false,
+    // Cheat-only (#51): the kitty's actual cards, shown face up on the felt. Empty in every normal
+    // game — and the online client never holds them.
+    revealedKitty: List<Card> = emptyList(),
 ) {
     // With the hold on (settings toggle, or the tutorial forcing it — decided by the caller), a
     // completed trick stays on the felt until the player taps it away.
@@ -452,7 +455,7 @@ internal fun TrickArea(
         } else if (view.phase == Phase.BIDDING) {
             // The kitty sits face down on the felt for the whole auction (all speeds, incl. OFF);
             // it leaves the table once the contract is decided.
-            KittyPile(count = KITTY_SIZE, cardWidth = cardWidth)
+            KittyPile(count = KITTY_SIZE, cardWidth = cardWidth, faceUp = revealedKitty)
         } else {
             AnimatedContent(
                 targetState = view,
