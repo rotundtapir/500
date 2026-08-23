@@ -204,6 +204,48 @@ class OnlineGameSessionTest {
         scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
     }
 
+    @Test
+    fun `a resume snapshot replaces an optimistic play the server resolved differently`() = runTest {
+        // The #46 field shape: our play went into a dead socket (shown optimistically), the seat's
+        // grace expired and the server's bot played a DIFFERENT card, then we reconnect. The resume
+        // snapshot must fully replace the optimistic projection — no remnant of our unsent card on
+        // the table, the version must advance, and a late revert must not resurrect the stale view.
+        val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
+        val gates = fiveHundredPacingGates(MutableStateFlow(AnimationSpeed.OFF), MutableStateFlow(false))
+        val session = OnlineGameSession(gates, scope)
+        session.start()
+        val ourCard = SuitedCard(Rank.NINE, Suit.HEARTS)
+        val botsCard = SuitedCard(Rank.SIX, Suit.HEARTS)
+        val turnView = testView(phase = Phase.PLAY, toAct = Seat(0))
+            .copy(hand = listOf(ourCard, botsCard), legalPlays = listOf(ourCard, botsCard))
+        session.offer(ViewUpdate(10, turnView, turnRemainingMillis = null), snapshot = true)
+        advanceUntilIdle()
+
+        session.applyOptimistic(turnView.withOptimisticPlay(ourCard, nominate = null))
+        assertTrue(
+            session.views.value!!.currentTrick.any { it.card == ourCard },
+            "the optimistic card shows on the table while the socket is (unknowingly) dead",
+        )
+
+        // Reconnect: the server's authoritative state has our seat playing botsCard instead, and
+        // our hand still holding ourCard. Offered as a snapshot, exactly like the resume path.
+        val resumed = testView(
+            phase = Phase.PLAY,
+            toAct = Seat(1),
+            currentTrick = listOf(io.github.rotundtapir.fivehundred.engine.TrickPlay(Seat(0), botsCard, null)),
+        ).copy(hand = listOf(ourCard))
+        session.offer(ViewUpdate(25, resumed, turnRemainingMillis = null), snapshot = true)
+        advanceUntilIdle()
+
+        val shown = session.views.value!!
+        assertEquals(listOf(botsCard), shown.currentTrick.map { it.card }, "the server's card, not ours")
+        assertTrue(ourCard in shown.hand, "our unsent card is back in the hand")
+        assertEquals(25, session.authoritativeStateVersion.value, "submits validate against the snapshot")
+        session.revertOptimistic()
+        assertEquals(shown, session.views.value, "a late revert must not resurrect the pre-snapshot view")
+        scope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+    }
+
     /** Hand 2's result-carrying views, as the server streams them after hand 1 is scored. */
     private fun nextHandViews(): Triple<ViewUpdate, ViewUpdate, ViewUpdate> {
         val result = HandResult(
