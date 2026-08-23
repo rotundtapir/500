@@ -57,6 +57,10 @@ class OnlineFlowTest {
         private const val SERVER_HOST = "10.0.2.2"
         private const val SERVER_PORT = 8080
         private const val SERVER_URL = "ws://$SERVER_HOST:$SERVER_PORT"
+
+        /** Must match the server's `GameDescriptor.metricsPrefix`, which /health reports as "game". */
+        private const val GAME_ID = "fivehundred"
+        private const val HEALTH_TAIL = 120
         private const val REACH_TIMEOUT_MS = 2_000
         private const val STEP_TIMEOUT_MS = 30_000L
     }
@@ -81,12 +85,24 @@ class OnlineFlowTest {
 
     @Before
     fun requireLocalServer() {
-        val reachable = runCatching {
-            Socket().use { it.connect(InetSocketAddress(SERVER_HOST, SERVER_PORT), REACH_TIMEOUT_MS) }
-        }.isSuccess
+        // "Is anything listening?" is not enough: two games share this host during development, and
+        // a euchre (or stale) server on the same port answers the probe, lets these tests run, and
+        // then fails the handshake — a red suite that means "wrong game answered". /health names the
+        // game, so require OUR game specifically and skip otherwise.
+        val health = runCatching {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress(SERVER_HOST, SERVER_PORT), REACH_TIMEOUT_MS)
+                socket.soTimeout = REACH_TIMEOUT_MS
+                socket.getOutputStream().write(
+                    "GET /health HTTP/1.0\r\nHost: $SERVER_HOST\r\n\r\n".toByteArray()
+                )
+                socket.getInputStream().readBytes().decodeToString()
+            }
+        }.getOrNull()
         assumeTrue(
-            "No game server at $SERVER_URL — start one on the host: DEV_MODE=true ./gradlew :server:run",
-            reachable,
+            "No 500 game server at $SERVER_URL (got: ${health?.takeLast(HEALTH_TAIL) ?: "nothing"}) — " +
+                "start one on the host: DEV_MODE=true ./gradlew :server:run",
+            health?.contains("\"game\":\"$GAME_ID\"") == true,
         )
     }
 

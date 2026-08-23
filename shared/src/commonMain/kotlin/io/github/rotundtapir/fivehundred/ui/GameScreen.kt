@@ -2,7 +2,14 @@
 package io.github.rotundtapir.fivehundred.ui
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -39,6 +46,7 @@ import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.monetization.Monetization
 import io.github.rotundtapir.cardkit.ui.SoundEffect
 import io.github.rotundtapir.cardkit.ui.deal.DealAnimationState
+import io.github.rotundtapir.cardkit.ui.CardAspectRatio
 import io.github.rotundtapir.cardkit.ui.deal.DealingHandRow
 import io.github.rotundtapir.cardkit.ui.deal.FlyingDealCard
 import io.github.rotundtapir.cardkit.ui.deal.dealTimings
@@ -174,32 +182,32 @@ fun GameScreen(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Box(
+        BoxWithConstraints(
             modifier = Modifier
                 .fillMaxSize()
                 .onGloballyPositioned { dealState.overlayOrigin = it.positionInRoot() },
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .padding(horizontal = 12.dp),
-            ) {
-                ScoreBar(
-                    view = view,
-                    botNames = botNames,
-                    onOpenSettings = { showSettings = true },
-                    onMenu = { showLeaveConfirm = true },
-                    trailing = when {
-                        online != null -> ({ OnlineEmoteButton(online) })
-                        narration != null -> ({ NarrationToggle(narration, compact = true) })
-                        else -> null
-                    },
-                )
-                ContractLine(view, botNames)
-                Spacer(Modifier.height(12.dp))
-                OpponentsRow(view, botNames, dealState, seatAnchors)
-                ExposedDeclarerHand(view, botNames)
+            // Size the chrome from the height we actually have, the way TrickArea already sizes the
+            // felt's cards (#41): a portrait phone is unchanged, while a landscape phone or a short
+            // window compacts the opponents' row and shrinks the fan instead of clipping it off the
+            // bottom. Threshold is just above the tallest portrait chrome, so portrait never trips it.
+            val shortScreen = maxHeight < SHORT_SCREEN_HEIGHT
+            // A short screen that is also wider than it is tall (a phone in landscape) gets a
+            // genuine landscape arrangement: the opponents move into a narrow column down the side,
+            // which returns their whole height to the felt and the hand. Merely compacting them
+            // vertically is not enough — a 390dp-tall viewport cannot fit the portrait stack at all.
+            val sideBySide = shortScreen && maxWidth > maxHeight
+            // The fan gets a fixed slice of the screen's height, floored so cards stay recognisable.
+            // Side by side there is more height to spend on it, since nothing else is competing.
+            val handFraction = if (sideBySide) HAND_HEIGHT_FRACTION_WIDE else HAND_HEIGHT_FRACTION
+            val handCardWidth = (maxHeight * handFraction / CardAspectRatio)
+                .coerceIn(MIN_HAND_CARD_WIDTH, HandCardWidth)
+            // The felt and the player's own half, shared by both arrangements (one board, two
+            // frames around it — duplicating it is how the two would drift apart).
+            val board: @Composable ColumnScope.() -> Unit = {
+                // Side by side the exposed hand lives in the panel instead: on the felt's side it
+                // would squeeze the trick down to a sliver at landscape-phone heights.
+                if (!sideBySide) ExposedDeclarerHand(view, botNames)
                 TrickArea(
                     view = view,
                     botNames = botNames,
@@ -207,6 +215,9 @@ fun GameScreen(
                     dealState = dealState,
                     modifier = Modifier
                         .weight(1f)
+                        // The felt may shrink, but never to nothing: a trick has to stay readable
+                        // even when everything else has claimed its space (#41).
+                        .heightIn(min = MIN_FELT_HEIGHT)
                         .tutorialTarget(tutorialAnchors, "trick"),
                     // Decided ONCE here — the same expression the ViewModel's pacing gates use
                     // (holdTricks || tutorial active). Two independent derivations of "is the felt
@@ -216,6 +227,7 @@ fun GameScreen(
                     // outcome (still inert at OFF, like all pacing).
                     hideTapHint = tutorial != null,
                     onTrickAcknowledge = onTrickAcknowledge,
+                    shortScreen = shortScreen,
                 )
                 if (dealState.dealing) {
                     DealingHandRow(
@@ -223,6 +235,7 @@ fun GameScreen(
                         state = dealState,
                         humanSeat = view.seat,
                         timings = dealTimings(animationSpeed),
+                        cardWidth = handCardWidth,
                     )
                 } else if (animationSpeed != AnimationSpeed.OFF && view.handNumber > dealtHand) {
                     // A fresh hand whose shuffle is still held behind the result dialog: keep the
@@ -241,8 +254,43 @@ fun GameScreen(
                             tutorial = tutorial,
                             targets = tutorialAnchors,
                             peekDiscardHand = tutorial != null && animationSpeed != AnimationSpeed.OFF,
+                            cardWidth = handCardWidth,
                         )
                     }
+                }
+            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .padding(horizontal = 12.dp),
+            ) {
+                ScoreBar(
+                    view = view,
+                    botNames = botNames,
+                    onOpenSettings = { showSettings = true },
+                    onMenu = { showLeaveConfirm = true },
+                    trailing = when {
+                        online != null -> ({ OnlineEmoteButton(online) })
+                        narration != null -> ({ NarrationToggle(narration, compact = true) })
+                        else -> null
+                    },
+                )
+                if (sideBySide) {
+                    Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(modifier = Modifier.width(SIDE_PANEL_WIDTH)) {
+                            ContractLine(view, botNames)
+                            Spacer(Modifier.height(8.dp))
+                            OpponentsColumn(view, botNames, dealState, seatAnchors = seatAnchors)
+                            ExposedDeclarerHand(view, botNames, compact = true)
+                        }
+                        Column(modifier = Modifier.weight(1f).fillMaxHeight()) { board() }
+                    }
+                } else {
+                    ContractLine(view, botNames)
+                    Spacer(Modifier.height(12.dp))
+                    OpponentsRow(view, botNames, dealState, seatAnchors, shortScreen = shortScreen)
+                    board()
                 }
                 Spacer(Modifier.height(8.dp))
                 monetization.BannerSlot(Modifier.fillMaxWidth())
@@ -384,3 +432,25 @@ private val EMOTE_OPTIONS = listOf(
     Emote.HURRY_UP to "Hurry up",
     Emote.GOOD_GAME to "Good game",
 )
+
+/**
+ * Below this height the game screen switches to its compact chrome (#41). Chosen just under the
+ * shortest portrait phone viewport and well above a landscape phone's, so rotating is what trips
+ * it, not a tall device.
+ */
+private val SHORT_SCREEN_HEIGHT = 600.dp
+
+/** Share of the screen's height the human's fan may take, before the floor below applies. */
+private const val HAND_HEIGHT_FRACTION = 0.21f
+
+/** Side by side the opponents no longer compete for height, so the fan can have more of it. */
+private const val HAND_HEIGHT_FRACTION_WIDE = 0.30f
+
+/** The felt's floor — below this a trick stops being readable, so other things give way first. */
+private val MIN_FELT_HEIGHT = 96.dp
+
+/** Width of the landscape side panel: enough for a seat name plus its one-line status. */
+private val SIDE_PANEL_WIDTH = 190.dp
+
+/** The fan never shrinks past this: smaller and the pips stop being readable at arm's length. */
+private val MIN_HAND_CARD_WIDTH = 48.dp
