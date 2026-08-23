@@ -99,8 +99,9 @@ fun GameScreen(
     // The hidden cheats section (#51), or null. The caller passes null for an online game: the
     // cheats cannot work there, and the section should not even appear.
     cheats: CheatControls? = null,
-    // Cheat-only: every seat's cards, from the local game state. Empty unless the cheat is on, and
-    // necessarily empty online (the client never receives other hands).
+    // Cheat-only: every seat's cards, from the local game state. The screen shows ONE of them at a
+    // time (tap a seat's pile), because three face-up rows crowd the felt off a phone. Empty unless
+    // the cheat is on, and necessarily empty online (the client never receives other hands).
     revealedHands: Map<Seat, List<Card>> = emptyMap(),
     // Cheat-only: the kitty's cards. Revealed with the hands — once all four hands are visible the
     // kitty is just the complement, so hiding it buys nothing.
@@ -156,6 +157,20 @@ fun GameScreen(
     // Which match the deal bookkeeping below belongs to. Saveable alongside it so a recreation
     // doesn't look like a new game (which would replay a deal that already ran).
     var animatedGeneration by rememberSaveable { mutableIntStateOf(gameGeneration) }
+    // Which seat's hand the reveal cheat is showing, if any. Cleared on a new match so a re-deal
+    // does not leave a stale seat exposed, and tapping the shown seat again hides it.
+    var revealedSeat by remember { mutableStateOf<Seat?>(null) }
+    LaunchedEffect(gameGeneration) { revealedSeat = null }
+    val revealAvailable = revealedHands.isNotEmpty()
+    val onSeatTap: ((Seat) -> Unit)? = if (revealAvailable) {
+        { seat -> revealedSeat = if (revealedSeat == seat) null else seat }
+    } else {
+        null
+    }
+    // Only the chosen seat's cards reach the row.
+    val shownHand: Map<Seat, List<Card>> = revealedSeat
+        ?.let { seat -> revealedHands[seat]?.let { mapOf(seat to it) } }
+        ?: emptyMap()
     LaunchedEffect(view.handNumber, gameGeneration) {
         if (gameGeneration != animatedGeneration) {
             // A different match: forget the previous one's deal history so hand 1 is treated as a
@@ -236,7 +251,7 @@ fun GameScreen(
                 // Side by side the exposed hand lives in the panel instead: on the felt's side it
                 // would squeeze the trick down to a sliver at landscape-phone heights.
                 if (!sideBySide) ExposedDeclarerHand(view, botNames)
-                RevealedHands(view, botNames, revealedHands)
+                RevealedHands(view, botNames, shownHand)
                 TrickArea(
                     view = view,
                     botNames = botNames,
@@ -327,16 +342,24 @@ fun GameScreen(
                         Column(modifier = Modifier.width(SIDE_PANEL_WIDTH)) {
                             ContractLine(view, botNames)
                             Spacer(Modifier.height(8.dp))
-                            OpponentsColumn(view, botNames, dealState, seatAnchors = seatAnchors)
+                            OpponentsColumn(
+                                view, botNames, dealState,
+                                seatAnchors = seatAnchors,
+                                onSeatTap = onSeatTap,
+                            )
                             ExposedDeclarerHand(view, botNames, compact = true)
-                            RevealedHands(view, botNames, revealedHands, compact = true)
+                            RevealedHands(view, botNames, shownHand, compact = true)
                         }
                         Column(modifier = Modifier.weight(1f).fillMaxHeight()) { board() }
                     }
                 } else {
                     ContractLine(view, botNames)
                     Spacer(Modifier.height(12.dp))
-                    OpponentsRow(view, botNames, dealState, seatAnchors, shortScreen = shortScreen)
+                    OpponentsRow(
+                        view, botNames, dealState, seatAnchors,
+                        shortScreen = shortScreen,
+                        onSeatTap = onSeatTap,
+                    )
                     board()
                 }
                 Spacer(Modifier.height(8.dp))
