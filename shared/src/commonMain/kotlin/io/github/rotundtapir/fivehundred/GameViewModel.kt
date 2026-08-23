@@ -106,6 +106,16 @@ class GameViewModel : ViewModel() {
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyMap())
 
     /**
+     * Cheat-only, offline-only: the kitty's three cards. Shown alongside [allHands] because once
+     * every hand is visible the kitty is simply the complement of them — withholding it is friction,
+     * not secrecy. (During the auction this is the real kitty; after the exchange the engine keeps
+     * the declarer's discards here, which is what the felt no longer shows anyway.)
+     */
+    val kitty: StateFlow<List<Card>> = state
+        .map { it?.kitty ?: emptyList() }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /**
      * The seed the current match was built from, for the cheats menu's show/copy affordance.
      *
      * Offline only, and load-bearing: the engine is public and strictly seed-deterministic, so a

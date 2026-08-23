@@ -43,7 +43,7 @@ convenience one (the lobby creator supplies the seed): see `docs/self-hosting.md
 | Cheat | Notes |
 |---|---|
 | **Seed: `<n>`** + **Copy seed** | The current match's seed. Paste it into a bug report; anyone can replay that exact match. |
-| **Show all hands** | Every other seat's cards, face up above the felt. Reuses the open-misère renderer, not its data path. |
+| **Show all hands and the kitty** | Every other seat's cards, face up above the felt (reusing the open-misère row renderer, not its data path), and the kitty face up on the felt in place of its three backs. The kitty rides along deliberately: once all four hands are visible it is just the complement of them, so hiding it is friction rather than secrecy. |
 | **Re-deal** | A fresh match on the next seed, same table shape/house rules. This *restarts* the match (score and hand history reset) rather than re-rolling the current hand: `rngSeed` evolves per deal, so re-dealing one hand in place would need the hand's entry seed kept in the engine. For "cycle deals until an interesting one shows up", a restart is what's wanted. |
 | **Play a specific seed** | The inverse of Copy seed — together they are a complete reproduction loop for hand-specific bugs. |
 | **Rigged deck (7+ / 8+ / 9+)** | Rejection-samples seeds until the local player's hand is worth a bid at that level, via `SeedSearch` in `:ai` (public so it is unit-testable there; the bot's estimator is `internal` to that module). Capped at `SeedSearch.DEFAULT_MAX_ATTEMPTS` and it yields between attempts, so the browser's single thread keeps painting; it reports "no seed found" rather than spinning. "8+" is a ladder comparison against 8♠ rather than a raw `ScoreSchedule.rank` index — the ladder is deliberately not point-ordered, and misère-only hands are excluded from the level filters for the same reason. |
@@ -51,7 +51,7 @@ convenience one (the lobby creator supplies the seed): see `docs/self-hosting.md
 ## Deliberately not implemented yet
 
 Listed in #51 and worth doing, but out of scope for the first cut: force a contract / skip the
-auction, set the score, peek at the kitty, switch bot skill mid-match, fast-forward a hand, and
+auction, set the score, switch bot skill mid-match, fast-forward a hand, and
 rewind a trick (the invasive one — the driver loop and the suspended bot `Player`s all drive
 forward, so it likely needs its own issue).
 

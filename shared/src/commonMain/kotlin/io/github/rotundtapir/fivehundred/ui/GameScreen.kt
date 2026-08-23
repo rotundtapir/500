@@ -102,6 +102,9 @@ fun GameScreen(
     // Cheat-only: every seat's cards, from the local game state. Empty unless the cheat is on, and
     // necessarily empty online (the client never receives other hands).
     revealedHands: Map<Seat, List<Card>> = emptyMap(),
+    // Cheat-only: the kitty's cards. Revealed with the hands — once all four hands are visible the
+    // kitty is just the complement, so hiding it buys nothing.
+    revealedKitty: List<Card> = emptyList(),
     // Bumped by the ViewModel per new match. A new game is hand 1 again, so without this the deal
     // bookkeeping below reads it as "the deal for hand 1 already ran" — see [gameGeneration] there.
     gameGeneration: Int = 0,
@@ -254,6 +257,7 @@ fun GameScreen(
                     hideTapHint = tutorial != null,
                     onTrickAcknowledge = onTrickAcknowledge,
                     shortScreen = shortScreen,
+                    revealedKitty = revealedKitty,
                 )
                 if (cheats?.redealOnFelt == true) {
                     // Under the felt rather than on it: the felt's own space is already tight in
