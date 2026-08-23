@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -72,24 +74,32 @@ fun AboutDialog(
                 SelectionContainer {
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         info.rows().forEach { (label, value) ->
-                            AboutRow(
-                                label,
-                                value,
-                                // Only the version row counts taps, and only while an unlock is on
-                                // offer — so the gesture stays undiscoverable by accident but is
-                                // findable by anyone who knows the Android convention.
-                                onTap = if (label == VERSION_LABEL && onUnlockCheats != null) {
-                                    {
-                                        versionTaps++
-                                        if (versionTaps >= UNLOCK_TAPS) {
-                                            versionTaps = 0
-                                            onUnlockCheats()
-                                        }
+                            // Only the version row counts taps, and only while an unlock is on
+                            // offer — so the gesture stays undiscoverable by accident but is
+                            // findable by anyone who knows the Android convention.
+                            val counts = label == VERSION_LABEL && onUnlockCheats != null
+                            val onTap: (() -> Unit)? = if (counts) {
+                                {
+                                    versionTaps++
+                                    if (versionTaps >= UNLOCK_TAPS) {
+                                        versionTaps = 0
+                                        onUnlockCheats()
                                     }
-                                } else {
-                                    null
-                                },
-                            )
+                                }
+                            } else {
+                                null
+                            }
+                            if (counts) {
+                                // Selection has to be off for THIS row: on Android a press on
+                                // selectable text starts the selection handles, which swallows the
+                                // taps and pops a toolbar over the dialog — the gesture became
+                                // almost impossible to perform. Every other row stays selectable,
+                                // which is what the no-clipboard fallback actually needs (commit,
+                                // device, server); the version is in "Copy details" regardless.
+                                DisableSelection { AboutRow(label, value, onTap) }
+                            } else {
+                                AboutRow(label, value)
+                            }
                         }
                     }
                 }
@@ -141,7 +151,11 @@ private fun AboutRow(label: String, value: String, onTap: (() -> Unit)? = null) 
     // hides the version text from anything locating by text (the web e2e About spec broke on it).
     // An easter egg should be invisible to the accessibility tree, not advertised in it.
     val tapModifier = if (onTap != null) {
-        Modifier.pointerInput(onTap) { detectTapGestures { onTap() } }
+        // A row of bodySmall text is a ~16dp-tall target; padding it out makes seven quick taps
+        // land where the user is aiming instead of between the lines.
+        Modifier
+            .padding(vertical = 6.dp)
+            .pointerInput(onTap) { detectTapGestures { onTap() } }
     } else {
         Modifier
     }

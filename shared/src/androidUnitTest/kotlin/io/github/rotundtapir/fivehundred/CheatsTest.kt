@@ -105,6 +105,36 @@ class CheatDataSourceTest {
     }
 
     @Test
+    fun `every new match bumps the generation the deal animation keys off`() = runTest(dispatcher) {
+        // A new match is handNumber 1 again, so the hand number alone cannot tell the game screen
+        // "this is a different game". It keys its deal bookkeeping off this counter instead; when it
+        // did not, a cheat re-deal was read as a recreation mid-hand — the deal was skipped and its
+        // pacing signal never fired, leaving the first bot bid to wait out the gates' whole
+        // deadlock backstop (~3x the deal estimate). That is the "bots take ages after a re-deal"
+        // report, so the counter advancing is the contract worth pinning.
+        val vm = GameViewModel()
+        assertEquals(0, vm.gameGeneration.value, "no game yet")
+        vm.newGame(seed = 1L)
+        advanceUntilIdle()
+        val first = vm.gameGeneration.value
+        assertTrue(first > 0, "starting a match must bump the generation")
+
+        vm.cheatRedeal(seed = 2L)
+        advanceUntilIdle()
+        assertTrue(vm.gameGeneration.value > first, "a re-deal is a new match, not the same one")
+
+        // Same seed, same table: still a different match, and still needs its own deal.
+        val second = vm.gameGeneration.value
+        vm.cheatRedeal(seed = 2L)
+        advanceUntilIdle()
+        assertTrue(
+            vm.gameGeneration.value > second,
+            "re-dealing the SAME seed must still count as a new match — the hand number and the " +
+                "seed are both unchanged, so this counter is the only signal the UI has",
+        )
+    }
+
+    @Test
     fun `a re-deal before any game is a no-op rather than a crash`() = runTest(dispatcher) {
         val vm = GameViewModel()
         vm.cheatRedeal(seed = 5L)

@@ -46,6 +46,12 @@ data class CheatControls(
     val onSetShowAllHands: (Boolean) -> Unit,
     /** Deal again — a fresh match on [seed]'s successor, or on a seed the user supplies. */
     val onRedeal: (Long?) -> Unit,
+    /**
+     * Whether the game screen shows its own re-deal button. Cycling through deals is the point of
+     * the cheat, and a round trip through this dialog per deal defeats it.
+     */
+    val redealOnFelt: Boolean,
+    val onSetRedealOnFelt: (Boolean) -> Unit,
     /** Search for a seed that deals the local player a hand worth the given bid level. */
     val onRiggedDeal: (level: Int) -> Unit,
     /** Progress/outcome text from the last rigged-deal search, or null when idle. */
@@ -98,6 +104,18 @@ fun CheatsSection(cheats: CheatControls, modifier: Modifier = Modifier) {
             onClick = { cheats.onRedeal(null) },
             modifier = Modifier.fillMaxWidth().testTag("cheatRedeal"),
         ) { Text("Re-deal (new match, same table)") }
+
+        SwitchRow(
+            label = "Re-deal button on the felt",
+            checked = cheats.redealOnFelt,
+            onCheckedChange = cheats.onSetRedealOnFelt,
+            switchModifier = Modifier.testTag("cheatRedealOnFelt"),
+        )
+        Text(
+            "Adds a ⟳ button under the felt, so you can cycle deals without reopening settings.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         OutlinedTextField(
             value = seedInput,
