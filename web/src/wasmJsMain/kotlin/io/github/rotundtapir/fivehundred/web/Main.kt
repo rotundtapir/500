@@ -19,6 +19,7 @@ import io.github.rotundtapir.cardkit.ui.CardArtWarmup
 import io.github.rotundtapir.cardkit.ui.theme.CardkitTheme
 import io.github.rotundtapir.cardkit.ui.settings.AnimationSpeed
 import io.github.rotundtapir.cardkit.ui.settings.BotSkill
+import io.github.rotundtapir.fivehundred.AppReloader
 import io.github.rotundtapir.fivehundred.BuildDetails
 import io.github.rotundtapir.fivehundred.FiveHundredApp
 import io.github.rotundtapir.fivehundred.ProjectLinks
@@ -92,6 +93,7 @@ fun main() {
                     appConfig = webAppConfig(),
                     nextSeed = { seedOverride ?: Random.nextLong() },
                     linkSharer = remember { BrowserLinkSharer() },
+                    appReloader = remember { AppReloader { window.location.reload() } },
                     buildDetails = remember { webBuildDetails() },
                     textCopier = remember { BrowserTextCopier() },
                     sessionTokenStore = remember { SessionStorageTokenStore() },

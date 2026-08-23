@@ -73,11 +73,12 @@ style:
 
 # io.nlopez.compose.rules — the full ruleset (annotation-triggered, inert on non-Compose code).
 # Adopted wholesale: every finding is fixed in the code rather than suppressed. These are deliberate,
-# correct CompositionLocals (build config; the platform link-share hook), so they are allowlisted
+# correct CompositionLocals (build config; the platform link-share and reload hooks), so they are allowlisted
 # rather than the rule being disabled.
 Compose:
   CompositionLocalAllowlist:
     active: true
     allowedCompositionLocals:
       - LocalAppConfig
+      - LocalAppReloader
       - LocalLinkSharer

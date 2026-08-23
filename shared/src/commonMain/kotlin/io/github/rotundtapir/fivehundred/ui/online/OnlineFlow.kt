@@ -40,9 +40,12 @@ import io.github.rotundtapir.cardkit.ui.AppPlatform
 import io.github.rotundtapir.cardkit.ui.LocalAppConfig
 import io.github.rotundtapir.cardkit.net.ConnectionState
 import io.github.rotundtapir.cardkit.ui.pacing.rememberTableSoundEffects
+import androidx.compose.ui.platform.LocalUriHandler
+import io.github.rotundtapir.fivehundred.LocalAppReloader
 import io.github.rotundtapir.fivehundred.transitions
 import io.github.rotundtapir.fivehundred.online.OnlineScreen
 import io.github.rotundtapir.fivehundred.online.OnlineViewModel
+import io.github.rotundtapir.fivehundred.online.updateGuidance
 import io.github.rotundtapir.fivehundred.ui.GameMode
 import io.github.rotundtapir.fivehundred.ui.GameScreen
 import io.github.rotundtapir.fivehundred.ui.OnlineGameControls
@@ -74,11 +77,27 @@ fun OnlineFlow(
     // Version gate is terminal — keep it modal. Everything else (stale/illegal/rate-limited) is a
     // brief, non-blocking banner so a rejected move never stalls the game behind a dialog.
     updateRequired?.let { message ->
+        val appConfig = LocalAppConfig.current
+        val uriHandler = LocalUriHandler.current
+        val appReloader = LocalAppReloader.current
+        val guidance = remember(message, appConfig) {
+            updateGuidance(appConfig.version, message.minAppVersion, appConfig.platform, appConfig.flavor)
+        }
         AlertDialog(
             onDismissRequest = onExit,
             title = { Text("Update required") },
-            text = { Text(message) },
-            confirmButton = { TextButton(onClick = onExit, modifier = Modifier.testTag("updateRequired")) { Text("OK") } },
+            text = { Text(guidance.body) },
+            confirmButton = {
+                guidance.actionLabel?.let { label ->
+                    TextButton(
+                        onClick = {
+                            if (guidance.reload) appReloader.reload() else guidance.actionUrl?.let(uriHandler::openUri)
+                        },
+                        modifier = Modifier.testTag("updateRequiredAction"),
+                    ) { Text(label) }
+                }
+                TextButton(onClick = onExit, modifier = Modifier.testTag("updateRequired")) { Text("OK") }
+            },
         )
     }
     // Reconnecting landed us back in a room we were in: ask before dropping the player into it, so

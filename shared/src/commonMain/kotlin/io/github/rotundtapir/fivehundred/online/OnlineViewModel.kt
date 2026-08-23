@@ -106,8 +106,10 @@ class OnlineViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    private val _updateRequired = MutableStateFlow<String?>(null)
-    val updateRequired: StateFlow<String?> = _updateRequired.asStateFlow()
+    // The whole message, not just its display string: the dialog needs minAppVersion to tell the
+    // user which version they need (and to spot the client-newer-than-server direction).
+    private val _updateRequired = MutableStateFlow<UpdateRequired?>(null)
+    val updateRequired: StateFlow<UpdateRequired?> = _updateRequired.asStateFlow()
 
     private val _gameOver = MutableStateFlow<GameOver?>(null)
     val gameOver: StateFlow<GameOver?> = _gameOver.asStateFlow()
@@ -387,7 +389,7 @@ class OnlineViewModel(
     private fun handleServerMessage(message: ServerMessage) {
         when (message) {
             is Welcome -> onWelcome(message)
-            is UpdateRequired -> _updateRequired.value = message.message
+            is UpdateRequired -> _updateRequired.value = message
             // The payload-carrying messages are generic, so their type argument is erased: check the
             // erased form and narrow (see AnyViewUpdate — this Json decodes only 500's payloads).
             is AnyLobbyState -> onLobbyState(message.forFiveHundred())

@@ -17,4 +17,8 @@ object ProjectLinks {
 
     /** The public issue tracker — the feedback target for FOSS and web builds (Play uses a mailto). */
     const val ISSUE_TRACKER = "https://github.com/rotundtapir/500/issues"
+
+    /** Where each Android distribution updates from — the "Update required" dialog's targets. */
+    const val PLAY_LISTING = "https://play.google.com/store/apps/details?id=io.github.rotundtapir.fivehundred"
+    const val FDROID_LISTING = "https://f-droid.org/packages/io.github.rotundtapir.fivehundred/"
 }
