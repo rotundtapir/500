@@ -260,6 +260,12 @@ Editing shared/infra behaviour means changing files under `cardkit/`, which is a
   which publishes the wasm build to GitHub Pages (source is set to "GitHub Actions" in repo
   settings). `dependenciesInfo` is disabled — F-Droid rejects the
   Google-encrypted blob. Release stays un-minified until a release-QA pass justifies R8.
+- The same tag also **uploads the Play bundle** (`publish-play`, after `verify-reproducible`) to the
+  **internal** track with the fastlane changelog as the release notes; promote to production in the
+  Console. It needs the `PLAY_SERVICE_ACCOUNT_JSON` secret — the JSON key of a Google Cloud service
+  account invited in Play Console → Users and permissions with release permission for the app.
+  Without the secret the job logs a notice and skips (everything else still releases). Set it with
+  `gh secret set PLAY_SERVICE_ACCOUNT_JSON < key.json` — never paste the key anywhere else.
 - A `v*` tag also **ships the online server**: `publish-server-image` builds the `:server` dist into
   a multi-arch image and pushes it to `ghcr.io/rotundtapir/500-server` (`:<version>` + `:latest`);
   `deploy-server` then SSHes to the VPS, pins `IMAGE_TAG`, and `docker compose pull && up` — no
