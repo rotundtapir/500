@@ -1,4 +1,4 @@
-Short-screen fixes and an updated Play Billing library:
-• Game-over and hand-result dialogs keep their button on screen on short windows; system back leaves the score sheet
-• Rotating mid-hand no longer brings back a dismissed hand result
-• Home menu, Settings and the tutorial pages scroll instead of clipping
+Short-screen fixes:
+• Game-over and hand-result dialogs keep their button on screen on short windows (phones in landscape, flip covers); system back leaves the score sheet
+• Rotating mid-hand no longer brings back a hand result you already dismissed
+• Home menu, Settings and the tutorial pages scroll instead of clipping their last entries
