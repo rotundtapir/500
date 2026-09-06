@@ -64,8 +64,8 @@ internal fun HandResultDialog(
     // Keyed on the scored-hand COUNT, not the HandResult value: two consecutive hands can score
     // structurally identically (same declarer, bid and tricks), and a value key would then never
     // reset — the second dialog would never show and the acknowledgement gates would deadlock.
-    // Saveable too: a rotation used to reset it and bring a dismissed breakdown straight back —
-    // mid-match on top of a bot's turn, where the modal stalled play until dismissed again.
+    // Saveable too: a rotation used to reset it and bring a dismissed breakdown straight back as
+    // a modal over the live hand, which then had to be dismissed a second time.
     var dismissed by rememberSaveable(view.handResults.size) { mutableStateOf(false) }
     if (dismissed) return
     val dismiss = {

@@ -274,10 +274,10 @@ fun FiveHundredApp(
         val onGameScreen = appScreen == AppScreen.GAME.name && current != null
         BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         // Below this height the app is not worth contorting: the game screen adapts down to a
-        // landscape phone (#41), but the menus and dialogs have irreducible content — a browser on
-        // a phone in landscape leaves ~300dp, where the home screen's own buttons and the tutorial's
-        // "Next" do not fit and there is nothing sensible left to shrink. Rather than bodge each
-        // screen (and ship a game nobody can read), say so and let the taller orientation do it.
+        // landscape phone (#41) and the menus and dialogs scroll, but the felt itself has an
+        // irreducible height — a browser on a phone in landscape leaves ~300dp, where a trick and
+        // a legible hand cannot both fit and there is nothing sensible left to shrink. Rather than
+        // ship a game nobody can read, say so and let the taller orientation do it.
         if (maxHeight < MIN_PLAYABLE_HEIGHT) {
             TooShortScreen(landscape = maxWidth > maxHeight)
             return@BoxWithConstraints
