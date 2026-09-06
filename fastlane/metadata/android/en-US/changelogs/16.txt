@@ -1,0 +1,4 @@
+Same fixes as 0.6.1, now delivered through the automated Play release pipeline:
+• Game-over and hand-result dialogs keep their button on screen on short windows; system back leaves the score sheet
+• Rotating mid-hand no longer brings back a dismissed hand result
+• Home menu, Settings and the tutorial pages scroll instead of clipping
