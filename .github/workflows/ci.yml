@@ -154,8 +154,11 @@ jobs:
             server.log
           if-no-files-found: ignore
 
+  # Root of the publish chain (GitHub release, web, server image + deploy, Play): every publish
+  # waits here, and this waits for BOTH gates — the connected suite included. A tag whose
+  # on-device tests fail must not ship anywhere.
   release:
-    needs: build
+    needs: [build, android-e2e]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
@@ -318,7 +321,7 @@ jobs:
   # Build the server image and push it to GHCR on a release tag. The jar is built with Gradle (cache
   # reuse) then copied into a thin image; multi-arch so self-hosters on ARM (Raspberry Pi) can pull.
   publish-server-image:
-    needs: build
+    needs: [build, android-e2e]  # nothing ships off a tag whose on-device tests failed
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
@@ -419,7 +422,7 @@ jobs:
   # Android release, so the hosted game tracks releases rather than every push to main.
   # One-time repo setting: Settings -> Pages -> Source = "GitHub Actions".
   deploy-web:
-    needs: build
+    needs: [build, android-e2e]  # nothing ships off a tag whose on-device tests failed
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

@@ -4,13 +4,14 @@ package io.github.rotundtapir.fivehundred
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
+import android.view.KeyEvent
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
-import androidx.test.espresso.Espresso
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertFalse
@@ -129,9 +130,11 @@ class LandscapeFlowTest {
 
         // The sheet is taller than a landscape window; the action must be pinned on screen.
         rule.onNodeWithTag("backToMenu").assertIsDisplayed()
-        // System back is the other way out — it used to do nothing here. (Espresso's pressBack
-        // reaches the dialog's own window; the activity's dispatcher would bypass it.)
-        Espresso.pressBack()
+        // System back is the other way out — it used to do nothing here. Injected as a key event
+        // through instrumentation: it lands in the focused window (the dialog's), whereas the
+        // activity's dispatcher would bypass the dialog and Espresso's pressBack waits on a root
+        // picker that flaked on CI's slower emulator (RootViewWithoutFocusException).
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         rule.waitForText("Play with bots")
     }
 
