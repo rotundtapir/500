@@ -245,6 +245,59 @@ jobs:
             --unsigned app/build/outputs/apk/foss/release/app-foss-release-unsigned.apk
           echo "reproducible: rebuild matches the signed APK"
 
+  # Play Console upload, behind the same reproducibility gate as the public release. Needs the
+  # PLAY_SERVICE_ACCOUNT_JSON secret (a Google Cloud service account invited to the Play Console
+  # with release permission — see CLAUDE.md "Releasing"); without it the job logs a notice and
+  # skips, so a fork or a clone without Play access still releases everything else. Uploads to
+  # the INTERNAL track as a completed release: promote to production from the Console (or change
+  # `track` once that's routine). The "what's new" text is the fastlane changelog for this
+  # versionCode, the same file F-Droid shows.
+  publish-play:
+    needs: verify-reproducible
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: |
+            gradle.properties
+            fastlane/metadata/android/en-US/changelogs
+          sparse-checkout-cone-mode: false
+
+      - name: Check for Play credentials
+        id: creds
+        env:
+          HAS_SECRET: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON != '' }}
+        run: |
+          echo "present=$HAS_SECRET" >> "$GITHUB_OUTPUT"
+          [ "$HAS_SECRET" = true ] || echo "::notice::PLAY_SERVICE_ACCOUNT_JSON not set - skipping the Play upload"
+
+      - name: Download play AAB
+        if: steps.creds.outputs.present == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: play-release-aab
+          path: aab
+
+      - name: Stage release notes for this versionCode
+        if: steps.creds.outputs.present == 'true'
+        run: |
+          code=$(sed -n 's/^appVersionCode=//p' gradle.properties)
+          mkdir -p whatsnew
+          cp "fastlane/metadata/android/en-US/changelogs/$code.txt" whatsnew/whatsnew-en-US
+          echo "versionCode $code:"; cat whatsnew/whatsnew-en-US
+
+      - name: Upload to Play (internal track)
+        if: steps.creds.outputs.present == 'true'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: io.github.rotundtapir.fivehundred
+          releaseFiles: aab/*.aab
+          track: internal
+          status: completed
+          whatsNewDirectory: whatsnew
+
   publish-release:
     needs: verify-reproducible
     if: startsWith(github.ref, 'refs/tags/v')
