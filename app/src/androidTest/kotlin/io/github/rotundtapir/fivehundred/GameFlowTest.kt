@@ -5,12 +5,9 @@ import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.state.ToggleableState
-import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasAnyDescendant
-import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.AndroidComposeTestRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -44,7 +41,6 @@ class GameFlowTest {
 
     companion object {
         private const val SEED = 42L
-        private const val STEP_TIMEOUT_MS = 20_000L
     }
 
     @get:Rule
@@ -69,39 +65,15 @@ class GameFlowTest {
     // Semantics helpers
     // ---------------------------------------------------------------------------------------------
 
-    /** A face-up card the human can currently tap (its wrapper is clickable only when legal). */
-    private val clickableCard = hasClickAction() and hasAnyDescendant(cardFace())
-
-    private fun textExists(text: String, substring: Boolean = false): Boolean =
-        rule.onAllNodes(
-            SemanticsMatcher("has text '$text'") { node ->
-                node.config.getOrNull(SemanticsProperties.Text)
-                    ?.any { it.text == text || (substring && it.text.contains(text)) } == true
-            },
-            useUnmergedTree = true,
-        ).fetchSemanticsNodes().isNotEmpty()
-
-    private fun waitForText(text: String, substring: Boolean = false) =
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists(text, substring) }
-
     // Counts every card face on screen. cardkit tags them all, so this is deliberately global —
     // safe only because this shell never composes CardArtWarmup (54 more, visible to unmerged-tree
     // finders even though it clears its merged semantics). Scope it if that ever changes.
     private fun cardsOnScreen(): Int =
         rule.onAllNodes(cardFace(), useUnmergedTree = true).fetchSemanticsNodes().size
 
-    private fun clickableCards() = rule.onAllNodes(clickableCard, useUnmergedTree = true)
-
-    private fun startGame(modeTag: String? = null) {
-        // Home -> bot-setup (optionally picking a non-default table) -> Play. The mode chips live
-        // on the bot-setup screen since the menu restructure, not on home.
-        rule.onNodeWithText("Play with bots").performClick()
-        modeTag?.let { rule.onNodeWithTag(it).performClick() }
-        rule.onNodeWithTag("startBotGame").performClick()
-    }
 
     /** Waits until it is the human's bidding turn and the bid panel is up. */
-    private fun waitForBidPanel() = waitForText("Your bid:")
+    private fun waitForBidPanel() = rule.waitForText("Your bid:")
 
     // ---------------------------------------------------------------------------------------------
     // Tests
@@ -147,7 +119,7 @@ class GameFlowTest {
 
         // The guidance panel shows the first step's advice (the scripted bid, with the reason).
         val bidStep = tutorialSteps.first() as TutorialStep.BidStep
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists(bidStep.advice) }
+        rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists(bidStep.advice) }
         rule.onNodeWithTag("tutorialAdvice").assertIsDisplayed()
 
         // The tutorial itself must scroll the scripted bid into the ladder's viewport — a human
@@ -169,13 +141,13 @@ class GameFlowTest {
         waitForBidPanel()
         val bidStep = tutorialSteps[0] as TutorialStep.BidStep
         val discardStep = tutorialSteps[1] as TutorialStep.DiscardStep
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists(bidStep.advice) }
+        rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists(bidStep.advice) }
 
         rule.onNodeWithTag("bid:${bidStep.bid.label}").performScrollTo().performClick()
 
         // The advice changes to the kitty-exchange step once the auction resolves.
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists(discardStep.advice) }
-        waitForText("Discard 3 cards", substring = true)
+        rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists(discardStep.advice) }
+        rule.waitForText("Discard 3 cards", substring = true)
     }
 
     /**
@@ -193,9 +165,9 @@ class GameFlowTest {
             rule.waitUntil(STEP_TIMEOUT_MS) {
                 nodesWithTag("tutorialComplete").isNotEmpty() ||
                     nodesWithTag("tutorialEpilogueNext").isNotEmpty() ||
-                    textExists("Your bid:") ||
-                    textExists("Discard 3 cards", substring = true) ||
-                    textExists("Your turn — tap a card to play") ||
+                    rule.textExists("Your bid:") ||
+                    rule.textExists("Discard 3 cards", substring = true) ||
+                    rule.textExists("Your turn — tap a card to play") ||
                     handResultShowing()
             }
             when {
@@ -209,23 +181,23 @@ class GameFlowTest {
                     rule.onNodeWithTag("handResultContinue").performClick()
                     rule.waitForIdle()
                 }
-                textExists("Your bid:") -> {
+                rule.textExists("Your bid:") -> {
                     rule.onNodeWithTag("bid:${bidStep.bid.label}").performScrollTo().performClick()
                     rule.waitForIdle()
                 }
-                textExists("Discard 3 cards", substring = true) -> {
+                rule.textExists("Discard 3 cards", substring = true) -> {
                     // Only the three scripted discards are selectable.
                     repeat(3) { i ->
-                        clickableCards()[i].performScrollTo().performClick()
+                        rule.clickableCards()[i].performScrollTo().performClick()
                         rule.waitForIdle()
                     }
-                    waitForText("(3/3 selected)", substring = true)
+                    rule.waitForText("(3/3 selected)", substring = true)
                     rule.onNodeWithTag("discardButton").assertIsEnabled().performClick()
                     rule.waitForIdle()
                 }
-                textExists("Your turn — tap a card to play") -> {
+                rule.textExists("Your turn — tap a card to play") -> {
                     // Exactly one card — the scripted one — is playable.
-                    val playable = clickableCards()
+                    val playable = rule.clickableCards()
                     if (playable.fetchSemanticsNodes().size == 1) {
                         playable[0].performScrollTo().performClick()
                         rule.waitForIdle()
@@ -244,9 +216,9 @@ class GameFlowTest {
         rule.onNodeWithTag("settingsButton").performClick()
         // The dialog body scrolls; the button rows can sit below the fold (see the sibling test).
         rule.onNodeWithTag("helpButton").performScrollTo().performClick()
-        waitForText("Rules of 500")
-        assertTrue(textExists("bower", substring = true))
-        assertTrue("scoring table must show the 10NT value", textExists("520", substring = true))
+        rule.waitForText("Rules of 500")
+        assertTrue(rule.textExists("bower", substring = true))
+        assertTrue("scoring table must show the 10NT value", rule.textExists("520", substring = true))
         rule.onNodeWithTag("rulesClose").performClick()
         rule.onNodeWithText("Done").performClick()
         rule.onNodeWithText("Play with bots").assertIsDisplayed()
@@ -263,7 +235,7 @@ class GameFlowTest {
         rule.onNodeWithTag("feedbackButton").performScrollTo().assertIsDisplayed()
         rule.onNodeWithTag("acknowledgments").performScrollTo().performClick()
         // The card artist must be credited.
-        waitForText("Byron Knoll", substring = true)
+        rule.waitForText("Byron Knoll", substring = true)
         rule.onNodeWithTag("acknowledgmentsClose").performClick()
         rule.onNodeWithText("Done").performClick()
         rule.onNodeWithText("Play with bots").assertIsDisplayed()
@@ -272,24 +244,24 @@ class GameFlowTest {
     @Test
     fun aboutDialog_reportsTheBuildAndOffersTheDetailsForCopying() {
         rule.onNodeWithTag("aboutButton").performClick()
-        waitForText("About 500")
+        rule.waitForText("About 500")
 
         // The build facts a bug report needs: this APK's version and the commit it was built from.
         // Asserted against the values BuildConfig actually holds, so stale wiring fails here.
         assertTrue(
             "the version row must show the build's version",
-            textExists(BuildConfig.VERSION_NAME, substring = true),
+            rule.textExists(BuildConfig.VERSION_NAME, substring = true),
         )
         assertTrue(
             "the commit row must show the build's commit",
-            textExists(BuildConfig.GIT_COMMIT, substring = true),
+            rule.textExists(BuildConfig.GIT_COMMIT, substring = true),
         )
-        assertTrue("the build row must name the flavor", textExists(BuildConfig.FLAVOR, substring = true))
-        assertTrue("the device/OS line must be reported", textExists("Android ", substring = true))
+        assertTrue("the build row must name the flavor", rule.textExists(BuildConfig.FLAVOR, substring = true))
+        assertTrue("the device/OS line must be reported", rule.textExists("Android ", substring = true))
 
         // Copying reaches the real clipboard, so the details can be pasted into an issue verbatim.
         rule.onNodeWithTag("aboutCopy").performScrollTo().performClick()
-        waitForText("Copied to clipboard.")
+        rule.waitForText("Copied to clipboard.")
 
         rule.onNodeWithTag("aboutClose").performClick()
         rule.onNodeWithText("Play with bots").assertIsDisplayed()
@@ -297,7 +269,7 @@ class GameFlowTest {
 
     @Test
     fun newGame_dealsTenCards_andBiddingReachesHuman() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
 
         // Passing is always legal, and the full 10-card hand is visible while bidding.
@@ -305,18 +277,18 @@ class GameFlowTest {
         assertEquals("hand should hold 10 cards during bidding", 10, cardsOnScreen())
 
         // While bidding, cards must not be tappable (no play is legal yet).
-        assertEquals(0, clickableCards().fetchSemanticsNodes().size)
+        assertEquals(0, rule.clickableCards().fetchSemanticsNodes().size)
     }
 
     @Test
     fun openMisereBid_winsContract_andKittyExchangeWorks() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
 
         // Open Misère is the top of the bid ladder — nothing can outbid it, so the human must win
         // the contract and receive the 3-card kitty.
         rule.onNodeWithTag("bid:Open Misère").performScrollTo().performClick()
-        waitForText("Discard 3 cards", substring = true)
+        rule.waitForText("Discard 3 cards", substring = true)
 
         assertEquals("hand + kitty during the exchange", 13, cardsOnScreen())
         rule.onNodeWithTag("discardButton").assertIsNotEnabled()
@@ -324,23 +296,23 @@ class GameFlowTest {
         // Select any three cards; the discard button arms only at exactly three. The hand is wider
         // than the screen, so bring each card into view first.
         repeat(3) { i ->
-            clickableCards()[i].performScrollTo().performClick()
+            rule.clickableCards()[i].performScrollTo().performClick()
             rule.waitForIdle()
         }
-        waitForText("(3/3 selected)", substring = true)
+        rule.waitForText("(3/3 selected)", substring = true)
         rule.onNodeWithTag("discardButton").assertIsEnabled().performClick()
 
         // Exchange done: back to 10 cards, the contract is ours, and in Misère the declarer's
         // partner sits out.
-        rule.waitUntil(STEP_TIMEOUT_MS) { !textExists("Discard 3 cards", substring = true) }
-        waitForText("Contract: You · Open Misère", substring = true)
-        waitForText("(sitting out)")
+        rule.waitUntil(STEP_TIMEOUT_MS) { !rule.textExists("Discard 3 cards", substring = true) }
+        rule.waitForText("Contract: You · Open Misère", substring = true)
+        rule.waitForText("(sitting out)")
         assertEquals("hand back to 10 after the exchange", 10, cardsOnScreen())
     }
 
     @Test
     fun passedContract_playsAFullHand_andScoringHappens() {
-        startGame()
+        rule.startBotGame()
         playOneHandToCompletion()
 
         // Either the next hand's bidding shows the previous result, or the ±500 threshold ended the
@@ -348,8 +320,8 @@ class GameFlowTest {
         assertTrue(
             "expected a completed hand (result dialog, last-hand line, or game-over dialog)",
             handResultShowing() ||
-                textExists("(last:", substring = true) ||
-                textExists("You win!") || textExists("You lose"),
+                rule.textExists("(last:", substring = true) ||
+                rule.textExists("You win!") || rule.textExists("You lose"),
         )
 
         // If the hand-result dialog is up, it must dismiss and reveal the next hand's bidding
@@ -357,8 +329,8 @@ class GameFlowTest {
         if (handResultShowing()) {
             rule.onNodeWithTag("handResultContinue").performClick()
             rule.waitUntil(STEP_TIMEOUT_MS) {
-                textExists("(last:", substring = true) ||
-                    textExists("You win!") || textExists("You lose")
+                rule.textExists("(last:", substring = true) ||
+                    rule.textExists("You win!") || rule.textExists("You lose")
             }
         }
     }
@@ -378,39 +350,39 @@ class GameFlowTest {
 
     @Test
     fun twoPlayerGame_reachesBidding() {
-        startGame("mode:2p")
+        rule.startBotGame("mode:2p")
         waitForBidPanel()
         assertEquals("2-player deal still gives the human 10 cards", 10, cardsOnScreen())
         // Head-to-head: no seat shares the human's team, so no partner marker anywhere.
-        assertTrue("no partner marker expected in a 2-player game", !textExists("(partner)"))
+        assertTrue("no partner marker expected in a 2-player game", !rule.textExists("(partner)"))
     }
 
     @Test
     fun sixPlayerGame_reachesBidding() {
-        startGame("mode:6p2t")
+        rule.startBotGame("mode:6p2t")
         waitForBidPanel()
         // Two teams of three: seats 2 and 4 share the human's team, so the opponents row must mark
         // exactly two partners.
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists("(partner)") }
+        rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("(partner)") }
         assertEquals("two teams of three give the human two partners", 2, textCount("(partner)"))
         assertEquals("6-player deal still gives the human 10 cards", 10, cardsOnScreen())
     }
 
     @Test
     fun threeTeamsGame_reachesBidding_withExactlyOnePartner() {
-        startGame("mode:6p3t")
+        rule.startBotGame("mode:6p3t")
         waitForBidPanel()
         // Three teams of two, partners opposite: only seat 3 shares the human's team.
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists("(partner)") }
+        rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("(partner)") }
         assertEquals("three teams of two give the human exactly one partner", 1, textCount("(partner)"))
         assertEquals("6-player deal still gives the human 10 cards", 10, cardsOnScreen())
         // The score bar lists all three teams: "Us" plus two opposing pairs joined with "&".
-        assertTrue("three-team score bar shows Us: 0", textExists("Us: 0", substring = true))
+        assertTrue("three-team score bar shows Us: 0", rule.textExists("Us: 0", substring = true))
     }
 
     @Test
     fun handSortToggle_keepsAllTenCards() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         assertEquals(10, cardsOnScreen())
         rule.onNodeWithTag("sortToggle").performClick()
@@ -420,34 +392,34 @@ class GameFlowTest {
 
     @Test
     fun menuButton_confirmsThenReturnsToHomeScreen() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithText("Menu").performClick()
-        waitForText("Leave game?")
+        rule.waitForText("Leave game?")
         rule.onNodeWithTag("confirmLeave").performClick()
         rule.onNodeWithText("Play with bots").assertIsDisplayed()
     }
 
     @Test
     fun menuCancel_staysInGame() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithText("Menu").performClick()
-        waitForText("Leave game?")
+        rule.waitForText("Leave game?")
         rule.onNodeWithText("Cancel").performClick()
-        rule.waitUntil(STEP_TIMEOUT_MS) { !textExists("Leave game?") }
-        assertTrue("cancelling the leave dialog must keep the game up", textExists("Your bid:"))
-        assertTrue("home screen must not be shown after Cancel", !textExists("Play with bots"))
+        rule.waitUntil(STEP_TIMEOUT_MS) { !rule.textExists("Leave game?") }
+        assertTrue("cancelling the leave dialog must keep the game up", rule.textExists("Your bid:"))
+        assertTrue("home screen must not be shown after Cancel", !rule.textExists("Play with bots"))
     }
 
     @Test
     fun menuThenNewGame_dealsAFreshHand() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithText("Menu").performClick()
-        waitForText("Leave game?")
+        rule.waitForText("Leave game?")
         rule.onNodeWithTag("confirmLeave").performClick()
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         assertEquals("fresh hand after restarting from the menu", 10, cardsOnScreen())
         rule.onNodeWithText("Us: 0").assertIsDisplayed()
@@ -468,19 +440,19 @@ class GameFlowTest {
         rule.onNodeWithText("Done").performClick()
 
         // …but in-game they only apply to new games, so the same dialog disables them.
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithTag("gameSettingsButton").performClick()
         rule.onNodeWithTag("misereEnabled").assertIsNotEnabled()
         rule.onNodeWithTag("noTrumpsEnabled").assertIsNotEnabled()
         rule.onNodeWithTag("holdTricks").assertIsDisplayed()
         rule.onNodeWithText("Done").performClick()
-        assertTrue("dismissing settings must return to the table", textExists("Your bid:"))
+        assertTrue("dismissing settings must return to the table", rule.textExists("Your bid:"))
     }
 
     @Test
     fun inGameSettings_holdTricksSwitch_toggles() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithTag("gameSettingsButton").performClick()
         val initiallyOn = switchIsOn("holdTricks") == true
@@ -491,42 +463,42 @@ class GameFlowTest {
         rule.onNodeWithTag("holdTricks").performClick()
         rule.waitUntil(STEP_TIMEOUT_MS) { switchIsOn("holdTricks") == initiallyOn }
         rule.onNodeWithText("Done").performClick()
-        assertTrue(textExists("Your bid:"))
+        assertTrue(rule.textExists("Your bid:"))
     }
 
     @Test
     fun inProgressGame_survivesActivityRecreation() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
 
         // Simulates rotation / theme change / process-driven recreation: the game runs in the
         // ViewModel and the in-game flag is saveable, so the table must still be showing.
         rule.activityRule.scenario.recreate()
 
-        rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Menu") }
-        assertTrue("game screen should survive recreation", textExists("Your bid:"))
+        rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("Menu") }
+        assertTrue("game screen should survive recreation", rule.textExists("Your bid:"))
         assertEquals(10, cardsOnScreen())
     }
 
     @Test
     fun discardSelection_isCappedAtKittySize() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithTag("bid:Open Misère").performScrollTo().performClick()
-        waitForText("Discard 3 cards", substring = true)
+        rule.waitForText("Discard 3 cards", substring = true)
 
         // Try to select four cards: the selection must stop at three.
         repeat(4) { i ->
-            clickableCards()[i].performScrollTo().performClick()
+            rule.clickableCards()[i].performScrollTo().performClick()
             rule.waitForIdle()
         }
-        waitForText("(3/3 selected)", substring = true)
+        rule.waitForText("(3/3 selected)", substring = true)
         rule.onNodeWithTag("discardButton").assertIsEnabled()
     }
 
     @Test
     fun whenItIsYourTurn_someCardsArePlayable_neverMoreThanHandSize() {
-        startGame()
+        rule.startBotGame()
         waitForBidPanel()
         rule.onNodeWithTag("bid:Pass").performClick()
 
@@ -536,21 +508,21 @@ class GameFlowTest {
         val deadline = System.currentTimeMillis() + 60_000
         while (checks < 3 && System.currentTimeMillis() < deadline) {
             rule.waitUntil(STEP_TIMEOUT_MS) {
-                textExists("Your turn — tap a card to play") ||
-                    textExists("Your bid:") ||
-                    textExists("(last:", substring = true) ||
-                    textExists("You win!") || textExists("You lose")
+                rule.textExists("Your turn — tap a card to play") ||
+                    rule.textExists("Your bid:") ||
+                    rule.textExists("(last:", substring = true) ||
+                    rule.textExists("You win!") || rule.textExists("You lose")
             }
             when {
-                textExists("Your turn — tap a card to play") -> {
-                    val playable = clickableCards().fetchSemanticsNodes().size
+                rule.textExists("Your turn — tap a card to play") -> {
+                    val playable = rule.clickableCards().fetchSemanticsNodes().size
                     assertTrue("at least one legal play", playable >= 1)
                     assertTrue("no more legal plays than cards held", playable <= 10)
                     checks++
-                    clickableCards()[0].performScrollTo().performClick()
+                    rule.clickableCards()[0].performScrollTo().performClick()
                     rule.waitForIdle()
                 }
-                textExists("Your bid:") -> {
+                rule.textExists("Your bid:") -> {
                     rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()
                     rule.waitForIdle()
                 }
@@ -567,7 +539,7 @@ class GameFlowTest {
      */
     @Test
     fun gameEnd_showsFinalHandBreakdown_thenScoreSheet() {
-        startGame()
+        rule.startBotGame()
         val deadline = System.currentTimeMillis() + 300_000
         while (System.currentTimeMillis() < deadline) {
             playUntilHandResultOrGameEnd()
@@ -575,16 +547,16 @@ class GameFlowTest {
                 // Every hand — including the last — shows its breakdown before anything else.
                 assertTrue(
                     "the game-over dialog must wait for the hand result to be dismissed",
-                    !textExists("You win!") && !textExists("You lose"),
+                    !rule.textExists("You win!") && !rule.textExists("You lose"),
                 )
                 rule.onNodeWithTag("handResultContinue").performClick()
                 rule.waitForIdle()
             }
-            if (textExists("You win!") || textExists("You lose")) {
+            if (rule.textExists("You win!") || rule.textExists("You lose")) {
                 // The score sheet tallies the hands played and offers the way out.
-                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Hand") }
+                rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("Hand") }
                 rule.onNodeWithTag("backToMenu").performClick()
-                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Play with bots") }
+                rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("Play with bots") }
                 return
             }
         }
@@ -594,7 +566,7 @@ class GameFlowTest {
     /** Three-team flavour of the game-end flow: the score sheet must carry all three team columns. */
     @Test
     fun threeTeamsGameEnd_scoreSheetShowsAllTeams() {
-        startGame("mode:6p3t")
+        rule.startBotGame("mode:6p3t")
         val deadline = System.currentTimeMillis() + 300_000
         while (System.currentTimeMillis() < deadline) {
             playUntilHandResultOrGameEnd()
@@ -602,15 +574,15 @@ class GameFlowTest {
                 rule.onNodeWithTag("handResultContinue").performClick()
                 rule.waitForIdle()
             }
-            if (textExists("You win!") || textExists("You lose")) {
-                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Hand") }
+            if (rule.textExists("You win!") || rule.textExists("You lose")) {
+                rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("Hand") }
                 // Every opposing team is named (stacked "A &\nB" labels) in the sheet header.
                 assertTrue(
                     "score sheet must name both opposing teams",
-                    textExists(" &\n", substring = true),
+                    rule.textExists(" &\n", substring = true),
                 )
                 rule.onNodeWithTag("backToMenu").performClick()
-                rule.waitUntil(STEP_TIMEOUT_MS) { textExists("Play with bots") }
+                rule.waitUntil(STEP_TIMEOUT_MS) { rule.textExists("Play with bots") }
                 return
             }
         }
@@ -629,38 +601,38 @@ class GameFlowTest {
     private fun playOneHandToCompletion() {
         val deadline = System.currentTimeMillis() + 120_000
         while (System.currentTimeMillis() < deadline) {
-            if (textExists("(last:", substring = true) ||
-                textExists("You win!") || textExists("You lose")
+            if (rule.textExists("(last:", substring = true) ||
+                rule.textExists("You win!") || rule.textExists("You lose")
             ) return
 
             // Wait until the UI needs the human (or the hand finishes in the background).
             rule.waitUntil(STEP_TIMEOUT_MS) {
-                textExists("Your bid:") ||
-                    textExists("Discard 3 cards", substring = true) ||
-                    textExists("Your turn — tap a card to play") ||
+                rule.textExists("Your bid:") ||
+                    rule.textExists("Discard 3 cards", substring = true) ||
+                    rule.textExists("Your turn — tap a card to play") ||
                     handResultShowing() ||
-                    textExists("(last:", substring = true) ||
-                    textExists("You win!") || textExists("You lose")
+                    rule.textExists("(last:", substring = true) ||
+                    rule.textExists("You win!") || rule.textExists("You lose")
             }
 
             when {
                 // A hand just finished — the result dialog blocks input until dismissed.
                 handResultShowing() -> return
-                textExists("Your bid:") -> {
-                    if (textExists("(last:", substring = true)) return // previous hand scored
+                rule.textExists("Your bid:") -> {
+                    if (rule.textExists("(last:", substring = true)) return // previous hand scored
                     rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()
                     rule.waitForIdle()
                 }
-                textExists("Discard 3 cards", substring = true) -> {
+                rule.textExists("Discard 3 cards", substring = true) -> {
                     repeat(3) { i ->
-                        clickableCards()[i].performScrollTo().performClick()
+                        rule.clickableCards()[i].performScrollTo().performClick()
                         rule.waitForIdle()
                     }
                     rule.onNodeWithTag("discardButton").performClick()
                     rule.waitForIdle()
                 }
-                textExists("Your turn — tap a card to play") -> {
-                    val playable = clickableCards()
+                rule.textExists("Your turn — tap a card to play") -> {
+                    val playable = rule.clickableCards()
                     if (playable.fetchSemanticsNodes().isNotEmpty()) {
                         playable[0].performScrollTo().performClick()
                         rule.waitForIdle()
@@ -680,30 +652,30 @@ class GameFlowTest {
         val deadline = System.currentTimeMillis() + 120_000
         while (System.currentTimeMillis() < deadline) {
             rule.waitUntil(STEP_TIMEOUT_MS) {
-                textExists("Your bid:") ||
-                    textExists("Discard 3 cards", substring = true) ||
-                    textExists("Your turn — tap a card to play") ||
+                rule.textExists("Your bid:") ||
+                    rule.textExists("Discard 3 cards", substring = true) ||
+                    rule.textExists("Your turn — tap a card to play") ||
                     handResultShowing() ||
-                    textExists("You win!") || textExists("You lose")
+                    rule.textExists("You win!") || rule.textExists("You lose")
             }
             when {
                 // Check dialogs first: "Your bid:" can already exist behind the result dialog.
                 handResultShowing() -> return
-                textExists("You win!") || textExists("You lose") -> return
-                textExists("Your bid:") -> {
+                rule.textExists("You win!") || rule.textExists("You lose") -> return
+                rule.textExists("Your bid:") -> {
                     rule.onNodeWithTag("bid:Pass").performScrollTo().performClick()
                     rule.waitForIdle()
                 }
-                textExists("Discard 3 cards", substring = true) -> {
+                rule.textExists("Discard 3 cards", substring = true) -> {
                     repeat(3) { i ->
-                        clickableCards()[i].performScrollTo().performClick()
+                        rule.clickableCards()[i].performScrollTo().performClick()
                         rule.waitForIdle()
                     }
                     rule.onNodeWithTag("discardButton").performClick()
                     rule.waitForIdle()
                 }
-                textExists("Your turn — tap a card to play") -> {
-                    val playable = clickableCards()
+                rule.textExists("Your turn — tap a card to play") -> {
+                    val playable = rule.clickableCards()
                     if (playable.fetchSemanticsNodes().isNotEmpty()) {
                         playable[0].performScrollTo().performClick()
                         rule.waitForIdle()
