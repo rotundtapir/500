@@ -297,7 +297,7 @@ jobs:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: io.github.rotundtapir.fivehundred
           releaseFiles: aab/*.aab
-          track: internal
+          tracks: internal
           status: completed
           whatsNewDirectory: whatsnew
 
