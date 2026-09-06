@@ -4,15 +4,20 @@ package io.github.rotundtapir.fivehundred.ui
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -97,23 +102,7 @@ fun HomeScreen(
                 .fillMaxSize()
                 .safeDrawingPadding(),
         ) {
-            OnBackgroundIconButton(
-                imageVector = SettingsIcon,
-                contentDescription = "Settings",
-                onClick = { showSettings = true },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .testTag("settingsButton"),
-            )
-
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
+            CenteredMenuColumn(Modifier.fillMaxSize()) {
                 Text("500", fontSize = 72.sp, fontWeight = FontWeight.Bold)
                 Text("Australian rules", fontSize = 16.sp)
                 Spacer(Modifier.height(32.dp))
@@ -149,6 +138,18 @@ fun HomeScreen(
                     modifier = Modifier.testTag("aboutButton"),
                 ) { Text("About") }
             }
+
+            // After the column so it draws (and takes taps) above it: the column scrolls now, and a
+            // scroller under the gear would swallow the tap.
+            OnBackgroundIconButton(
+                imageVector = SettingsIcon,
+                contentDescription = "Settings",
+                onClick = { showSettings = true },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(8.dp)
+                    .testTag("settingsButton"),
+            )
         }
     }
 
@@ -199,14 +200,7 @@ fun BotSetupScreen(
         color = MaterialTheme.colorScheme.background,
         contentColor = MaterialTheme.colorScheme.onBackground,
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .safeDrawingPadding()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
-        ) {
+        CenteredMenuColumn(Modifier.fillMaxSize().safeDrawingPadding()) {
             Text("Play with bots", fontSize = 28.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(24.dp))
 
@@ -243,6 +237,29 @@ fun BotSetupScreen(
                 modifier = Modifier.testTag("botSetupBack"),
             ) { Text("Back") }
         }
+    }
+}
+
+/**
+ * A menu's centred column of controls, scroll-safe: centred when it fits, scrollable when it
+ * doesn't (a phone in landscape is ~360dp tall — the home stack alone is taller, and without this
+ * the last entries, About among them, were clipped off the bottom with no way to reach them).
+ * The min-height pin is what keeps the content centred once a scroller's unbounded height would
+ * otherwise collapse the column to its content and park it at the top.
+ */
+@Composable
+private fun CenteredMenuColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    BoxWithConstraints(modifier) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+            content = content,
+        )
     }
 }
 

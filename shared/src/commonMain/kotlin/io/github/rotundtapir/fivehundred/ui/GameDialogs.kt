@@ -5,11 +5,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import io.github.rotundtapir.cardkit.core.Seat
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.fivehundred.engine.HandResult
@@ -62,7 +64,9 @@ internal fun HandResultDialog(
     // Keyed on the scored-hand COUNT, not the HandResult value: two consecutive hands can score
     // structurally identically (same declarer, bid and tricks), and a value key would then never
     // reset — the second dialog would never show and the acknowledgement gates would deadlock.
-    var dismissed by remember(view.handResults.size) { mutableStateOf(false) }
+    // Saveable too: a rotation used to reset it and bring a dismissed breakdown straight back —
+    // mid-match on top of a bot's turn, where the modal stalled play until dismissed again.
+    var dismissed by rememberSaveable(view.handResults.size) { mutableStateOf(false) }
     if (dismissed) return
     val dismiss = {
         dismissed = true
@@ -139,7 +143,7 @@ internal fun HandResultDialog(
                         textAlign = TextAlign.Center,
                     )
                 }
-                Column(
+                DialogBody(
                     modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -149,14 +153,15 @@ internal fun HandResultDialog(
                     teamsInOrder.forEach { team ->
                         ScoreDeltaRow(rowLabel(team), result.teamDeltas[team] ?: 0, explanation(team))
                     }
-                    Spacer(Modifier.height(4.dp))
-                    Button(
-                        onClick = dismiss,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("handResultContinue"),
-                    ) { Text("Continue") }
                 }
+                Button(
+                    onClick = dismiss,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .padding(bottom = 20.dp)
+                        .testTag("handResultContinue"),
+                ) { Text("Continue") }
             }
         }
     }
@@ -206,7 +211,12 @@ internal fun GameOverDialog(
     val handCount = view.handResults.size
     val teamCellWidth = if (view.teamCount == 2) 64.dp else 56.dp
 
-    Dialog(onDismissRequest = {}) {
+    // System back leaves the same way the button does (the sheet is the game's last screen, so
+    // there is nothing else for back to mean); a stray tap outside must not throw the sheet away.
+    Dialog(
+        onDismissRequest = onBackToMenu,
+        properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = false),
+    ) {
         Surface(
             shape = RoundedCornerShape(20.dp),
             color = MaterialTheme.colorScheme.surface,
@@ -233,7 +243,7 @@ internal fun GameOverDialog(
                         color = onHeaderColor,
                     )
                 }
-                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
+                DialogBody(modifier = Modifier.padding(horizontal = 20.dp).padding(top = 16.dp)) {
                     // Final totals, the winning team's tinted to match the banner. Paired team
                     // names stack onto two lines rather than ellipsizing in their third of the row.
                     Row(
@@ -296,11 +306,9 @@ internal fun GameOverDialog(
                         }
                     }
                     Spacer(Modifier.height(4.dp))
-                    Column(
-                        modifier = Modifier
-                            .heightIn(max = 240.dp)
-                            .verticalScroll(rememberScrollState()),
-                    ) {
+                    // The score sheet scrolls with the rest of the body (DialogBody); a nested
+                    // scroller here would fight it for the drag.
+                    Column {
                         view.handResults.forEachIndexed { i, r ->
                             Row(
                                 modifier = Modifier
@@ -341,15 +349,38 @@ internal fun GameOverDialog(
                             }
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
-                    Button(
-                        onClick = onBackToMenu,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("backToMenu"),
-                    ) { Text("Back to menu") }
                 }
+                Button(
+                    onClick = onBackToMenu,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp)
+                        .testTag("backToMenu"),
+                ) { Text("Back to menu") }
             }
         }
     }
+}
+
+/**
+ * The scrollable middle of a header / body / action dialog. It takes whatever height the dialog
+ * has left after the fixed header and the action button, and scrolls when the content is taller —
+ * so on a short window (a phone in landscape, a flip's cover) the button stays on screen instead
+ * of being clipped below it, which for the game-over sheet meant no way out but killing the app.
+ * `fill = false` keeps a short body from stretching the dialog to the full window height.
+ */
+@Composable
+private fun ColumnScope.DialogBody(
+    modifier: Modifier = Modifier,
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .weight(1f, fill = false)
+            .verticalScroll(rememberScrollState())
+            .then(modifier),
+        verticalArrangement = verticalArrangement,
+        content = content,
+    )
 }

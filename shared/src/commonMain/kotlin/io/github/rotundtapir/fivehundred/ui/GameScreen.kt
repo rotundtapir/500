@@ -134,11 +134,15 @@ fun GameScreen(
     var tutorialComplete by rememberSaveable { mutableStateOf(false) }
     // Highest hand number whose result dialog has been dismissed — the shuffle/deal animation of
     // the NEXT hand waits for this, so nothing moves behind the dialog while the player reads it.
-    var resultAckedHand by remember { mutableIntStateOf(0) }
+    // Saveable (keyed on the match): a rotation mid-hand used to reset it, which resurrected the
+    // previous hand's already-dismissed dialog and, with it up on a bot's turn, stalled the bots
+    // until the player dismissed it a second time.
+    var resultAckedHand by rememberSaveable(gameGeneration) { mutableIntStateOf(0) }
     // Whether the FINAL hand's result dialog has been dismissed. resultAckedHand can't tell: between
     // hands the dialog shows under the NEXT hand's number, so by game end it already reads current.
-    // Keyed on winner so it resets if this composable survives into another game.
-    var finalResultAcked by remember(view.winner) { mutableStateOf(false) }
+    // Keyed on winner so it resets if this composable survives into another game; saveable so a
+    // rotation over the game-over sheet doesn't drop back to the final hand's breakdown.
+    var finalResultAcked by rememberSaveable(view.winner) { mutableStateOf(false) }
 
     // Dealing animation: on each new hand (unless animations are OFF) fly card backs one at a time
     // from a centre deck to each seat's pile / the kitty in 500's 3-4-3 packet order, then flip the
