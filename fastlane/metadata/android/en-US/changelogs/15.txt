@@ -1,0 +1,4 @@
+Short-screen fixes:
+• Game-over and hand-result dialogs keep their button on screen on short windows (phones in landscape, flip covers) — no more being stuck on the final score sheet; system back leaves it too
+• Rotating mid-hand no longer brings back a hand result you already dismissed
+• Home menu, Settings and the tutorial pages scroll instead of clipping their last entries
