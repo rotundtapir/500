@@ -303,6 +303,7 @@ fun GameScreen(
                         humanSeat = view.seat,
                         timings = dealTimings(animationSpeed),
                         cardWidth = handCardWidth,
+                        exposure = HAND_EXPOSURE,
                     )
                 } else if (animationSpeed != AnimationSpeed.OFF && view.handNumber > dealtHand) {
                     // A fresh hand whose shuffle is still held behind the result dialog: keep the
