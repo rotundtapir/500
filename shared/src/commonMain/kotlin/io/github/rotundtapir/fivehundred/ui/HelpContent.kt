@@ -113,8 +113,9 @@ fun RulesDialog(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
                 "The deal",
                 "Each player receives 10 cards, dealt in packets of 3, 4, then 3. One card is " +
                     "dealt to the kitty after each packet round, making a 3-card kitty. The " +
-                    "deal rotates clockwise between hands. If every player passes the auction, " +
-                    "the hand is thrown in and the next dealer deals.",
+                    "deal rotates clockwise between hands; the white D marker on the table shows " +
+                    "who dealt. If every player passes the auction, the hand is thrown in and the " +
+                    "next dealer deals.",
             )
             RuleSection(
                 "Bidding",

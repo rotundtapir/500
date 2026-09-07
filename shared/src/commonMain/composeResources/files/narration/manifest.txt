@@ -2,7 +2,7 @@
 # engine: qwen3-tts-1.7b-customvoice, voice: Aiden, instruct: Clear and concise, explaining a new concept.
 primer-1 33cb62c74b8a1422ebc05ebd4fba5498d5436024eba9e7569ddce8eee13f2ba3
 primer-2 4a3a03f7d27dd6f1926a8b4f31b38b100cf7b4ff29a1cbe6a81a03fa03847a51
-primer-3 b4ab96e848dcae4154794915e880ad4fa4155996991c956cefe9760c8e7f5e40
+primer-3 f454ee787bd388b91fff658eda1536c1a9e8ebb6efb5f43f3bfc1e883ec8cc15
 primer-4 0b233e88a0bb28007c7e7c317905ede3035241f0b23f40b89daba08220d78230
 primer-5 a7f555e08f163f4acdef92c517b7c933edd807fb732a89be219acec585f5414a
 step-1 2167238d6f822664c55c4727a2a5da021640f1c9c132a64d369ce304cf67a478
