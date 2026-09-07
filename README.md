@@ -25,10 +25,26 @@ The two are the `play` and `foss` build flavors. The F-Droid build excludes the
 - **GitHub**: signed ad-free APKs are attached to
   [releases](https://github.com/rotundtapir/500/releases) (install directly;
   updates keep the same signature).
-- **Google Play**: internal testing (ad-supported flavor).
+- **Google Play**: in closed testing (ad-supported flavor) — **testers wanted**, see below.
 - **F-Droid**: [![F-Droid](https://img.shields.io/f-droid/v/io.github.rotundtapir.fivehundred?logo=fdroid)](https://f-droid.org/packages/io.github.rotundtapir.fivehundred/)
 
 Support development via [Liberapay](https://liberapay.com/rotund-tapir).
+
+### Help get 500 onto Google Play
+
+Google only lets a new app into production after **at least 12 people have been
+opted in to a closed test for 14 days**. The game is finished and already on
+F-Droid and the web; this is purely the paperwork, and you can help in two
+minutes:
+
+1. Send the Google account email you use on your phone to
+   <rotund_tapir@protonmail.com> with the subject "500 beta" (it is only used to
+   add you to the tester list; you can ask to be removed any time).
+2. Once added, open <https://play.google.com/apps/testing/io.github.rotundtapir.fivehundred>
+   on that account, accept, and install from Play.
+3. Keep it installed for two weeks. Playing is welcome but not required.
+
+Bugs and suggestions go to the [issue tracker](https://github.com/rotundtapir/500/issues).
 
 ### One signature everywhere
 
