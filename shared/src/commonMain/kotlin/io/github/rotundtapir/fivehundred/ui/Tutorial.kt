@@ -90,7 +90,8 @@ val tutorialPrologue: List<TutorialPage> = listOf(
             "win at least 7 of the 10 tricks, with spades as trumps.\" The highest bid becomes " +
             "the contract, and the winning bidder gets a reward: the kitty. Those are the 3 " +
             "cards left over from the deal, picked up into hand with any 3 cards discarded " +
-            "in return. " +
+            "in return. The white D marks the dealer: bidding starts on the dealer's left, and " +
+            "the deal passes one seat to the left each hand. " +
             "Make the contract and your team scores its value; fall short and you lose that " +
             "much instead, while the defending team scores 10 points for every trick it takes.",
     ),

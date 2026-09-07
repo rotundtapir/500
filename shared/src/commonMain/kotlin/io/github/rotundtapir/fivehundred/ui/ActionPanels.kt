@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
@@ -42,6 +44,8 @@ import io.github.rotundtapir.cardkit.ui.tutorial.TutorialScriptState
 import io.github.rotundtapir.cardkit.ui.tutorial.tutorialTarget
 import io.github.rotundtapir.cardkit.ui.SuitText
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.DealerButton
+import io.github.rotundtapir.cardkit.ui.felt.DealerButtonSize
 import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundOutlinedButton
 import io.github.rotundtapir.cardkit.ui.felt.feltTonalButtonColors
 import io.github.rotundtapir.cardkit.ui.felt.InkOnCardSurface
@@ -285,17 +289,27 @@ private fun HumanHand(
     cardWidth: Dp = HandCardWidth,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
-        OutlinedButton(
-            onClick = onToggleSort,
-            colors = feltTonalButtonColors(),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
-            modifier = Modifier.height(30.dp).testTag("sortToggle"),
-        ) {
-            Text(
-                if (sortHand) "Sorted ⇄" else "Deal order ⇄",
-                style = MaterialTheme.typography.labelMedium,
-            )
+        // The sort toggle's row also carries the dealer puck when the deal is ours: this row
+        // survives every layout (the panel header is the first thing the short-screen layout
+        // drops), and at 30dp it is already taller than the puck, so nothing moves between hands.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(Modifier.width(DealerButtonSize + 8.dp))
+            OutlinedButton(
+                onClick = onToggleSort,
+                colors = feltTonalButtonColors(),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)),
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 2.dp),
+                modifier = Modifier.height(30.dp).testTag("sortToggle"),
+            ) {
+                Text(
+                    if (sortHand) "Sorted ⇄" else "Deal order ⇄",
+                    style = MaterialTheme.typography.labelMedium,
+                )
+            }
+            // Width reserved whether or not we deal, so the toggle doesn't slide when the puck
+            // arrives; the puck balances it on the other side.
+            Spacer(Modifier.width(8.dp))
+            Box(Modifier.size(DealerButtonSize)) { if (view.dealer == view.seat) DealerButton() }
         }
         val hand = rememberDisplayHand(view, sortHand)
         // Every card except the fan's last is mostly covered by its right neighbour: only the left

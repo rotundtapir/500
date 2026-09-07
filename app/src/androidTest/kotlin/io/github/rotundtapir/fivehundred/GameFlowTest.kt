@@ -5,6 +5,7 @@ import android.content.Intent
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import io.github.rotundtapir.cardkit.ui.felt.DealerButtonTag
 import io.github.rotundtapir.fivehundred.engine.label
 import io.github.rotundtapir.fivehundred.ui.TutorialStep
 import io.github.rotundtapir.fivehundred.ui.tutorialSteps
@@ -641,6 +643,28 @@ class GameFlowTest {
             }
         }
         throw AssertionError("hand did not complete within 120s")
+    }
+
+    @Test
+    fun dealerPuck_marksExactlyOneSeat_andMovesWithTheDeal() {
+        rule.startBotGame()
+        waitForBidPanel()
+        fun pucks() = rule.onAllNodes(hasTestTag(DealerButtonTag), useUnmergedTree = true).fetchSemanticsNodes()
+        // One dealer, announced as such (a bare "D" would be meaningless to a screen reader).
+        assertEquals("exactly one dealer puck", 1, pucks().size)
+        rule.onNodeWithTag(DealerButtonTag, useUnmergedTree = true).assertContentDescriptionEquals("Dealer")
+        val firstHandY = pucks().single().positionInRoot.y
+
+        playOneHandToCompletion()
+        if (handResultShowing()) rule.onNodeWithTag("handResultContinue").performClick()
+        rule.waitUntil(STEP_TIMEOUT_MS) {
+            rule.textExists("(last:", substring = true) || rule.textExists("You win!") || rule.textExists("You lose")
+        }
+        if (rule.textExists("You win!") || rule.textExists("You lose")) return // one-hand game: nothing to rotate to
+
+        // Hand 2: still exactly one puck, and it has moved to another seat's row.
+        assertEquals("exactly one dealer puck in hand 2", 1, pucks().size)
+        assertTrue("the puck should move with the deal", pucks().single().positionInRoot.y != firstHandY)
     }
 
     /**

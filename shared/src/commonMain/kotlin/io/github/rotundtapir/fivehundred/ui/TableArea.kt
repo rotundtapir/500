@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,6 +54,9 @@ import io.github.rotundtapir.cardkit.ui.deal.DealAnimationState
 import io.github.rotundtapir.cardkit.ui.deal.OpponentPile
 import io.github.rotundtapir.cardkit.ui.clickableWhen
 import io.github.rotundtapir.cardkit.ui.felt.CardSurfaceWhite
+import io.github.rotundtapir.cardkit.ui.felt.DealerButton
+import io.github.rotundtapir.cardkit.ui.felt.DealerButtonSize
+import io.github.rotundtapir.cardkit.ui.felt.DealerButtonSizeCompact
 import io.github.rotundtapir.cardkit.ui.felt.OnBackgroundIconButton
 import io.github.rotundtapir.cardkit.ui.felt.OpponentTeamColors
 import io.github.rotundtapir.cardkit.ui.felt.PartnerHighlight
@@ -230,16 +234,29 @@ private fun OpponentStatus(
         // is always bold too, so it stands out even where the palette can't (e.g. mono displays).
         val isPartner = teamOf(seat, view.teamCount) == view.myTeam
         val nameColor = teamColor(view, seat)
-        Text(
-            seatLabel(view, botNames, seat),
-            style = textStyle,
-            color = nameColor,
-            fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        // The dealer puck sits beside the name. Its height is reserved on EVERY seat's row (the
+        // Row is sized to the puck), because the deal moves one seat per hand and a row that grew
+        // only for the dealer would shove the table about once a hand.
+        val puck = if (compact) DealerButtonSizeCompact else DealerButtonSize
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center,
+            modifier = Modifier.fillMaxWidth().height(puck),
+        ) {
+            Spacer(Modifier.width(puck + 4.dp))
+            Text(
+                seatLabel(view, botNames, seat),
+                style = textStyle,
+                color = nameColor,
+                fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+            )
+            // Symmetric reservation: the name stays centred whether or not this seat deals.
+            Spacer(Modifier.width(4.dp))
+            Box(Modifier.size(puck)) { if (view.dealer == seat) DealerButton(size = puck) }
+        }
         if (isPartner) {
             Text("(partner)", style = MaterialTheme.typography.labelSmall, color = nameColor)
         }
@@ -307,14 +324,25 @@ internal fun OpponentsColumn(
                 Modifier
             }
             Column(modifier = Modifier.tutorialTarget(seatAnchors, "seat:${seat.index}").then(tap)) {
-                Text(
-                    seatLabel(view, botNames, seat) + if (isPartner) " (partner)" else "",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = teamColor(view, seat),
-                    fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                // Name row sized to the compact puck for every seat, so the column's rows don't
+                // shuffle as the deal rotates (same rule as OpponentStatus).
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.height(DealerButtonSizeCompact),
+                ) {
+                    Text(
+                        seatLabel(view, botNames, seat) + if (isPartner) " (partner)" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = teamColor(view, seat),
+                        fontWeight = if (view.toAct == seat || isPartner) FontWeight.Bold else FontWeight.Normal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (view.dealer == seat) {
+                        Spacer(Modifier.width(4.dp))
+                        DealerButton(size = DealerButtonSizeCompact)
+                    }
+                }
                 SuitText(
                     if (active) {
                         "$cardCount cards · ${view.tricksWon[seat] ?: 0} tricks${seatBidSuffix(view, seat)}"
