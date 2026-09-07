@@ -267,7 +267,7 @@ private fun DiscardPanel(
 internal val HandCardWidth = 84.dp
 
 /** Fan exposure: each card advances this fraction of a card width, so only that strip is visible. */
-private const val HAND_EXPOSURE = 0.45f
+internal const val HAND_EXPOSURE = 0.45f
 
 @Composable
 private fun HumanHand(
