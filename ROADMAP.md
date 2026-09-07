@@ -22,47 +22,68 @@ Direction, not commitment — items land when they're ready. Feedback and votes:
 - **v0.4 — Advanced AI.** An opt-in Monte-Carlo search bot for stronger local
   opponents (Settings → Advanced AI; off by default, local games only), plus
   the hand-result banner naming the declarer and bid.
+- **v0.4.1 / v0.4.2 — restart-safe online games**
+  ([#16](https://github.com/rotundtapir/500/issues/16)). Room snapshots on
+  disk, so a server deploy or crash no longer drops in-flight games: everyone
+  rejoins their seat and play carries on. Billing-first startup in the Play
+  flavor, so a `remove_ads` purchase keeps the ads SDK from ever initialising
+  ([#17](https://github.com/rotundtapir/500/issues/17), code side).
+  Reproducible FOSS builds, verified in CI on every tag
+  ([#22](https://github.com/rotundtapir/500/issues/22)).
+- **v0.5 — on F-Droid**
+  ([#18](https://github.com/rotundtapir/500/issues/18)), publishing our own
+  signature. Online play grew up: a 3-minute grace before a bot covers a seat
+  you left, relaxed 30-minute turn timers, one-tap Ready, faster reconnects.
+- **v0.6 — landscape and a toolbox.** A height-adaptive game screen — a phone
+  in landscape (and the web build in a landscape window) gets a real side-column
+  layout instead of a clipped hand
+  ([#41](https://github.com/rotundtapir/500/issues/41)); the "Update required"
+  dialog names both versions and offers the right update route
+  ([#49](https://github.com/rotundtapir/500/issues/49)); a hidden cheats menu
+  for local games ([#51](https://github.com/rotundtapir/500/issues/51));
+  refreshed store screenshots ([#50](https://github.com/rotundtapir/500/issues/50));
+  a landing page at <https://29022617.xyz>
+  ([#37](https://github.com/rotundtapir/500/issues/37)). The 0.6.x patch
+  releases made every dialog's way out reachable on short windows, stopped a
+  rotation resurrecting a dismissed hand result, and moved the Play flavor to
+  Billing 8 / targetSdk 36. Play uploads are automated: an `rc/<version>-<n>`
+  tag ships the bundle to Play's internal track, the matching `v<version>` tag
+  publishes everywhere else (see `CLAUDE.md`, "Releasing").
 
 ## Towards v1.0
 
-- **Rejoin that survives a server restart**
-  ([#16](https://github.com/rotundtapir/500/issues/16)). Server state is
-  in-memory today, so a deploy or crash drops every in-flight game. Persist
-  room snapshots (the engine state is a serializable pure state machine) so
-  clients can reclaim their seats with their existing session tokens.
-
-- **Remove-ads purchase fully disables the ads SDK** (play flavor,
-  [#17](https://github.com/rotundtapir/500/issues/17)). Today the
-  purchase stops ads from loading or showing, but the Google Mobile Ads SDK is
-  still initialised after consent, so initialisation traffic still flows.
-  Resequence startup billing-first: check the `remove_ads` entitlement before
-  gathering consent or touching the SDK, so paying users' devices never talk to
-  ad servers at all. Touches the consent-before-ads and exactly-once
-  interstitial invariants in `cardkit-monetization-play` — needs careful
-  emulator verification of first-launch, purchase, and reinstall flows.
-
-- **F-Droid submission**
-  ([#18](https://github.com/rotundtapir/500/issues/18)). Get the `foss`
-  flavor listed: fdroiddata recipe, clean-checkout build verification, and
-  the inclusion review.
-
 - **Google Play production release**
-  ([#19](https://github.com/rotundtapir/500/issues/19)). From internal
-  testing to production: updated data-safety declarations for multiplayer,
-  store listing, and a closed beta with enough opted-in testers to meet
-  Google's production-access requirement.
+  ([#19](https://github.com/rotundtapir/500/issues/19)). The pipeline into
+  internal testing is automatic now; what remains is human: the store listing
+  and data-safety declarations (`docs/play-console.md`), and a closed beta with
+  enough opted-in testers to meet Google's production-access requirement.
 
-## Unscheduled ideas
+- **Real-device purchase QA for the Play flavor**
+  ([#17](https://github.com/rotundtapir/500/issues/17)). The billing-first
+  code has shipped; still owed is a Play-Store device with a license tester
+  exercising a real purchase, a reinstall restore, and a refund.
 
+- **Drop the portrait lock on Android.** The v0.6 layout handles landscape,
+  and the 0.6.x dialogs are safe in short windows, but the felt still
+  collapses to a sliver during bidding at phone-landscape heights. Fix that
+  and the `userPortrait` stopgap can go (it is already ignored on large
+  screens at targetSdk 36).
+
+## After v1.0
+
+- Drop the debug-keystore fingerprint from `assetlinks.json`
+  ([#38](https://github.com/rotundtapir/500/issues/38)).
 - A public lobby browser for online play (invite codes only today).
-- Extracting the generic online parts into `cardkit-server` /
-  `cardkit-net-client` — deferred until a second game uses cardkit, so real
-  usage shows which seams deserve extraction.
 - Further bot strength beyond the v0.4 Advanced AI: card counting / inference
   from the auction and discards, and smarter partner cooperation in the
   default heuristic bot (must stay deterministic per seed and fast on modest
   phones); Advanced AI for online bot seats.
-- More games on the shared `cardkit` base (Euchre is the natural next — the
-  bower logic already generalises).
 - Statistics / match history.
-- Tablet layout polish (`fivehundred_tablet` AVD exists for testing).
+- Tablet layout polish (`fivehundred_tablet` AVD exists for testing) — more
+  pressing now that tablets and unfolded foldables run landscape.
+
+## Done elsewhere
+
+- The generic online parts moved into cardkit (`cardkit-net`, `cardkit-server`)
+  once a second game needed them; **Euchre** is that second game, on the same
+  base.
