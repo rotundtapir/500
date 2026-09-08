@@ -133,8 +133,15 @@ class LandscapeFlowTest {
         // System back is the other way out — it used to do nothing here. Injected as a key event
         // through instrumentation: it lands in the focused window (the dialog's), whereas the
         // activity's dispatcher would bypass the dialog and Espresso's pressBack waits on a root
-        // picker that flaked on CI's slower emulator (RootViewWithoutFocusException).
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        // picker that flaked on CI's slower emulator (RootViewWithoutFocusException). The key can
+        // still arrive before the dialog window has focus on a slow runner, so press and poll,
+        // a few times — a second press on the home screen is harmless (there is nothing to exit).
+        var pressed = 0
+        while (!rule.textExists("Play with bots") && pressed < 5) {
+            InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+            pressed++
+            runCatching { rule.waitUntil(4_000) { rule.textExists("Play with bots") } }
+        }
         rule.waitForText("Play with bots")
     }
 
