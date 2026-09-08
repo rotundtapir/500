@@ -1,0 +1,5 @@
+A dealer button and smoother dealing:
+• A white D marks who dealt — beside their name, or by your sort toggle when it's your deal. The tutorial explains it
+• Dealt cards now land exactly where your hand will sit, so nothing jumps when they flip
+• Game-over and hand-result dialogs keep their buttons on screen on short screens; rotating no longer brings back a dismissed result
+• Targets Android 16
