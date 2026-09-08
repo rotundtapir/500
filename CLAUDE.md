@@ -260,13 +260,13 @@ Editing shared/infra behaviour means changing files under `cardkit/`, which is a
   which publishes the wasm build to GitHub Pages (source is set to "GitHub Actions" in repo
   settings). `dependenciesInfo` is disabled — F-Droid rejects the
   Google-encrypted blob. Release stays un-minified until a release-QA pass justifies R8.
-- **Play goes through release-candidate tags.** `rc/<version>-<n>` (e.g. `rc/0.6.4-1`) runs build,
-  android-e2e, release, verify-reproducible and then `publish-play`, which uploads the bundle to the
-  **internal** track with the fastlane changelog as the release notes — nothing else is published
-  (no GitHub release, Pages, server; F-Droid's `^v[0-9]` regex ignores it). Try the internal build,
-  then tag `v<version>` on the same commit: that publishes GitHub/F-Droid/web/server and does NOT
-  touch Play (a versionCode can only be uploaded once) — promote the internal build to production in
-  the Console. `publish-play` needs the `PLAY_SERVICE_ACCOUNT_JSON` secret — the JSON key of a Google
+- **Play upload.** A `v<version>` tag also uploads the bundle to Play's **internal** track
+  (`publish-play`, after `verify-reproducible`, fastlane changelog as the release notes); promote to
+  production in the Console. To try a build on Play *before* releasing, tag `rc/<version>-<n>`
+  (e.g. `rc/0.6.5-1`) first: it runs build, android-e2e, release, verify-reproducible and the Play
+  upload, and nothing else (no GitHub release, Pages, server; F-Droid's `^v[0-9]` regex ignores it).
+  The later `v<version>` on the SAME commit skips the upload, since Play refuses a versionCode it has
+  already seen. An rc on a different commit than the final tag needs a new versionCode. `publish-play` needs the `PLAY_SERVICE_ACCOUNT_JSON` secret — the JSON key of a Google
   Cloud service account invited in Play Console → Users and permissions with release permission for
   the app, and the Google Play Android Developer API enabled in its Cloud project. Without the secret
   the job logs a notice and skips. Set it with `gh secret set PLAY_SERVICE_ACCOUNT_JSON < key.json` —
